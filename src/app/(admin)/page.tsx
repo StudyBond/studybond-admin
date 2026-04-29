@@ -342,7 +342,7 @@ export default function AdminOverviewPage() {
             ) : pendingReports.length ? (
               <>
                 <div className="grid gap-3 p-3 md:hidden">
-                  {pendingReports.map((report) => (
+                  {pendingReports.map((report: any) => (
                     <Link
                       key={report.id}
                       href={`/reports/${report.id}`}
@@ -369,7 +369,7 @@ export default function AdminOverviewPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.04]">
-                      {pendingReports.map((report) => (
+                      {pendingReports.map((report: any) => (
                         <tr key={report.id} className="group/row relative transition-colors duration-150 hover:bg-white/[0.03]">
                           <td className="relative px-4 py-3 text-white">
                             <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent-amber)] opacity-0 transition-opacity duration-150 group-hover/row:opacity-100" />
