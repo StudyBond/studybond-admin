@@ -1,34 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StudyBond Admin
 
-## Getting Started
+Internal operations console for StudyBond.
 
-First, run the development server:
+## Current State
+
+This repo is now an implemented Next.js admin workspace, not just a scaffold.
+
+It follows the canonical architecture plan in:
+
+- `STUDYBOND_ADMIN_ARCHITECTURE.md`
+
+Current implemented areas:
+
+- admin login and session refresh through backend auth
+- HTTP-only admin access/refresh cookies
+- route protection through `src/proxy.ts`
+- dashboard, analytics, users, banned users, user-360, premium, questions, reports, audit logs, and settings routes
+- superadmin step-up UX for sensitive operations
+- question create/edit/bulk upload workflows
+- premium grant/extend/revoke workflows
+- backend proxy routes for auth, admin, questions, and admin reports
+- OpenAPI-derived API aliases from the backend generated contract
+- shared UI primitives and responsive admin navigation
+- app-level error, global-error, not-found, and loading boundaries
+
+Integration notes:
+
+- backend/OpenAPI exposes admin report moderation at `/api/admin/reports`
+- the admin reports client uses `/api/admin/reports` through the generic admin proxy
+- legacy `/api/adminReports` compatibility routes forward to `/api/admin/reports`
+- admin API aliases consume generated `openapi-types.d.ts` contracts from `studybond-backend/artifacts/openapi`
+- after backend API schema changes, run `npm run openapi:sync` in `studybond-backend` before admin typecheck/build
+
+## Core Commands
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run typecheck
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Latest local verification after the reports/OpenAPI type alignment:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run typecheck`
+- `npm run build`
 
-## Learn More
+## Environment
 
-To learn more about Next.js, take a look at the following resources:
+Copy `.env.example` to `.env.local` and set the backend base URL.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+BACKEND_API_BASE_URL=http://localhost:5000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+```

@@ -1,1 +1,204 @@
 @import "tailwindcss";
+
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --background: #0c0c0f;
+  --foreground: #e8e4de;
+  --muted-foreground: #8a8279;
+  --border: rgba(255, 255, 255, 0.06);
+  --panel: rgba(18, 18, 22, 0.78);
+  --panel-strong: rgba(12, 12, 15, 0.94);
+  --accent-cyan: #6ec4b8;
+  --accent-emerald: #7db34f;
+  --accent-amber: #c4944a;
+  --accent-rose: #b87872;
+  --mobile-bottom-nav-height: 86px;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 150ms;
+  --duration-base: 260ms;
+  --duration-slow: 480ms;
+}
+
+/* ── Base resets ────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  max-width: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  max-width: 100%;
+  overflow-x: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", "Segoe UI Variable", system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01"; /* stylistic alternates for Inter */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: inherit; text-decoration: none; }
+button, input, textarea, select { font: inherit; }
+
+::selection {
+  background: rgba(110, 196, 184, 0.24);
+  color: #fff;
+}
+
+/* ── Focus styles ──────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(110, 196, 184, 0.5);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none; /* inputs use border-color shift instead */
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ── Interactive defaults ──────────────────────────────────── */
+button {
+  cursor: pointer;
+  user-select: none;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.975);
+}
+
+/* ── Keyframes ─────────────────────────────────────────────── */
+@keyframes admin-rise {
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes admin-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes pulse-ring {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.6); }
+}
+
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0); }
+  33%      { transform: translate(4px, -6px); }
+  66%      { transform: translate(-3px, 3px); }
+}
+
+/* ── Utility classes ───────────────────────────────────────── */
+.admin-enter {
+  animation: admin-rise 500ms var(--ease-out-expo) both;
+}
+
+.admin-fade {
+  animation: admin-fade 400ms ease both;
+}
+
+.shimmer-line {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 45%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 55%,
+    transparent 100%
+  );
+  animation: shimmer-sweep 2.4s ease-in-out infinite;
+}
+
+.pulse-dot {
+  position: relative;
+}
+.pulse-dot::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+.gradient-animate {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.float-ambient {
+  animation: float-slow 16s ease-in-out infinite;
+}
+
+.admin-safe-bottom {
+  padding-bottom: 2rem;
+}
+
+.admin-mobile-bottom-nav {
+  padding-bottom: max(0.55rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 1023px) {
+  .admin-safe-bottom {
+    padding-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom) + 1rem);
+  }
+}
+
+/* ── Skeleton loading ──────────────────────────────────────── */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 75%
+  );
+  animation: shimmer-sweep 1.8s ease-in-out infinite;
+}
