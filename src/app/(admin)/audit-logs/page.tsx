@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Surface } from "@/components/ui/surface";
 import { useAdminAuditLogs } from "@/features/audit-logs/hooks/use-admin-audit-logs";
 import { formatDateTime } from "@/lib/utils/format";
+import type { AdminAuditLogEntry } from "@/lib/api/types";
 import { ChevronLeft, ChevronRight, Filter, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 
@@ -120,7 +121,7 @@ export default function AuditLogsPage() {
     action: actionFilter || undefined,
   });
 
-  const logs = data?.logs ?? [];
+  const logs: AdminAuditLogEntry[] = data?.logs ?? [];
   const meta = data?.meta;
 
   return (
