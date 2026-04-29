@@ -106,7 +106,7 @@ export default function AdminOverviewPage() {
     : [];
 
   const activityChartData = activity
-    ? activity.daily.map((item) => ({
+    ? activity.daily.map((item: any) => ({
         label: item.date.slice(5),
         exams: item.examStarts,
         collaborations: item.collaborationSessions,
