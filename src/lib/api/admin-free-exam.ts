@@ -41,6 +41,40 @@ export type FreeExamResetResponse = {
   usersAffected: number;
 };
 
+// ── Leaderboard types ──────────────────────────────────
+
+export type FreeExamLeaderboardScorer = {
+  rank: number;
+  userId: number;
+  fullName: string;
+  email: string;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  examId: number;
+  completedAt: string;
+  timeTakenSeconds: number;
+};
+
+export type FreeExamLeaderboardSubject = {
+  subject: string;
+  scorers: FreeExamLeaderboardScorer[];
+};
+
+export type FreeExamLeaderboardCycle = {
+  index: number;
+  resetAt: string;
+  label: string;
+};
+
+export type FreeExamLeaderboardResponse = {
+  cycles: FreeExamLeaderboardCycle[];
+  activeCycleIndex: number;
+  cycleStart: string;
+  cycleEnd: string | null;
+  subjects: FreeExamLeaderboardSubject[];
+};
+
 // ── API ────────────────────────────────────────────────
 
 export const adminFreeExamApi = {
@@ -68,4 +102,14 @@ export const adminFreeExamApi = {
       headers: buildSensitiveHeaders(headers),
     });
   },
+
+  getLeaderboard(cycleIndex?: number) {
+    const params = new URLSearchParams();
+    if (cycleIndex !== undefined && cycleIndex > 0) {
+      params.set("cycleIndex", String(cycleIndex));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return apiClient<FreeExamLeaderboardResponse>(`/api/admin/free-exam/leaderboard${suffix}`);
+  },
 };
+

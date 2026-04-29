@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LibraryBig,
   ShieldCheck,
+  Trophy,
   UserRoundSearch,
   Users,
   Wrench,
@@ -90,6 +91,12 @@ export const adminNavigation: AdminNavGroup[] = [
         label: "Free Exam Pool",
         icon: Gift,
         description: "Curate free exam questions",
+      },
+      {
+        href: "/questions/free-exam/leaderboard",
+        label: "Free Exam Leaderboard",
+        icon: Trophy,
+        description: "Top scorers by subject per reset cycle",
       },
       {
         href: "/premium",

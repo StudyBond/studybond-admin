@@ -15,6 +15,7 @@ import {
   ShieldOff,
   Sparkles,
   Star,
+  Trophy,
   X,
 } from "lucide-react";
 
@@ -170,13 +171,22 @@ export default function FreeExamPage() {
         title="Free exam pool"
         description="Select questions from the real bank to feature in free exams. Manage per-subject coverage and reset user credits."
         action={
-          <Link
-            href="/questions"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]"
-          >
-            <ArrowRight className="h-4 w-4" />
-            Full question bank
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              href="/questions/free-exam/leaderboard"
+              className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--accent-amber)]/20 bg-[color:var(--accent-amber)]/10 px-4 py-2.5 text-sm font-medium text-[#f2e0c4] transition hover:border-[color:var(--accent-amber)]/30 hover:bg-[color:var(--accent-amber)]/15"
+            >
+              <Trophy className="h-4 w-4" />
+              Leaderboard
+            </Link>
+            <Link
+              href="/questions"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]"
+            >
+              <ArrowRight className="h-4 w-4" />
+              Full question bank
+            </Link>
+          </div>
         }
       />
 
