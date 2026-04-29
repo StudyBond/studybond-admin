@@ -59,7 +59,7 @@ export default function AnalyticsPage() {
     : [];
 
   const activityChartData = activity
-    ? activity.daily.map((item) => ({
+    ? activity.daily.map((item: { date: string; examStarts: number; collaborationSessions: number }) => ({
         label: item.date.slice(5),
         exams: item.examStarts,
         collaborations: item.collaborationSessions,
@@ -193,7 +193,7 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/8 bg-black/10">
-                {(premium?.daily ?? []).slice(-7).map((row) => (
+                {(premium?.daily ?? []).slice(-7).map((row: { date: string; successfulPayments: number; revenueNaira: number; manualGrants: number; revocations: number }) => (
                   <tr key={row.date} className="hover:bg-white/[0.03]">
                     <td className="px-4 py-3 text-white">{row.date}</td>
                     <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
