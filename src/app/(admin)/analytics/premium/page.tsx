@@ -232,7 +232,7 @@ export default function PremiumAnalyticsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/8 bg-black/10">
-                {(premium?.daily ?? []).map((row) => (
+                {(premium?.daily ?? []).map((row: { date: string; successfulPayments: number; revenueNaira: number; manualGrants: number; revocations: number }) => (
                   <tr key={row.date} className="transition hover:bg-white/[0.03]">
                     <td className="px-4 py-3 text-white">{row.date}</td>
                     <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
