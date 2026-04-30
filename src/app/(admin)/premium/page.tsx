@@ -53,7 +53,7 @@ export default function PremiumPage() {
     }
 
     const term = search.trim().toLowerCase();
-    return rows.filter((user) => {
+    return rows.filter((user: any) => {
       return (
         user.fullName.toLowerCase().includes(term) ||
         user.email.toLowerCase().includes(term) ||
