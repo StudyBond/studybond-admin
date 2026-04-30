@@ -271,7 +271,7 @@ export function User360Screen() {
                   <div>
                     <p className="text-sm font-semibold text-white">Recent exams</p>
                     <div className="mt-3 space-y-3">
-                      {user360.recent.exams.length ? user360.recent.exams.map((exam) => (
+                      {user360.recent.exams.length ? user360.recent.exams.map((exam: any) => (
                         <div key={exam.id} className="rounded-xl border border-white/8 bg-black/10 p-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex flex-wrap items-center gap-2">
@@ -293,7 +293,7 @@ export function User360Screen() {
                     <div>
                       <p className="text-sm font-semibold text-white">Recent bookmarks</p>
                       <div className="mt-3 space-y-3">
-                        {user360.recent.bookmarks.length ? user360.recent.bookmarks.map((bookmark) => (
+                        {user360.recent.bookmarks.length ? user360.recent.bookmarks.map((bookmark: any) => (
                           <div key={bookmark.id} className="rounded-xl border border-white/8 bg-black/10 p-4">
                             <p className="text-sm font-semibold text-white">{bookmark.subject}</p>
                             <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">Question #{bookmark.questionId}</p>
@@ -306,7 +306,7 @@ export function User360Screen() {
                     <div>
                       <p className="text-sm font-semibold text-white">Recent collaboration sessions</p>
                       <div className="mt-3 space-y-3">
-                        {user360.recent.collaborationSessions.length ? user360.recent.collaborationSessions.map((session) => (
+                        {user360.recent.collaborationSessions.length ? user360.recent.collaborationSessions.map((session: any) => (
                           <div key={`${session.role}-${session.sessionId}`} className="rounded-xl border border-white/8 bg-black/10 p-4">
                             <div className="flex flex-wrap items-center gap-2">
                               <StatusBadge tone={session.role === "HOST" ? "cyan" : "amber"}>{session.role}</StatusBadge>
@@ -364,7 +364,7 @@ export function User360Screen() {
                 <textarea rows={3} value={deviceReason} onChange={(event) => setDeviceReason(event.target.value)} placeholder="Optional reason saved with a device removal..." className="mt-5 w-full rounded-xl border border-white/8 bg-black/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--muted-foreground)]/50 focus:border-[color:var(--accent-cyan)]/40" />
 
                 <div className="mt-4 space-y-3">
-                  {user360.security.registeredDevices.length ? user360.security.registeredDevices.map((device) => (
+                  {user360.security.registeredDevices.length ? user360.security.registeredDevices.map((device: any) => (
                     <div key={device.deviceId} className="rounded-xl border border-white/8 bg-black/10 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>

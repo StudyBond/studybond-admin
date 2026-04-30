@@ -48,13 +48,13 @@ export const BULK_UPLOAD_COLUMNS = [
 
 export function getQuestionTypeLabel(value: string | null | undefined) {
   return (
-    QUESTION_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value ?? "Unknown"
+    QUESTION_TYPE_OPTIONS.find((option: any) => option.value === value)?.label ?? value ?? "Unknown"
   );
 }
 
 export function getQuestionPoolLabel(value: string | null | undefined) {
   return (
-    QUESTION_POOL_OPTIONS.find((option) => option.value === value)?.label ?? value ?? "Unknown"
+    QUESTION_POOL_OPTIONS.find((option: any) => option.value === value)?.label ?? value ?? "Unknown"
   );
 }
 

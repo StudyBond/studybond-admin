@@ -186,7 +186,7 @@ export function PremiumActionPanel({
       <div
         className={`${compact ? "mt-3" : "mt-5"} grid grid-cols-3 gap-1 rounded-xl border border-white/8 bg-black/10 p-1`}
       >
-        {(["grant", "extend", "revoke"] as PremiumActionKind[]).map((value) => {
+        {(["grant", "extend", "revoke"] as PremiumActionKind[]).map((value: any) => {
           const active = actionType === value;
           const cfg = actionConfig[value];
           return (
@@ -224,7 +224,7 @@ export function PremiumActionPanel({
                 Duration
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {durationPresets.map((preset) => {
+                {durationPresets.map((preset: any) => {
                   const active = durationDays === String(preset.value);
                   return (
                     <button

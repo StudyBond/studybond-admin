@@ -31,7 +31,7 @@ export function CustomSelect({
   const [menuPlacement, setMenuPlacement] = useState<"top" | "bottom">("bottom");
   const [menuStyle, setMenuStyle] = useState<CSSProperties>();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const selectedLabel = options.find((o) => o.value === value)?.label ?? placeholder;
+  const selectedLabel = options.find((o: any) => o.value === value)?.label ?? placeholder;
 
   const updateMenuPosition = useCallback(() => {
     if (typeof window === "undefined" || !triggerRef.current) return;
@@ -119,7 +119,7 @@ export function CustomSelect({
                 )}
                 style={menuStyle}
               >
-                {options.map((option) => (
+                {options.map((option: any) => (
                   <button
                     key={option.value}
                     type="button"

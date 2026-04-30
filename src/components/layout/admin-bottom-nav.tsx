@@ -28,7 +28,7 @@ export function AdminBottomNav() {
       className="admin-mobile-bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-white/[0.05] bg-[rgba(10,10,13,0.94)] backdrop-blur-xl lg:hidden"
     >
       <div className="mx-auto flex w-full max-w-screen-md items-center justify-between gap-1 px-2 pt-2">
-        {adminMobilePrimaryNavigation.map((item) => {
+        {adminMobilePrimaryNavigation.map((item: any) => {
           const Icon = item.icon;
           const isActive = isAdminRouteActive(pathname, item.href);
           const badgeCount = resolveBadgeCount(item.mobile?.badge, pendingReports);

@@ -34,7 +34,7 @@ export function AdminSidebar({
   const initials = displayName
     .split(" ")
     .filter(Boolean)
-    .map((part) => part[0])
+    .map((part: any) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
@@ -130,7 +130,7 @@ export function AdminSidebar({
           </div>
 
           <nav className="mt-6 flex-1 space-y-6">
-            {adminNavigation.map((group) => (
+            {adminNavigation.map((group: any) => (
               <div key={group.title}>
                 <p
                   className={cn(
@@ -141,7 +141,7 @@ export function AdminSidebar({
                   {group.title}
                 </p>
                 <div className="space-y-0.5">
-                  {group.items.map((item) => {
+                  {group.items.map((item: any) => {
                     const isActive = isAdminRouteActive(pathname, item.href);
                     const Icon = item.icon;
 

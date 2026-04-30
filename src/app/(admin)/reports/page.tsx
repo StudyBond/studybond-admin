@@ -65,7 +65,7 @@ export default function ReportsPage() {
   const reportRows = useMemo(() => reportsQuery.data?.reports ?? [], [reportsQuery.data?.reports]);
 
   const resolvedSelectedReportId = useMemo(() => {
-    if (selectedReportId && reportRows.some((report) => report.id === selectedReportId)) {
+    if (selectedReportId && reportRows.some((report: any) => report.id === selectedReportId)) {
       return selectedReportId;
     }
 

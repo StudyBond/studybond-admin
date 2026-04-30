@@ -63,7 +63,7 @@ export default function PremiumPage() {
   }, [searchMode, allUsersQuery.data?.users, premiumUsersQuery.data?.users, search]);
 
   const resolvedSelectedUserId = useMemo(() => {
-    if (selectedUserId && displayedUsers.some((user) => user.id === selectedUserId)) {
+    if (selectedUserId && displayedUsers.some((user: any) => user.id === selectedUserId)) {
       return selectedUserId;
     }
 
@@ -112,7 +112,7 @@ export default function PremiumPage() {
     );
   }
 
-  const selectedUser = displayedUsers.find((user) => user.id === resolvedSelectedUserId) ?? null;
+  const selectedUser = displayedUsers.find((user: any) => user.id === resolvedSelectedUserId) ?? null;
   const insights = premiumInsightsQuery.data;
   const history = premiumHistoryQuery.data;
   const pagination = searchMode === "premium" ? premiumUsersQuery.data?.pagination : allUsersQuery.data?.pagination;
@@ -260,7 +260,7 @@ export default function PremiumPage() {
               {isLoadingUsers ? (
                 <p className="text-sm text-[color:var(--muted-foreground)]">Loading users...</p>
               ) : displayedUsers.length ? (
-                displayedUsers.map((user) => {
+                displayedUsers.map((user: any) => {
                   const selected = user.id === resolvedSelectedUserId;
                   return (
                     <button
@@ -382,7 +382,7 @@ export default function PremiumPage() {
                   <div className="mt-5">
                     <p className="text-xs font-medium text-[color:var(--muted-foreground)]">Entitlement history</p>
                     <div className="mt-3 space-y-2.5">
-                      {history.entitlements.slice(0, 3).map((entry) => (
+                      {history.entitlements.slice(0, 3).map((entry: any) => (
                         <div
                           key={entry.id}
                           className="rounded-xl border border-white/8 bg-black/10 p-3"

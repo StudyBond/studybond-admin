@@ -144,9 +144,9 @@ export function isAdminRouteActive(pathname: string, href: string) {
 }
 
 export function resolveAdminRoute(pathname: string) {
-  return adminNavigationItems.find((item) => isAdminRouteActive(pathname, item.href));
+  return adminNavigationItems.find((item: any) => isAdminRouteActive(pathname, item.href));
 }
 
 export const adminMobilePrimaryNavigation = adminNavigationItems
-  .filter((item) => item.mobile?.primary)
+  .filter((item: any) => item.mobile?.primary)
   .sort((left, right) => (left.mobile?.order ?? 99) - (right.mobile?.order ?? 99));
