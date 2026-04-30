@@ -1,4 +1,4 @@
-import type { paths } from "../../../../studybond-backend/artifacts/openapi/openapi-types";
+import type { paths } from "./generated/openapi-types";
 
 type Operation<
   Path extends keyof paths,

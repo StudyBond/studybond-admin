@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "openapi:sync": "node scripts/sync-openapi-types.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
