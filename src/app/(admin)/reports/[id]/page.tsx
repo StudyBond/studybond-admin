@@ -57,7 +57,7 @@ export default function ReportDetailPage() {
         status,
         adminNote: adminNote.trim(),
       }),
-    onSuccess: async (payload) => {
+    onSuccess: async (payload: any) => {
       toast.success(`Report marked ${payload.status.toLowerCase()}`);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "reports"] }),
@@ -76,7 +76,7 @@ export default function ReportDetailPage() {
       adminReportsApi.hardDelete(reportId, {
         reason: hardDeleteReason.trim(),
       }),
-    onSuccess: async (payload) => {
+    onSuccess: async (payload: any) => {
       toast.success(payload.message);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "reports"] }),
@@ -157,7 +157,7 @@ export default function ReportDetailPage() {
                 <StatusBadge tone={issueToneMap[report.issueType] ?? "slate"}>
                   {report.issueType.replaceAll("_", " ")}
                 </StatusBadge>
-                <StatusBadge tone={statusTone[report.status]}>{report.status}</StatusBadge>
+                <StatusBadge tone={statusTone[report.status as keyof typeof statusTone]}>{report.status}</StatusBadge>
                 {report.question.hasImage ? <StatusBadge tone="cyan">has image</StatusBadge> : null}
               </div>
 

@@ -85,7 +85,7 @@ export default function ReportsPage() {
         status,
         adminNote: currentAdminNote.trim(),
       }),
-    onSuccess: async (payload) => {
+    onSuccess: async (payload: any) => {
       toast.success(`Report marked ${payload.status.toLowerCase()}`);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "reports"] }),
@@ -104,7 +104,7 @@ export default function ReportsPage() {
       adminReportsApi.hardDelete(resolvedSelectedReportId as number, {
         reason: hardDeleteReason.trim(),
       }),
-    onSuccess: async (payload) => {
+    onSuccess: async (payload: any) => {
       toast.success(payload.message);
       setHardDeleteReason("");
       setSelectedReportId(null);

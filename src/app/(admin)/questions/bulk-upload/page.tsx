@@ -27,7 +27,7 @@ export default function BulkUploadPage() {
 
       return questionsApi.bulkUpload(file, institutionCode.trim() || undefined);
     },
-    onSuccess: async (payload) => {
+    onSuccess: async (payload: any) => {
       setResult(payload);
       if (payload.success) {
         toast.success(`Uploaded ${payload.successCount} questions`);

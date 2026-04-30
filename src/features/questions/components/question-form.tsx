@@ -477,10 +477,10 @@ export function QuestionForm({
           </div>
 
           <div className="mt-5 grid gap-4">
-            {(["A", "B", "C", "D", "E"] as const).map((letter: any) => {
-              const optionKey = `option${letter}` as const;
-              const urlKey = `option${letter}ImageUrl` as const;
-              const publicIdKey = `option${letter}ImagePublicId` as const;
+            {(["A", "B", "C", "D", "E"] as const).map((letter: "A" | "B" | "C" | "D" | "E") => {
+              const optionKey = `option${letter}` as keyof FormState;
+              const urlKey = `option${letter}ImageUrl` as keyof FormState;
+              const publicIdKey = `option${letter}ImagePublicId` as keyof FormState;
               const isOptional = letter === "E";
               const isSelected = form.correctAnswer === letter;
 

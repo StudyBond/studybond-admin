@@ -40,7 +40,7 @@ export default function SettingsPage() {
         stepUpToken: stepUp.stepUpToken,
       });
     },
-    onSuccess: async (payload) => {
+    onSuccess: async (payload: any) => {
       toast.success(`Email delivery ${payload.emailEnabled ? "enabled" : "disabled"}`);
       await queryClient.invalidateQueries({ queryKey: ["admin", "system-settings"] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "system-health"] });

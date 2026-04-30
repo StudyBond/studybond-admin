@@ -255,7 +255,7 @@ export default function FreeExamLeaderboardPage() {
           {activeSubject && activeSubject.scorers.length > 0 && (
             <div className="admin-enter grid gap-4 md:grid-cols-3" style={{ animationDelay: "380ms" }}>
               {/* Reorder for podium display: 2nd, 1st, 3rd */}
-              {[1, 0, 2].map((podiumIdx: any) => {
+              {[1, 0, 2].map((podiumIdx: number) => {
                 const scorer = activeSubject.scorers[podiumIdx];
                 if (!scorer) return <div key={podiumIdx} />;
 
