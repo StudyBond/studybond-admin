@@ -16,7 +16,6 @@ import {
   formatDateTime,
   formatInteger,
 } from "@/lib/utils/format";
-import type { AdminReportsListResponse } from "@/lib/api/types";
 import {
   AlertTriangle,
   ArrowRight,
@@ -74,7 +73,7 @@ export default function AdminOverviewPage() {
   const overview = overviewQuery.data;
   const activity = activityQuery.data;
   const systemHealth = systemHealthQuery.data;
-  const pendingReports = (pendingReportsQuery.data as AdminReportsListResponse | undefined)?.reports ?? [];
+  const pendingReports = pendingReportsQuery.data?.reports ?? [];
 
   const metrics = overview
     ? [
