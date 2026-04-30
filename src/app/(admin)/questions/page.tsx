@@ -92,7 +92,7 @@ export default function QuestionsPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric, index) =>
+        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric: any, index: number) =>
           metric ? (
             <MetricCard key={metric.label} {...metric} className="admin-enter" style={{ animationDelay: `${index * 80}ms` }} />
           ) : (
@@ -135,7 +135,7 @@ export default function QuestionsPage() {
       <Surface className="overflow-hidden p-0">
         {questionsQuery.isLoading ? (
           <div className="space-y-2 px-5 py-6">
-            {Array.from({ length: 6 }).map((_, index) => (
+            {Array.from({ length: 6 }).map((_: any, index: number) => (
               <div key={index} className="skeleton h-20 rounded-xl" />
             ))}
           </div>

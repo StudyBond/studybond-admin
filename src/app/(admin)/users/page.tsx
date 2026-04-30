@@ -57,7 +57,7 @@ export default function UsersPage() {
       <Surface className="overflow-hidden p-0">
         {isLoading ? (
           <div className="space-y-2 px-5 py-6">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 5 }).map((_: any, i: number) => (
               <div key={i} className="skeleton h-12 rounded-lg" style={{ animationDelay: `${i * 100}ms` }} />
             ))}
           </div>

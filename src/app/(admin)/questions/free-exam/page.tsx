@@ -95,7 +95,7 @@ export default function FreeExamPage() {
 
   // ── Metrics
   const totalFeatured = useMemo(
-    () => coverage.reduce((sum, s) => sum + s.featuredCount, 0),
+    () => coverage.reduce((sum: number, s: any) => sum + s.featuredCount, 0),
     [coverage],
   );
   const subjectsCovered = coverage.length;
@@ -315,7 +315,7 @@ export default function FreeExamPage() {
       <Surface className="overflow-hidden p-0">
         {questionsQuery.isLoading ? (
           <div className="space-y-2 px-5 py-6">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 6 }).map((_: any, i: number) => (
               <div key={i} className="skeleton h-16 rounded-xl" />
             ))}
           </div>
@@ -480,7 +480,7 @@ export default function FreeExamPage() {
 
         {coverageQuery.isLoading ? (
           <div className="mt-5 space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_: any, i: number) => (
               <div key={i} className="skeleton h-14 rounded-xl" />
             ))}
           </div>

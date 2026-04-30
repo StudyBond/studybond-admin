@@ -204,7 +204,7 @@ export default function FreeExamLeaderboardPage() {
       {isLoading && (
         <Surface className="p-6">
           <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 5 }).map((_: any, i: number) => (
               <div key={i} className="skeleton h-16 rounded-xl" />
             ))}
           </div>
@@ -229,7 +229,7 @@ export default function FreeExamLeaderboardPage() {
         <>
           {/* Subject tab bar */}
           <div className="admin-enter flex gap-2 overflow-x-auto pb-1 scrollbar-thin" style={{ animationDelay: "300ms" }}>
-            {subjects.map((s, idx) => (
+            {subjects.map((s: any, idx: number) => (
               <button
                 key={s.subject}
                 type="button"

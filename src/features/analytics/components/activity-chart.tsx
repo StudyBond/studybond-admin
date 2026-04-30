@@ -111,7 +111,7 @@ export function ActivityChart({
         <>
           <div className="mt-6 rounded-[24px] border border-white/8 bg-black/10 p-4 md:hidden">
             <div className="grid h-[11.5rem] grid-cols-7 items-end gap-1.5">
-              {data.map((item, index) => {
+              {data.map((item: any, index: number) => {
                 const examHeight = getBarHeight(item.exams, maxValue, 8);
                 const collaborationHeight = getBarHeight(item.collaborations, maxValue, 8);
                 const isSelected = index === selectedIndex;
@@ -213,7 +213,7 @@ export function ActivityChart({
           </div>
 
           <div className="mt-8 hidden grid-cols-7 gap-3 md:grid">
-            {data.map((item, index) => {
+            {data.map((item: any, index: number) => {
               const examHeight = getBarHeight(item.exams, maxValue, 12);
               const collaborationHeight = getBarHeight(item.collaborations, maxValue, 12);
 

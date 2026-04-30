@@ -149,4 +149,4 @@ export function resolveAdminRoute(pathname: string) {
 
 export const adminMobilePrimaryNavigation = adminNavigationItems
   .filter((item: any) => item.mobile?.primary)
-  .sort((left, right) => (left.mobile?.order ?? 99) - (right.mobile?.order ?? 99));
+  .sort((left: any, right: any) => (left.mobile?.order ?? 99) - (right.mobile?.order ?? 99));

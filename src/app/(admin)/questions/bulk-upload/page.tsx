@@ -182,7 +182,7 @@ export default function BulkUploadPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/8 bg-black/10">
-                        {result.errors.map((error, index) => (
+                        {result.errors.map((error: any, index: number) => (
                           <tr key={`${error.row}-${error.field}-${index}`}>
                             <td className="px-4 py-3 text-white">{error.row}</td>
                             <td className="px-4 py-3 text-[color:var(--muted-foreground)]">{error.field}</td>

@@ -245,7 +245,7 @@ export default function AdminOverviewPage() {
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric, index) =>
+        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric: any, index: number) =>
           metric ? (
             <MetricCard key={metric.label} {...metric} className="admin-enter" style={{ animationDelay: `${index * 80}ms` }} />
           ) : (
@@ -273,7 +273,7 @@ export default function AdminOverviewPage() {
           </div>
 
           <div className="mt-5 space-y-2.5">
-            {priorityItems.map((item, index) => (
+            {priorityItems.map((item: any, index: number) => (
               <Link
                 key={`${item.title}-${index}`}
                 href={item.href}
@@ -468,7 +468,7 @@ export default function AdminOverviewPage() {
             </div>
 
             <div className="mt-5 space-y-3">
-              {contentMix.map((item, index) => {
+              {contentMix.map((item: any, index: number) => {
                 const width = totalContent > 0 ? Math.max(6, (item.value / totalContent) * 100) : 0;
                 return (
                   <div
@@ -509,7 +509,7 @@ export default function AdminOverviewPage() {
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {quickActions.map((action, index) => {
+          {quickActions.map((action: any, index: number) => {
             const Icon = action.icon;
             return (
               <Link

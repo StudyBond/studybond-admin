@@ -212,7 +212,7 @@ export default function ReportsPage() {
             <div className="mt-5 grid gap-2.5">
               {reportsQuery.isLoading ? (
                 <div className="space-y-2">
-                  {Array.from({ length: 4 }).map((_, i) => (
+                  {Array.from({ length: 4 }).map((_: any, i: number) => (
                     <div key={i} className="skeleton h-28 rounded-xl" style={{ animationDelay: `${i * 100}ms` }} />
                   ))}
                 </div>

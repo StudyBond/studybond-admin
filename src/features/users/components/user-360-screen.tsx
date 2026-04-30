@@ -209,7 +209,7 @@ export function User360Screen() {
       {user360 ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {metrics.map((metric, index) => (
+            {metrics.map((metric: any, index: number) => (
               <MetricCard key={metric.label} {...metric} className="admin-enter" style={{ animationDelay: `${index * 80}ms` }} />
             ))}
           </div>
@@ -448,7 +448,7 @@ export function User360Screen() {
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  {user360.security.recentAdminActions.length ? user360.security.recentAdminActions.map((action, index) => (
+                  {user360.security.recentAdminActions.length ? user360.security.recentAdminActions.map((action: any, index: number) => (
                     <div key={`${action.action}-${index}`} className="rounded-xl border border-white/8 bg-black/10 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <StatusBadge tone="slate">{action.action.replaceAll("_", " ")}</StatusBadge>
@@ -460,7 +460,7 @@ export function User360Screen() {
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  {user360.security.recentAuditEvents.length ? user360.security.recentAuditEvents.map((event, index) => (
+                  {user360.security.recentAuditEvents.length ? user360.security.recentAuditEvents.map((event: any, index: number) => (
                     <div key={`${event.action}-${index}`} className="rounded-xl border border-white/8 bg-black/10 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <StatusBadge tone="cyan">{event.action.replaceAll("_", " ")}</StatusBadge>

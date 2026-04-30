@@ -121,7 +121,7 @@ export default function PremiumAnalyticsPage() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric, index) =>
+        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric: any, index: number) =>
           metric ? (
             <MetricCard key={metric.label} {...metric} className="admin-enter" style={{ animationDelay: `${index * 80}ms` }} />
           ) : (
