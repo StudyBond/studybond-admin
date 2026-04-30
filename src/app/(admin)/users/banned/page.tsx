@@ -69,7 +69,7 @@ export default function BannedUsersPage() {
         ) : (
           <>
             <div className="grid gap-3 p-3 md:hidden">
-              {users.map((row) => (
+              {users.map((row: any) => (
                 <Link
                   key={row.id}
                   href={`/users/${row.id}`}
@@ -104,7 +104,7 @@ export default function BannedUsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/8 bg-black/10">
-                  {users.map((row) => (
+                  {users.map((row: any) => (
                     <tr key={row.id} className="transition hover:bg-white/[0.03]">
                       <td className="px-5 py-3.5">
                         <Link href={`/users/${row.id}`} className="block">

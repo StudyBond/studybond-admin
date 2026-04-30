@@ -250,7 +250,7 @@ export default function UserPremiumPage() {
 
               {history.entitlements.length ? (
                 <div className="mt-5 space-y-3">
-                  {history.entitlements.map((entry) => (
+                  {history.entitlements.map((entry: any) => (
                     <div key={entry.id} className="rounded-xl border border-white/8 bg-black/10 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">

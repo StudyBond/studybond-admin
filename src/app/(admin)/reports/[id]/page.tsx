@@ -167,7 +167,7 @@ export default function ReportDetailPage() {
               </p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {reportMeta.map((item) => (
+                {reportMeta.map((item: any) => (
                   <div key={item.label} className="rounded-xl border border-white/8 bg-black/10 p-4">
                     <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
                       {item.label}

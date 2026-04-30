@@ -137,7 +137,7 @@ export default function AuditLogsPage() {
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-[color:var(--muted-foreground)]" />
             <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {actionFilters.map((filter) => (
+              {actionFilters.map((filter: any) => (
                 <button
                   key={filter.label}
                   type="button"
@@ -176,7 +176,7 @@ export default function AuditLogsPage() {
         ) : (
           <>
             <div className="grid gap-3 p-3 md:hidden">
-              {logs.map((log) => (
+              {logs.map((log: any) => (
                 <div key={log.id} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <StatusBadge tone={actionTones[log.action] ?? "slate"}>
@@ -220,7 +220,7 @@ export default function AuditLogsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/8 bg-black/10">
-                  {logs.map((log) => (
+                  {logs.map((log: any) => (
                     <tr key={log.id} className="transition hover:bg-white/[0.03]">
                       <td className="whitespace-nowrap px-5 py-3.5 text-[color:var(--muted-foreground)]">
                         {formatDateTime(log.createdAt)}

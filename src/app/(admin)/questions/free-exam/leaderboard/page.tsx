@@ -97,7 +97,7 @@ export default function FreeExamLeaderboardPage() {
 
   // Cycle selector options
   const cycleOptions = useMemo(() =>
-    cycles.map((c) => ({
+    cycles.map((c: any) => ({
       value: String(c.index),
       label: c.label,
     })),
@@ -255,7 +255,7 @@ export default function FreeExamLeaderboardPage() {
           {activeSubject && activeSubject.scorers.length > 0 && (
             <div className="admin-enter grid gap-4 md:grid-cols-3" style={{ animationDelay: "380ms" }}>
               {/* Reorder for podium display: 2nd, 1st, 3rd */}
-              {[1, 0, 2].map((podiumIdx) => {
+              {[1, 0, 2].map((podiumIdx: any) => {
                 const scorer = activeSubject.scorers[podiumIdx];
                 if (!scorer) return <div key={podiumIdx} />;
 
@@ -349,7 +349,7 @@ export default function FreeExamLeaderboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/8 bg-black/10">
-                    {activeSubject.scorers.map((scorer) => {
+                    {activeSubject.scorers.map((scorer: any) => {
                       const colors = medalColor(scorer.rank);
                       return (
                         <tr
@@ -406,7 +406,7 @@ export default function FreeExamLeaderboardPage() {
 
               {/* Mobile cards */}
               <div className="grid gap-3 p-3 md:hidden">
-                {activeSubject.scorers.map((scorer) => {
+                {activeSubject.scorers.map((scorer: any) => {
                   const colors = medalColor(scorer.rank);
                   return (
                     <div

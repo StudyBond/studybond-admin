@@ -172,7 +172,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {filterPills.map((pill) => (
+              {filterPills.map((pill: any) => (
                 <button
                   key={pill.label}
                   type="button"
@@ -186,7 +186,7 @@ export default function ReportsPage() {
                   {pill.label}
                 </button>
               ))}
-              {REPORT_ISSUE_TYPES.map((value) => (
+              {REPORT_ISSUE_TYPES.map((value: any) => (
                 <button
                   key={value}
                   type="button"
@@ -217,7 +217,7 @@ export default function ReportsPage() {
                   ))}
                 </div>
               ) : reportRows.length ? (
-                reportRows.map((report) => {
+                reportRows.map((report: any) => {
                   const isSelected = report.id === resolvedSelectedReportId;
                   return (
                     <button
@@ -246,7 +246,7 @@ export default function ReportsPage() {
                           <StatusBadge tone={issueToneMap[report.issueType] ?? "slate"}>
                             {report.issueType.replaceAll("_", " ")}
                           </StatusBadge>
-                          <StatusBadge tone={statusTone[report.status]}>{report.status}</StatusBadge>
+                          <StatusBadge tone={statusTone[report.status as keyof typeof statusTone]}>{report.status}</StatusBadge>
                         </div>
                       </div>
                       <p className="mt-3 line-clamp-2 text-sm text-[color:var(--muted-foreground)]">

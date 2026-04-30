@@ -99,7 +99,7 @@ export default function FreeExamPage() {
     [coverage],
   );
   const subjectsCovered = coverage.length;
-  const subjectsFull = coverage.filter((s) => s.isFull).length;
+  const subjectsFull = coverage.filter((s: any) => s.isFull).length;
 
   // ── Selection handlers
   const toggleSelect = useCallback((id: number) => {
@@ -486,7 +486,7 @@ export default function FreeExamPage() {
           </div>
         ) : coverage.length ? (
           <div className="mt-5 space-y-2.5">
-            {coverage.map((s) => {
+            {coverage.map((s: any) => {
               const pct = coveragePercent(s.featuredCount, s.cap);
               const tone = coverageTone(s.featuredCount / s.cap);
               return (

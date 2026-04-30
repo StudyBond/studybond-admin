@@ -142,7 +142,7 @@ export default function QuestionsPage() {
         ) : questions.length ? (
           <>
             <div className="grid gap-3 p-3 md:hidden">
-              {questions.map((question) => (
+              {questions.map((question: any) => (
                 <Link
                   key={question.id}
                   href={`/questions/${question.id}`}
@@ -188,7 +188,7 @@ export default function QuestionsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/8 bg-black/10">
-                  {questions.map((question) => (
+                  {questions.map((question: any) => (
                     <tr key={question.id} className="group/row transition hover:bg-white/[0.03]">
                       <td className="px-5 py-4">
                         <Link href={`/questions/${question.id}`} className="block">

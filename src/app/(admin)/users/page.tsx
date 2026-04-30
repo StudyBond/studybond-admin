@@ -68,7 +68,7 @@ export default function UsersPage() {
         ) : (
           <>
             <div className="grid gap-3 p-3 md:hidden">
-              {users.map((row) => (
+              {users.map((row: any) => (
                 <Link
                   key={row.id}
                   href={`/users/${row.id}`}
@@ -118,7 +118,7 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
-                  {users.map((row) => (
+                  {users.map((row: any) => (
                     <tr key={row.id} className="group/row relative transition-colors duration-150 hover:bg-white/[0.03]">
                       <td className="relative px-5 py-3.5">
                         <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent-cyan)] opacity-0 transition-opacity duration-150 group-hover/row:opacity-100" />

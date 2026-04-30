@@ -131,7 +131,7 @@ export default function BulkUploadPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {BULK_UPLOAD_COLUMNS.map((column) => (
+              {BULK_UPLOAD_COLUMNS.map((column: any) => (
                 <StatusBadge key={column} tone="slate">{column}</StatusBadge>
               ))}
             </div>
@@ -196,7 +196,7 @@ export default function BulkUploadPage() {
 
                 {result.createdIds.length ? (
                   <div className="flex flex-wrap gap-2">
-                    {result.createdIds.slice(0, 12).map((id) => (
+                    {result.createdIds.slice(0, 12).map((id: any) => (
                       <Link key={id} href={`/questions/${id}`} className="inline-flex items-center gap-2 rounded-lg border border-white/8 bg-black/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:border-white/14 hover:bg-white/[0.04]">
                         #{id}
                       </Link>
