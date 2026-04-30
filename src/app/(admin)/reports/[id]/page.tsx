@@ -42,7 +42,7 @@ export default function ReportDetailPage() {
   const queryClient = useQueryClient();
   const { data: session } = useAdminSession();
   const reportQuery = useAdminReport(Number.isFinite(reportId) ? reportId : undefined);
-  const report = reportQuery.data;
+  const report = reportQuery.data as any;
 
   const [adminNote, setAdminNote] = useState("");
   const [hardDeleteReason, setHardDeleteReason] = useState("");
