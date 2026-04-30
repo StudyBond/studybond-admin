@@ -1,11 +1,15 @@
 import { apiClient } from "@/lib/api/client";
 import type {
+  AdminReport,
   AdminReportDeleteEnvelope,
+  AdminReportDeleteResult,
   AdminReportEnvelope,
   AdminReportHardDeletePayload,
   AdminReportsListParams,
   AdminReportsListEnvelope,
+  AdminReportsListResponse,
   AdminReportStatusEnvelope,
+  AdminReportStatusResult,
   AdminReportStatusPayload,
 } from "@/lib/api/types";
 
@@ -14,7 +18,7 @@ function unwrapEnvelope<T>(promise: Promise<{ data: T }>) {
 }
 
 export const adminReportsApi = {
-  list(params?: AdminReportsListParams) {
+  list(params?: AdminReportsListParams): Promise<AdminReportsListResponse> {
     const search = new URLSearchParams();
 
     if (params?.page) search.set("page", String(params.page));
@@ -30,7 +34,7 @@ export const adminReportsApi = {
       apiClient<AdminReportsListEnvelope>(`/api/admin/reports${suffix}`),
     );
   },
-  getById(reportId: number) {
+  getById(reportId: number): Promise<AdminReport> {
     return unwrapEnvelope(
       apiClient<AdminReportEnvelope>(`/api/admin/reports/${reportId}`),
     );
@@ -38,7 +42,7 @@ export const adminReportsApi = {
   updateStatus(
     reportId: number,
     payload: AdminReportStatusPayload,
-  ) {
+  ): Promise<AdminReportStatusResult> {
     return unwrapEnvelope(
       apiClient<AdminReportStatusEnvelope>(`/api/admin/reports/${reportId}/status`, {
         method: "PATCH",
@@ -46,7 +50,10 @@ export const adminReportsApi = {
       }),
     );
   },
-  hardDelete(reportId: number, payload: AdminReportHardDeletePayload) {
+  hardDelete(
+    reportId: number,
+    payload: AdminReportHardDeletePayload,
+  ): Promise<AdminReportDeleteResult> {
     return unwrapEnvelope(
       apiClient<AdminReportDeleteEnvelope>(
         `/api/admin/reports/${reportId}/hard-delete`,

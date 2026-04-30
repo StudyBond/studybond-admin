@@ -8,6 +8,7 @@ import { Surface } from "@/components/ui/surface";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminReport } from "@/features/reports/hooks/use-admin-report";
 import { adminReportsApi } from "@/lib/api/admin-reports";
+import type { AdminReport } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/utils/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -42,7 +43,7 @@ export default function ReportDetailPage() {
   const queryClient = useQueryClient();
   const { data: session } = useAdminSession();
   const reportQuery = useAdminReport(Number.isFinite(reportId) ? reportId : undefined);
-  const report = reportQuery.data as any;
+  const report: AdminReport | undefined = reportQuery.data;
 
   const [adminNote, setAdminNote] = useState("");
   const [hardDeleteReason, setHardDeleteReason] = useState("");

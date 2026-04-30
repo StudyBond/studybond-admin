@@ -9,7 +9,11 @@ import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminReport } from "@/features/reports/hooks/use-admin-report";
 import { useAdminReports } from "@/features/reports/hooks/use-admin-reports";
 import { adminReportsApi } from "@/lib/api/admin-reports";
-import type { AdminReportsListParams } from "@/lib/api/types";
+import type {
+  AdminReport,
+  AdminReportListItem,
+  AdminReportsListParams,
+} from "@/lib/api/types";
 import { formatDateTime, formatInteger } from "@/lib/utils/format";
 import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,10 +66,13 @@ export default function ReportsPage() {
     subject: debouncedSubject || undefined,
   });
 
-  const reportRows = useMemo(() => (reportsQuery.data as any)?.reports ?? [], [reportsQuery.data]);
+  const reportRows = useMemo<AdminReportListItem[]>(
+    () => reportsQuery.data?.reports ?? [],
+    [reportsQuery.data],
+  );
 
   const resolvedSelectedReportId = useMemo(() => {
-    if (selectedReportId && reportRows.some((report: any) => report.id === selectedReportId)) {
+    if (selectedReportId && reportRows.some((report) => report.id === selectedReportId)) {
       return selectedReportId;
     }
 
@@ -73,7 +80,7 @@ export default function ReportsPage() {
   }, [reportRows, selectedReportId]);
 
   const detailQuery = useAdminReport(resolvedSelectedReportId ?? undefined);
-  const selectedReport = detailQuery.data;
+  const selectedReport: AdminReport | undefined = detailQuery.data;
   const currentAdminNote =
     (resolvedSelectedReportId ? adminNote[resolvedSelectedReportId] : undefined) ??
     selectedReport?.adminNote ??
@@ -127,7 +134,7 @@ export default function ReportsPage() {
     },
   });
 
-  const summary = (reportsQuery.data as any)?.summary;
+  const summary = reportsQuery.data?.summary;
   const filterPills = useMemo<Array<{ label: string; value: ReportStatusFilter }>>(
     () => [
       { label: "All", value: "" },
@@ -206,7 +213,7 @@ export default function ReportsPage() {
           <Surface className="p-6">
             <div className="flex items-center justify-between gap-4">
               <h3 className="text-lg font-semibold text-white">Report queue</h3>
-              <StatusBadge tone="slate">{(reportsQuery.data as any)?.pagination?.total ?? 0} items</StatusBadge>
+              <StatusBadge tone="slate">{reportsQuery.data?.pagination?.total ?? 0} items</StatusBadge>
             </div>
 
             <div className="mt-5 grid gap-2.5">
@@ -217,7 +224,7 @@ export default function ReportsPage() {
                   ))}
                 </div>
               ) : reportRows.length ? (
-                reportRows.map((report: any) => {
+                reportRows.map((report) => {
                   const isSelected = report.id === resolvedSelectedReportId;
                   return (
                     <button
@@ -275,7 +282,7 @@ export default function ReportsPage() {
                   <StatusBadge tone={issueToneMap[selectedReport.issueType] ?? "slate"}>
                     {selectedReport.issueType.replaceAll("_", " ")}
                   </StatusBadge>
-                  <StatusBadge tone={statusTone[selectedReport.status]}>{selectedReport.status}</StatusBadge>
+                  <StatusBadge tone={statusTone[selectedReport.status as keyof typeof statusTone]}>{selectedReport.status}</StatusBadge>
                 </div>
                 <h3 className="mt-3 text-xl font-semibold text-white">{selectedReport.question.subject}</h3>
                 <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">

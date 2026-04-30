@@ -1,13 +1,13 @@
 "use client";
 
 import { adminReportsApi } from "@/lib/api/admin-reports";
-import type { AdminReportsListParams } from "@/lib/api/types";
+import type { AdminReportsListParams, AdminReportsListResponse } from "@/lib/api/types";
 import { useQuery } from "@tanstack/react-query";
 
 export type AdminReportsFilters = AdminReportsListParams;
 
 export function useAdminReports(filters: AdminReportsFilters) {
-  return useQuery({
+  return useQuery<AdminReportsListResponse>({
     queryKey: [
       "admin",
       "reports",

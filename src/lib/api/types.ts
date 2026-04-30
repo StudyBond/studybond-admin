@@ -181,7 +181,10 @@ export type AdminReportDeleteEnvelope = JsonResponse<
   200
 >;
 export type AdminReportsListResponse = EnvelopeData<AdminReportsListEnvelope>;
+export type AdminReportListItem = AdminReportsListResponse["reports"][number];
 export type AdminReport = EnvelopeData<AdminReportEnvelope>;
+export type AdminReportStatusResult = EnvelopeData<AdminReportStatusEnvelope>;
+export type AdminReportDeleteResult = EnvelopeData<AdminReportDeleteEnvelope>;
 
 export type AdminAuditLogsResponse = JsonResponse<"/api/admin/audit-logs", "get", 200>;
 export type AdminAuditLogEntry = AdminAuditLogsResponse["logs"][number];
