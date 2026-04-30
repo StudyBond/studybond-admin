@@ -62,7 +62,7 @@ export default function ReportsPage() {
     subject: debouncedSubject || undefined,
   });
 
-  const reportRows = useMemo(() => reportsQuery.data?.reports ?? [], [reportsQuery.data?.reports]);
+  const reportRows = useMemo(() => (reportsQuery.data as any)?.reports ?? [], [reportsQuery.data]);
 
   const resolvedSelectedReportId = useMemo(() => {
     if (selectedReportId && reportRows.some((report: any) => report.id === selectedReportId)) {
@@ -127,7 +127,7 @@ export default function ReportsPage() {
     },
   });
 
-  const summary = reportsQuery.data?.summary;
+  const summary = (reportsQuery.data as any)?.summary;
   const filterPills = useMemo<Array<{ label: string; value: ReportStatusFilter }>>(
     () => [
       { label: "All", value: "" },
@@ -206,7 +206,7 @@ export default function ReportsPage() {
           <Surface className="p-6">
             <div className="flex items-center justify-between gap-4">
               <h3 className="text-lg font-semibold text-white">Report queue</h3>
-              <StatusBadge tone="slate">{reportsQuery.data?.pagination.total ?? 0} items</StatusBadge>
+              <StatusBadge tone="slate">{(reportsQuery.data as any)?.pagination?.total ?? 0} items</StatusBadge>
             </div>
 
             <div className="mt-5 grid gap-2.5">
