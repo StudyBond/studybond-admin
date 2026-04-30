@@ -29,8 +29,8 @@ Integration notes:
 - backend/OpenAPI exposes admin report moderation at `/api/admin/reports`
 - the admin reports client uses `/api/admin/reports` through the generic admin proxy
 - legacy `/api/adminReports` compatibility routes forward to `/api/admin/reports`
-- admin API aliases consume generated `openapi-types.d.ts` contracts from `studybond-backend/artifacts/openapi`
-- after backend API schema changes, run `npm run openapi:sync` in `studybond-backend` before admin typecheck/build
+- admin API aliases consume the vendored generated contract at `src/lib/api/generated/openapi-types.d.ts`
+- after backend API schema changes, run `npm run openapi:sync` in `studybond-admin` before admin typecheck/build
 
 ## Core Commands
 
@@ -54,4 +54,17 @@ Copy `.env.example` to `.env.local` and set the backend base URL.
 ```bash
 BACKEND_API_BASE_URL=http://localhost:5000
 NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+NEXT_PUBLIC_WEB_URL=https://studybond.app
 ```
+
+## Production Wiring
+
+Set these in Vercel for `studybond-admin`:
+
+```bash
+BACKEND_API_BASE_URL=https://your-railway-backend.up.railway.app
+NEXT_PUBLIC_API_BASE_URL=https://your-railway-backend.up.railway.app
+NEXT_PUBLIC_WEB_URL=https://your-web-domain.vercel.app
+```
+
+`BACKEND_API_BASE_URL` is the critical one. The admin app proxies all browser `/api/*` calls through its own Next.js routes and those routes forward to this backend URL.
