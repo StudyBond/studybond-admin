@@ -179,7 +179,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {filterPills.map((pill: any) => (
+              {filterPills.map((pill) => (
                 <button
                   key={pill.label}
                   type="button"
@@ -193,11 +193,13 @@ export default function ReportsPage() {
                   {pill.label}
                 </button>
               ))}
-              {REPORT_ISSUE_TYPES.map((value: any) => (
+              {REPORT_ISSUE_TYPES.map((value) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setIssueTypeFilter((current) => (current === value ? "" : value))}
+                  onClick={() =>
+                    setIssueTypeFilter(issueTypeFilter === value ? "" : value)
+                  }
                   className={`rounded-lg border px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] transition-all duration-200 ${
                     issueTypeFilter === value
                       ? "border-[color:var(--accent-amber)]/30 bg-[color:var(--accent-amber)]/10 text-white"
