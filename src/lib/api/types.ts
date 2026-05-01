@@ -210,3 +210,31 @@ export type QuestionAssetUploadResponse = JsonResponse<
 >;
 export type BulkUploadRowError = RawBulkUploadResponse["errors"][number];
 export type BulkUploadResponse = RawBulkUploadResponse;
+
+// ── Bulk Upload Batch Tracking ────────────────────────
+
+export type BulkUploadBatch = {
+  id: number;
+  institutionId: number;
+  institutionCode: string;
+  uploadedById: number;
+  uploaderName: string;
+  fileName: string;
+  fileHash: string;
+  totalRows: number;
+  successCount: number;
+  errorCount: number;
+  questionCount: number;
+  status: "COMPLETED" | "FAILED";
+  createdAt: string;
+};
+
+export type BulkUploadHistoryResponse = {
+  batches: BulkUploadBatch[];
+  total: number;
+};
+
+export type BulkUploadDuplicateCheckResponse = {
+  isDuplicate: boolean;
+  existingBatch: BulkUploadBatch | null;
+};

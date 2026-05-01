@@ -1,6 +1,8 @@
 import { apiClient, ApiError } from "@/lib/api/client";
 import type {
   BulkUploadResponse,
+  BulkUploadHistoryResponse,
+  BulkUploadDuplicateCheckResponse,
   QuestionAssetKind,
   QuestionAssetUploadResponse,
   QuestionListParams,
@@ -58,13 +60,16 @@ export const questionsApi = {
       body: formData,
     });
   },
-  async bulkUpload(file: File, institutionCode?: string) {
+  async bulkUpload(file: File, institutionCode?: string, fileHash?: string) {
     const formData = new FormData();
     formData.set("file", file);
 
     const search = new URLSearchParams();
     if (institutionCode?.trim()) {
       search.set("institutionCode", institutionCode.trim());
+    }
+    if (fileHash) {
+      search.set("fileHash", fileHash);
     }
 
     const suffix = search.toString() ? `?${search.toString()}` : "";
@@ -80,4 +85,31 @@ export const questionsApi = {
       throw error;
     }
   },
+
+  // ── Batch History ──────────────────────────────────
+
+  bulkUploadHistory(institutionCode?: string, limit = 20) {
+    const search = new URLSearchParams();
+    if (institutionCode?.trim()) search.set("institutionCode", institutionCode.trim());
+    search.set("limit", String(limit));
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return apiClient<BulkUploadHistoryResponse>(`/api/questions/bulk/history${suffix}`);
+  },
+
+  // ── Duplicate Check ────────────────────────────────
+
+  checkDuplicate(fileHash: string) {
+    return apiClient<BulkUploadDuplicateCheckResponse>(
+      `/api/questions/bulk/check-duplicate?fileHash=${encodeURIComponent(fileHash)}`
+    );
+  },
 };
+
+// ── File Hash Utility ──────────────────────────────────
+
+export async function computeFileHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
