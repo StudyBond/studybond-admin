@@ -260,7 +260,7 @@ export default function AdminOverviewPage() {
           description="Exam starts and collaboration sessions over the last 7 days."
         />
 
-        <Surface glow="amber" className="admin-enter p-5 sm:p-6">
+        <Surface glow="amber" className="admin-enter min-w-0 p-5 sm:p-6">
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
@@ -316,7 +316,7 @@ export default function AdminOverviewPage() {
       </div>
 
       <div className="grid gap-4 md:gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <Surface className="admin-enter p-5 sm:p-6">
+        <Surface className="admin-enter min-w-0 p-5 sm:p-6">
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-cyan)]">
@@ -397,7 +397,7 @@ export default function AdminOverviewPage() {
           </div>
         </Surface>
 
-        <div className="grid gap-6">
+        <div className="grid min-w-0 gap-6">
           <Surface className="admin-enter p-5 sm:p-6">
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
