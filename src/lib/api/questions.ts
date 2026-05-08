@@ -27,9 +27,16 @@ export const questionsApi = {
     if (typeof params?.isAiGenerated === "boolean") {
       search.set("isAiGenerated", String(params.isAiGenerated));
     }
+    if (params?.year != null) search.set("year", String(params.year));
 
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return apiClient<QuestionListResponse>(`/api/questions${suffix}`);
+  },
+  listYears(institutionCode?: string) {
+    const search = new URLSearchParams();
+    if (institutionCode?.trim()) search.set("institutionCode", institutionCode.trim());
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return apiClient<{ years: number[] }>(`/api/questions/years${suffix}`);
   },
   getById(questionId: number) {
     return apiClient<QuestionRecord>(`/api/questions/${questionId}`);

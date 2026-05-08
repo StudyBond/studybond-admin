@@ -8,11 +8,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Surface } from "@/components/ui/surface";
 import { useAdminOverview } from "@/features/analytics/hooks/use-admin-overview";
 import { useAdminQuestions } from "@/features/questions/hooks/use-admin-questions";
+import { useQuestionYears } from "@/features/questions/hooks/use-question-years";
 import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
 import { formatCompactNumber, formatDateTime, formatInteger } from "@/lib/utils/format";
 import { getQuestionPoolLabel, getQuestionTypeLabel, QUESTION_POOL_OPTIONS, QUESTION_TYPE_OPTIONS } from "@/lib/utils/questions";
 import { CustomSelect } from "@/components/ui/custom-select";
-import { ArrowRight, ChevronLeft, ChevronRight, FileUp, Plus, Search } from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, FileUp, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 export default function QuestionsPage() {
@@ -21,10 +22,21 @@ export default function QuestionsPage() {
   const [subject, setSubject] = useState("");
   const [questionPool, setQuestionPool] = useState("");
   const [questionType, setQuestionType] = useState("");
+  const [year, setYear] = useState("");
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const debouncedSubject = useDebouncedValue(subject.trim(), 350);
 
   const overviewQuery = useAdminOverview();
+  const yearsQuery = useQuestionYears();
+
+  const yearOptions = useMemo(() => {
+    const years = yearsQuery.data ?? [];
+    return [
+      { label: "All years", value: "" },
+      ...years.map((y) => ({ label: String(y), value: String(y) })),
+    ];
+  }, [yearsQuery.data]);
+
   const questionsQuery = useAdminQuestions({
     page,
     limit: 20,
@@ -32,6 +44,7 @@ export default function QuestionsPage() {
     subject: debouncedSubject || undefined,
     questionPool: questionPool || undefined,
     questionType: questionType || undefined,
+    year: year ? Number(year) : undefined,
   });
 
   const overview = overviewQuery.data;
@@ -102,7 +115,7 @@ export default function QuestionsPage() {
       </div>
 
       <Surface className="p-6">
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr]">
+        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_0.8fr]">
           <div className="group/search flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 transition-all duration-200 focus-within:border-[color:var(--accent-cyan)]/25 focus-within:shadow-[0_0_0_3px_rgba(110,196,184,0.06)]">
             <Search className="h-4 w-4 text-[color:var(--muted-foreground)] transition-colors duration-200 group-focus-within/search:text-[color:var(--accent-cyan)]" />
             <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search prompt text..." className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[color:var(--muted-foreground)]/40" />
@@ -119,6 +132,13 @@ export default function QuestionsPage() {
             onValueChange={(val) => { setQuestionType(val); setPage(1); }}
             options={[{ label: "All types", value: "" }, ...QUESTION_TYPE_OPTIONS]}
             placeholder="All types"
+          />
+          <CustomSelect
+            value={year}
+            onValueChange={(val) => { setYear(val); setPage(1); }}
+            options={yearOptions}
+            placeholder="All years"
+            disabled={yearsQuery.isLoading}
           />
         </div>
       </Surface>
@@ -141,6 +161,7 @@ export default function QuestionsPage() {
           </div>
         ) : questions.length ? (
           <>
+            {/* ── Mobile Card View ── */}
             <div className="grid gap-3 p-3 md:hidden">
               {questions.map((question: any) => (
                 <Link
@@ -156,6 +177,9 @@ export default function QuestionsPage() {
                     <StatusBadge tone={question.hasImage ? "emerald" : "slate"}>
                       {question.hasImage ? "has media" : "text only"}
                     </StatusBadge>
+                    {question.year ? (
+                      <StatusBadge tone="amber">{question.year}</StatusBadge>
+                    ) : null}
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-[color:var(--muted-foreground)]">
                     <div>
@@ -163,10 +187,8 @@ export default function QuestionsPage() {
                       <p className="mt-1 text-sm text-white">{question.subject}</p>
                     </div>
                     <div>
-                      <p className="uppercase tracking-[0.14em] text-[10px]">Updated</p>
-                      <p className="mt-1 text-sm text-white">
-                        {question.updatedAt ? formatDateTime(question.updatedAt) : "Unavailable"}
-                      </p>
+                      <p className="uppercase tracking-[0.14em] text-[10px]">Year</p>
+                      <p className="mt-1 text-sm text-white">{question.year ?? "—"}</p>
                     </div>
                   </div>
                   {question.topic ? (
@@ -176,13 +198,15 @@ export default function QuestionsPage() {
               ))}
             </div>
 
+            {/* ── Desktop Table View ── */}
             <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[860px] w-full divide-y divide-white/8 text-sm">
+              <table className="min-w-[960px] w-full divide-y divide-white/8 text-sm">
                 <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
                   <tr>
                     <th className="px-5 py-3">Question</th>
                     <th className="px-5 py-3">Source</th>
                     <th className="px-5 py-3">Subject</th>
+                    <th className="px-5 py-3">Year</th>
                     <th className="px-5 py-3">Media</th>
                     <th className="px-5 py-3">Updated</th>
                   </tr>
@@ -207,6 +231,16 @@ export default function QuestionsPage() {
                       <td className="px-5 py-4">
                         <p className="text-white">{question.subject}</p>
                         <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">{question.topic ?? "No topic"}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        {question.year ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400">
+                            <CalendarDays className="h-3 w-3" />
+                            {question.year}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[color:var(--muted-foreground)]/50">—</span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <StatusBadge tone={question.hasImage ? "emerald" : "slate"}>

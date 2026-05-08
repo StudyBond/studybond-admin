@@ -14,6 +14,7 @@ export type AdminQuestionsFilters = {
   limit?: number;
   hasImage?: boolean;
   isAiGenerated?: boolean;
+  year?: number;
 };
 
 export function useAdminQuestions(filters: AdminQuestionsFilters) {

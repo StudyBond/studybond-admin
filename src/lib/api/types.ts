@@ -198,7 +198,7 @@ export type QuestionPayload = WithContract<JsonRequestBody<"/api/questions/", "p
 export type QuestionRecord = WithContract<RawQuestionRecord, { year?: number | null; isFeaturedFree?: boolean }>;
 export type QuestionListItem = WithContract<RawQuestionListItem, { year?: number | null; isFeaturedFree?: boolean }>;
 export type QuestionListResponse = RawQuestionListResponse;
-export type QuestionListParams = QueryParams<"/api/questions/", "get">;
+export type QuestionListParams = WithContract<QueryParams<"/api/questions/", "get">, { year?: number }>;
 export type QuestionAssetKind = PathParams<
   "/api/questions/assets/upload/{kind}",
   "post"
