@@ -9,12 +9,16 @@ import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { useAdminSystemHealth } from "@/features/analytics/hooks/use-admin-system-health";
 import { useAdminSystemSettings } from "@/features/system/hooks/use-admin-system-settings";
 import { AddInstitutionPanel } from "@/features/system/components/add-institution-panel";
+import { NotificationAnnouncementsPanel } from "@/features/system/components/notification-announcements-panel";
 import { adminSystemApi } from "@/lib/api/admin-system";
 import { formatDateTime, formatInteger } from "@/lib/utils/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Mail, ShieldCheck, ShieldOff, Wrench } from "lucide-react";
+import { ArrowRight, Mail, ShieldCheck, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+
+const adminAnnouncementsUiEnabled =
+  process.env.NEXT_PUBLIC_ADMIN_ANNOUNCEMENTS_UI_ENABLED === "true";
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -214,6 +218,8 @@ export default function SettingsPage() {
           </Surface>
         </div>
       </div>
+
+      {adminAnnouncementsUiEnabled ? <NotificationAnnouncementsPanel /> : null}
     </section>
   );
 }

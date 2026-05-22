@@ -40,6 +40,10 @@ type PathParams<
 
 type EnvelopeData<T> = T extends { data: infer Data } ? Data : never;
 type WithContract<T, Additional> = T & Additional;
+export type SuccessEnvelope<T> = {
+  success: true;
+  data: T;
+};
 
 export type AuthLoginInput = JsonRequestBody<"/api/auth/login", "post">;
 export type AuthVerifyOtpInput = JsonRequestBody<"/api/auth/verify-otp", "post">;
@@ -237,4 +241,53 @@ export type BulkUploadHistoryResponse = {
 export type BulkUploadDuplicateCheckResponse = {
   isDuplicate: boolean;
   existingBatch: BulkUploadBatch | null;
+};
+
+export type AdminNotificationPriority = "LOW" | "DEFAULT" | "HIGH" | "URGENT";
+export type AdminNotificationAudience = "ALL" | "PREMIUM" | "FREE";
+export type AdminNotificationAnnouncementsFilter =
+  | "all"
+  | "scheduled"
+  | "active"
+  | "expired"
+  | "cancelled";
+
+export type AdminNotificationAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  deeplink: string | null;
+  priority: AdminNotificationPriority;
+  targetAudience: AdminNotificationAudience;
+  institutionId: number | null;
+  institutionCode: string | null;
+  institutionName: string | null;
+  verifiedOnly: boolean;
+  startAt: string;
+  expiresAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdByAdminId: number;
+};
+
+export type AdminNotificationAnnouncementsList = {
+  items: AdminNotificationAnnouncement[];
+  pagination: PaginationMeta;
+};
+
+export type AdminNotificationAnnouncementMutation = {
+  announcement: AdminNotificationAnnouncement;
+};
+
+export type AdminCreateNotificationAnnouncementPayload = {
+  title: string;
+  body: string;
+  deeplink?: string | null;
+  priority: AdminNotificationPriority;
+  targetAudience: AdminNotificationAudience;
+  institutionCode?: string | null;
+  verifiedOnly: boolean;
+  startAt: string;
+  expiresAt?: string | null;
 };

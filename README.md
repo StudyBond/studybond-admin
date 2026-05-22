@@ -62,8 +62,8 @@ NEXT_PUBLIC_WEB_URL=https://studybond.app
 Set these in Vercel for `studybond-admin`:
 
 ```bash
-BACKEND_API_BASE_URL=https://your-railway-backend.up.railway.app
-NEXT_PUBLIC_API_BASE_URL=https://your-railway-backend.up.railway.app
+BACKEND_API_BASE_URL=https://your-backend.onrender.com
+NEXT_PUBLIC_API_BASE_URL=https://your-backend.onrender.com
 NEXT_PUBLIC_WEB_URL=https://your-web-domain.vercel.app
 ```
 

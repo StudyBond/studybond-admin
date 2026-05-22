@@ -6,7 +6,7 @@ import { Surface } from "@/components/ui/surface";
 import { useAdminAuditLogs } from "@/features/audit-logs/hooks/use-admin-audit-logs";
 import { formatDateTime } from "@/lib/utils/format";
 import type { AdminAuditLogEntry } from "@/lib/api/types";
-import { ChevronLeft, ChevronRight, Filter, ShieldAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { useState } from "react";
 
 const actionTones: Record<string, "emerald" | "cyan" | "amber" | "rose" | "slate"> = {
@@ -30,12 +30,10 @@ const actionTones: Record<string, "emerald" | "cyan" | "amber" | "rose" | "slate
   UNAUTHORIZED_ACTION_ATTEMPT: "rose",
   ROLE_PROMOTION_ATTEMPT_FAILED: "rose",
   ROLE_DEMOTION_ATTEMPT_FAILED: "rose",
-  EXAM_CHEAT_VIOLATION: "rose",
 };
 
 const actionFilters = [
   { label: "All", value: "" },
-  { label: "Exam violations", value: "EXAM_CHEAT_VIOLATION" },
   { label: "Role promoted", value: "ROLE_PROMOTED" },
   { label: "Role demoted", value: "ROLE_DEMOTED" },
   { label: "Role promote failed", value: "ROLE_PROMOTION_ATTEMPT_FAILED" },
@@ -57,58 +55,6 @@ const actionFilters = [
   { label: "Question deleted", value: "QUESTION_DELETED" },
   { label: "Unauthorized", value: "UNAUTHORIZED_ACTION_ATTEMPT" },
 ];
-
-/** Violation type labels for the enriched card */
-const violationTypeLabels: Record<string, string> = {
-  tab_switch: "Tab Switch",
-  screenshot: "Screenshot Attempt",
-  copy_paste: "Copy/Paste",
-  right_click: "Right Click",
-  devtools: "DevTools Opened",
-};
-
-function ViolationDetailCard({ metadata }: { metadata: any }) {
-  if (!metadata || typeof metadata !== "object") return null;
-
-  const violationType = metadata.violationType as string | undefined;
-  const examId = metadata.examId as number | undefined;
-  const violationCount = metadata.violationCount as number | undefined;
-  const timestamp = metadata.timestamp as string | undefined;
-
-  return (
-    <div className="mt-2 flex items-start gap-3 rounded-xl border border-rose-400/10 bg-rose-400/[0.03] p-3">
-      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-rose-400/60" />
-      <div className="grid gap-1.5 text-xs">
-        {violationType ? (
-          <div>
-            <span className="text-[10px] uppercase tracking-widest text-[color:var(--muted-foreground)]">Type</span>
-            <p className="font-medium text-rose-300">{violationTypeLabels[violationType] ?? violationType}</p>
-          </div>
-        ) : null}
-        <div className="flex flex-wrap gap-4">
-          {examId ? (
-            <div>
-              <span className="text-[10px] uppercase tracking-widest text-[color:var(--muted-foreground)]">Exam</span>
-              <p className="font-mono text-white/70">#{examId}</p>
-            </div>
-          ) : null}
-          {violationCount != null ? (
-            <div>
-              <span className="text-[10px] uppercase tracking-widest text-[color:var(--muted-foreground)]">Total Violations</span>
-              <p className="font-mono text-rose-300">{violationCount}</p>
-            </div>
-          ) : null}
-          {timestamp ? (
-            <div>
-              <span className="text-[10px] uppercase tracking-widest text-[color:var(--muted-foreground)]">At</span>
-              <p className="text-white/50">{new Date(timestamp).toLocaleTimeString()}</p>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
@@ -200,9 +146,6 @@ export default function AuditLogsPage() {
                       <p className="text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">Reason</p>
                       <p className="mt-1 text-[color:var(--muted-foreground)]">{log.reason || "—"}</p>
                     </div>
-                    {(log.action as string) === "EXAM_CHEAT_VIOLATION" ? (
-                      <ViolationDetailCard metadata={(log as any).metadata} />
-                    ) : null}
                   </div>
                 </div>
               ))}
@@ -246,9 +189,6 @@ export default function AuditLogsPage() {
                       </td>
                       <td className="max-w-xs px-5 py-3.5 text-[color:var(--muted-foreground)]">
                         <span className="truncate block">{log.reason || "—"}</span>
-                        {(log.action as string) === "EXAM_CHEAT_VIOLATION" ? (
-                          <ViolationDetailCard metadata={(log as any).metadata} />
-                        ) : null}
                       </td>
                     </tr>
                   ))}
