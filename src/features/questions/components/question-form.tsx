@@ -5,7 +5,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Surface } from "@/components/ui/surface";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { questionsApi } from "@/lib/api/questions";
-import type { QuestionAssetKind, QuestionPayload, QuestionRecord } from "@/lib/api/types";
+import type {
+  QuestionAssetKind,
+  QuestionPayload,
+  QuestionRecord,
+} from "@/lib/api/types";
 import {
   getQuestionPoolLabel,
   getQuestionTypeLabel,
@@ -14,7 +18,15 @@ import {
   QUESTION_TYPE_OPTIONS,
 } from "@/lib/utils/questions";
 import { cn } from "@/lib/utils/cn";
-import { ImagePlus, LoaderCircle, Save, Trash2, UploadCloud, X, ChevronDown } from "lucide-react";
+import {
+  ImagePlus,
+  LoaderCircle,
+  Save,
+  Trash2,
+  UploadCloud,
+  X,
+  ChevronDown,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -94,17 +106,21 @@ function createInitialState(question?: QuestionRecord | null): FormState {
     optionDImagePublicId: question?.optionDImagePublicId ?? "",
     optionEImageUrl: question?.optionEImageUrl ?? "",
     optionEImagePublicId: question?.optionEImagePublicId ?? "",
-    correctAnswer: (question?.correctAnswer as FormState["correctAnswer"]) ?? "A",
+    correctAnswer:
+      (question?.correctAnswer as FormState["correctAnswer"]) ?? "A",
     subject: question?.subject ?? "",
     topic: question?.topic ?? "",
     difficultyLevel: question?.difficultyLevel ?? "",
     questionType: question?.questionType ?? "real_past_question",
     questionPool: question?.questionPool ?? "REAL_UI",
-    parentQuestionId: question?.parentQuestionId ? String(question.parentQuestionId) : "",
+    parentQuestionId: question?.parentQuestionId
+      ? String(question.parentQuestionId)
+      : "",
     year: question?.year != null ? String(question.year) : "",
     explanationText: question?.explanation?.explanationText ?? "",
     explanationImageUrl: question?.explanation?.explanationImageUrl ?? "",
-    explanationImagePublicId: question?.explanation?.explanationImagePublicId ?? "",
+    explanationImagePublicId:
+      question?.explanation?.explanationImagePublicId ?? "",
     additionalNotes: question?.explanation?.additionalNotes ?? "",
   };
 }
@@ -114,7 +130,12 @@ function compactValue(value: string) {
 }
 
 function buildPayload(state: FormState): QuestionPayload {
-  const hasOptionContent = [state.optionA, state.optionB, state.optionC, state.optionD].some((value) => value.trim().length > 0);
+  const hasOptionContent = [
+    state.optionA,
+    state.optionB,
+    state.optionC,
+    state.optionD,
+  ].some((value) => value.trim().length > 0);
   const hasParentQuestion = Boolean(state.parentQuestionId.trim());
 
   return {
@@ -138,7 +159,8 @@ function buildPayload(state: FormState): QuestionPayload {
     optionDImagePublicId: compactValue(state.optionDImagePublicId),
     optionEImageUrl: compactValue(state.optionEImageUrl),
     optionEImagePublicId: compactValue(state.optionEImagePublicId),
-    correctAnswer: hasOptionContent || hasParentQuestion ? state.correctAnswer : undefined,
+    correctAnswer:
+      hasOptionContent || hasParentQuestion ? state.correctAnswer : undefined,
     subject: state.subject.trim(),
     topic: compactValue(state.topic),
     difficultyLevel: compactValue(state.difficultyLevel),
@@ -168,7 +190,9 @@ function FieldLabel({
         {children}
       </span>
       {helper ? (
-        <span className="text-[11px] text-[color:var(--muted-foreground)]/80">{helper}</span>
+        <span className="text-[11px] text-[color:var(--muted-foreground)]/80">
+          {helper}
+        </span>
       ) : null}
     </div>
   );
@@ -261,7 +285,9 @@ function AssetField({
       toast.success(`${label} uploaded`);
     } catch (error) {
       toast.error(`Could not upload ${label.toLowerCase()}`, {
-        description: <ApiErrorMessage error={error} fallback="Please try again." />,
+        description: (
+          <ApiErrorMessage error={error} fallback="Please try again." />
+        ),
       });
     } finally {
       setIsUploading(false);
@@ -274,10 +300,13 @@ function AssetField({
         <div>
           <p className={cn("text-sm font-semibold", toneClass)}>{label}</p>
           <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-            {helper ?? "Paste an image URL or upload directly to the managed asset store."}
+            {helper ??
+              "Paste an image URL or upload directly to the managed asset store."}
           </p>
         </div>
-        <StatusBadge tone={url ? tone : "slate"}>{url ? "attached" : "empty"}</StatusBadge>
+        <StatusBadge tone={url ? tone : "slate"}>
+          {url ? "attached" : "empty"}
+        </StatusBadge>
       </div>
 
       <div className="mt-4 space-y-3">
@@ -367,14 +396,17 @@ export function QuestionForm({
   onSubmit,
   onDelete,
 }: QuestionFormProps) {
-  const [form, setForm] = useState<FormState>(() => createInitialState(initialQuestion));
+  const [form, setForm] = useState<FormState>(() =>
+    createInitialState(initialQuestion),
+  );
 
   useEffect(() => {
     setForm(createInitialState(initialQuestion));
   }, [initialQuestion]);
 
   const correctAnswerOptions = useMemo(
-    () => (form.optionE.trim() ? ["A", "B", "C", "D", "E"] : ["A", "B", "C", "D"]),
+    () =>
+      form.optionE.trim() ? ["A", "B", "C", "D", "E"] : ["A", "B", "C", "D"],
     [form.optionE],
   );
 
@@ -391,7 +423,9 @@ export function QuestionForm({
     }));
   }
 
-  function updateSource(next: Partial<Pick<FormState, "questionType" | "questionPool">>) {
+  function updateSource(
+    next: Partial<Pick<FormState, "questionType" | "questionPool">>,
+  ) {
     setForm((current) => {
       const normalized = normalizeQuestionSource(
         next.questionType ?? current.questionType,
@@ -410,16 +444,30 @@ export function QuestionForm({
     event.preventDefault();
 
     const payload = buildPayload(form);
-    const hasOptionContent = [form.optionA, form.optionB, form.optionC, form.optionD].some((value) => value.trim().length > 0);
-    const requiresAnswerFields = hasOptionContent || Boolean(form.parentQuestionId.trim());
+    const hasOptionContent = [
+      form.optionA,
+      form.optionB,
+      form.optionC,
+      form.optionD,
+    ].some((value) => value.trim().length > 0);
+    const requiresAnswerFields =
+      hasOptionContent || Boolean(form.parentQuestionId.trim());
 
     if (!payload.questionText || !payload.subject) {
       toast.error("Complete the required fields before saving.");
       return;
     }
 
-    if (requiresAnswerFields && (!payload.optionA || !payload.optionB || !payload.optionC || !payload.optionD)) {
-      toast.error("Complete all answer choices for this question before saving.");
+    if (
+      requiresAnswerFields &&
+      (!payload.optionA ||
+        !payload.optionB ||
+        !payload.optionC ||
+        !payload.optionD)
+    ) {
+      toast.error(
+        "Complete all answer choices for this question before saving.",
+      );
       return;
     }
 
@@ -436,18 +484,28 @@ export function QuestionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+    <form
+      onSubmit={handleSubmit}
+      className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12"
+    >
       {/* Main Content Area */}
       <div className="flex flex-col gap-8 lg:col-span-8">
-        <Surface glow="cyan" className="p-5 max-md:!border-none max-md:!bg-transparent max-md:!p-0 max-md:!shadow-none md:p-6">
+        <Surface
+          glow="cyan"
+          className="p-5 max-md:!border-none max-md:!bg-transparent max-md:!p-0 max-md:!shadow-none md:p-6"
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-cyan)]">
                 Prompt
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-white">Question content</h2>
+              <h2 className="mt-2 text-xl font-semibold text-white">
+                Question content
+              </h2>
             </div>
-            <StatusBadge tone="cyan">{mode === "create" ? "new question" : "live record"}</StatusBadge>
+            <StatusBadge tone="cyan">
+              {mode === "create" ? "new question" : "live record"}
+            </StatusBadge>
           </div>
 
           <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_0.92fr]">
@@ -460,7 +518,7 @@ export function QuestionForm({
                 placeholder="Write the full question prompt here..."
               />
             </div>
-            
+
             <AssetField
               label="Prompt image"
               kind="question"
@@ -482,119 +540,128 @@ export function QuestionForm({
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
                 Answers
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-white">Options and solution</h2>
+              <h2 className="mt-2 text-xl font-semibold text-white">
+                Options and solution
+              </h2>
             </div>
             <StatusBadge tone="amber">{sourceSummary}</StatusBadge>
           </div>
 
           <div className="mt-5 grid gap-4">
-            {(["A", "B", "C", "D", "E"] as const).map((letter: "A" | "B" | "C" | "D" | "E") => {
-              const optionKey = `option${letter}` as keyof FormState;
-              const urlKey = `option${letter}ImageUrl` as keyof FormState;
-              const publicIdKey = `option${letter}ImagePublicId` as keyof FormState;
-              const isOptional = letter === "E";
-              const isSelected = form.correctAnswer === letter;
+            {(["A", "B", "C", "D", "E"] as const).map(
+              (letter: "A" | "B" | "C" | "D" | "E") => {
+                const optionKey = `option${letter}` as keyof FormState;
+                const urlKey = `option${letter}ImageUrl` as keyof FormState;
+                const publicIdKey =
+                  `option${letter}ImagePublicId` as keyof FormState;
+                const isOptional = letter === "E";
+                const isSelected = form.correctAnswer === letter;
 
-              return (
-                <div
-                  key={letter}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      updateField("correctAnswer", letter);
-                    }
-                  }}
-                  onClick={() => updateField("correctAnswer", letter)}
-                  className={cn(
-                    "group relative overflow-hidden rounded-2xl border p-4 transition-all duration-[var(--duration-base)] ease-[var(--ease-out-expo)] md:p-5",
-                    isSelected
-                      ? "border-[color:var(--accent-emerald)] bg-[color:var(--accent-emerald)]/5 shadow-[0_0_24px_rgba(52,211,153,0.15)]"
-                      : "border-white/5 bg-black/20 hover:border-white/15 hover:bg-black/30"
-                  )}
-                >
-                  {/* Subtle inner glow effect when selected */}
-                  {isSelected && (
-                    <div className="pointer-events-none absolute -inset-px rounded-2xl border border-[color:var(--accent-emerald)]/50" />
-                  )}
+                return (
+                  <div
+                    key={letter}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        updateField("correctAnswer", letter);
+                      }
+                    }}
+                    onClick={() => updateField("correctAnswer", letter)}
+                    className={cn(
+                      "group relative overflow-hidden rounded-2xl border p-4 transition-all duration-[var(--duration-base)] ease-[var(--ease-out-expo)] md:p-5",
+                      isSelected
+                        ? "border-[color:var(--accent-emerald)] bg-[color:var(--accent-emerald)]/5 shadow-[0_0_24px_rgba(52,211,153,0.15)]"
+                        : "border-white/5 bg-black/20 hover:border-white/15 hover:bg-black/30",
+                    )}
+                  >
+                    {/* Subtle inner glow effect when selected */}
+                    {isSelected && (
+                      <div className="pointer-events-none absolute -inset-px rounded-2xl border border-[color:var(--accent-emerald)]/50" />
+                    )}
 
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-4">
-                      {/* Premium Radio Indicator */}
-                      <div
-                        className={cn(
-                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-                          isSelected
-                            ? "border-[color:var(--accent-emerald)] bg-[color:var(--accent-emerald)]/20"
-                            : "border-white/20 bg-black/40 group-hover:border-white/40"
-                        )}
-                      >
-                        {isSelected && (
-                          <div className="h-2.5 w-2.5 rounded-full bg-[color:var(--accent-emerald)] shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <StatusBadge tone={isSelected ? "emerald" : "slate"}>
-                          {isSelected ? "correct answer" : `option ${letter}`}
-                        </StatusBadge>
-                        <p
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-4">
+                        {/* Premium Radio Indicator */}
+                        <div
                           className={cn(
-                            "text-sm font-semibold transition-colors",
-                            isSelected ? "text-[color:var(--accent-emerald)]" : "text-white"
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+                            isSelected
+                              ? "border-[color:var(--accent-emerald)] bg-[color:var(--accent-emerald)]/20"
+                              : "border-white/20 bg-black/40 group-hover:border-white/40",
                           )}
                         >
-                          Answer {letter}
-                        </p>
-                      </div>
-                    </div>
-                    {isOptional ? (
-                      <span className="text-xs text-[color:var(--muted-foreground)]">
-                        Optional fifth choice
-                      </span>
-                    ) : null}
-                  </div>
+                          {isSelected && (
+                            <div className="h-2.5 w-2.5 rounded-full bg-[color:var(--accent-emerald)] shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                          )}
+                        </div>
 
-                  <div
-                    className="mt-5 grid gap-4 xl:grid-cols-[1fr_0.92fr]"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    <div>
-                      <FieldLabel helper={isOptional ? "Optional" : "Required"}>
-                        Choice text
-                      </FieldLabel>
-                      <TextArea
-                        rows={3}
-                        value={form[optionKey]}
-                        onChange={(value) => updateField(optionKey, value)}
-                        placeholder={`Option ${letter}`}
+                        <div className="flex items-center gap-2">
+                          <StatusBadge tone={isSelected ? "emerald" : "slate"}>
+                            {isSelected ? "correct answer" : `option ${letter}`}
+                          </StatusBadge>
+                          <p
+                            className={cn(
+                              "text-sm font-semibold transition-colors",
+                              isSelected
+                                ? "text-[color:var(--accent-emerald)]"
+                                : "text-white",
+                            )}
+                          >
+                            Answer {letter}
+                          </p>
+                        </div>
+                      </div>
+                      {isOptional ? (
+                        <span className="text-xs text-[color:var(--muted-foreground)]">
+                          Optional fifth choice
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div
+                      className="mt-5 grid gap-4 xl:grid-cols-[1fr_0.92fr]"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      <div>
+                        <FieldLabel
+                          helper={isOptional ? "Optional" : "Required"}
+                        >
+                          Choice text
+                        </FieldLabel>
+                        <TextArea
+                          rows={3}
+                          value={form[optionKey]}
+                          onChange={(value) => updateField(optionKey, value)}
+                          placeholder={`Option ${letter}`}
+                        />
+                      </div>
+
+                      <AssetField
+                        label={`Option ${letter} image`}
+                        kind={`option${letter}` as QuestionAssetKind}
+                        tone={
+                          letter === "A" || letter === "C"
+                            ? "cyan"
+                            : letter === "B" || letter === "D"
+                              ? "amber"
+                              : "rose"
+                        }
+                        url={form[urlKey]}
+                        publicId={form[publicIdKey]}
+                        onChange={(nextUrl, nextPublicId) => {
+                          updateField(urlKey, nextUrl);
+                          updateField(publicIdKey, nextPublicId);
+                        }}
+                        helper={`Attach an image only if option ${letter} needs visual context.`}
                       />
                     </div>
-
-                    <AssetField
-                      label={`Option ${letter} image`}
-                      kind={`option${letter}` as QuestionAssetKind}
-                      tone={
-                        letter === "A" || letter === "C"
-                          ? "cyan"
-                          : letter === "B" || letter === "D"
-                            ? "amber"
-                            : "rose"
-                      }
-                      url={form[urlKey]}
-                      publicId={form[publicIdKey]}
-                      onChange={(nextUrl, nextPublicId) => {
-                        updateField(urlKey, nextUrl);
-                        updateField(publicIdKey, nextPublicId);
-                      }}
-                      helper={`Attach an image only if option ${letter} needs visual context.`}
-                    />
                   </div>
-                </div>
-              );
-            })}
+                );
+              },
+            )}
           </div>
         </Surface>
 
@@ -603,7 +670,9 @@ export function QuestionForm({
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-emerald)]">
               Explanation
             </p>
-            <h2 className="mt-2 text-xl font-semibold text-white">Learning support</h2>
+            <h2 className="mt-2 text-xl font-semibold text-white">
+              Learning support
+            </h2>
           </div>
 
           <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_0.92fr]">
@@ -646,15 +715,22 @@ export function QuestionForm({
 
       {/* Right Sidebar - Sticky Metadata */}
       <div className="flex flex-col gap-8 lg:sticky lg:top-8 lg:col-span-4">
-        <Surface glow="amber" className="p-5 max-md:!border-none max-md:!bg-transparent max-md:!p-0 max-md:!shadow-none md:p-6">
+        <Surface
+          glow="amber"
+          className="p-5 max-md:!border-none max-md:!bg-transparent max-md:!p-0 max-md:!shadow-none md:p-6"
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
                 Metadata
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-white">Classification</h2>
+              <h2 className="mt-2 text-xl font-semibold text-white">
+                Classification
+              </h2>
             </div>
-            <StatusBadge tone="amber">{getQuestionPoolLabel(form.questionPool)}</StatusBadge>
+            <StatusBadge tone="amber">
+              {getQuestionPoolLabel(form.questionPool)}
+            </StatusBadge>
           </div>
 
           <div className="mt-5 space-y-5">
@@ -708,7 +784,9 @@ export function QuestionForm({
                 <FieldLabel>Year</FieldLabel>
                 <TextInput
                   value={form.year}
-                  onChange={(value) => updateField("year", value.replace(/[^\d]/g, ""))}
+                  onChange={(value) =>
+                    updateField("year", value.replace(/[^\d]/g, ""))
+                  }
                   placeholder="e.g. 2022"
                   inputMode="numeric"
                 />
@@ -741,12 +819,19 @@ export function QuestionForm({
                   <FieldLabel>Parent ID</FieldLabel>
                   <TextInput
                     value={form.parentQuestionId}
-                    onChange={(value) => updateField("parentQuestionId", value.replace(/[^\d]/g, ""))}
+                    onChange={(value) =>
+                      updateField(
+                        "parentQuestionId",
+                        value.replace(/[^\d]/g, ""),
+                      )
+                    }
                     placeholder="Optional ID"
                     inputMode="numeric"
                   />
                   <p className="mt-2 text-xs text-[color:var(--muted-foreground)]/80">
-                    Leave all answer choices blank to create a parent prompt without options. Use Parent ID only for child questions that attach to an existing prompt.
+                    Leave all answer choices blank to create a parent prompt
+                    without options. Use Parent ID only for child questions that
+                    attach to an existing prompt.
                   </p>
                 </div>
                 <div>
@@ -769,9 +854,12 @@ export function QuestionForm({
               <Save className="h-4 w-4" />
             </span>
             <div>
-              <p className="text-base font-semibold text-white">Ready to save</p>
+              <p className="text-base font-semibold text-white">
+                Ready to save
+              </p>
               <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                The current form will be validated by the backend before it is committed to the question bank.
+                The current form will be validated by the backend before it is
+                committed to the question bank.
               </p>
             </div>
           </div>
@@ -796,15 +884,22 @@ export function QuestionForm({
         </Surface>
 
         {mode === "edit" && onDelete ? (
-          <Surface glow="rose" className="p-5 max-md:!border-none max-md:!bg-transparent max-md:!p-0 max-md:!shadow-none md:p-6">
+          <Surface
+            glow="rose"
+            className="p-5 max-md:!border-none max-md:!bg-transparent max-md:!p-0 max-md:!shadow-none md:p-6"
+          >
             <div className="flex items-start gap-3">
               <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--accent-rose)]/20 bg-[color:var(--accent-rose)]/10 text-[color:var(--accent-rose)]">
                 <Trash2 className="h-4 w-4" />
               </span>
               <div>
-                <p className="text-base font-semibold text-white">Danger zone</p>
+                <p className="text-base font-semibold text-white">
+                  Danger zone
+                </p>
                 <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                  Delete this question only when it is safe to remove from the bank and no longer needed for moderation or content operations.
+                  Delete this question only when it is safe to remove from the
+                  bank and no longer needed for moderation or content
+                  operations.
                 </p>
               </div>
             </div>
