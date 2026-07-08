@@ -114,6 +114,9 @@ function compactValue(value: string) {
 }
 
 function buildPayload(state: FormState): QuestionPayload {
+  const hasOptionContent = [state.optionA, state.optionB, state.optionC, state.optionD].some((value) => value.trim().length > 0);
+  const hasParentQuestion = Boolean(state.parentQuestionId.trim());
+
   return {
     institutionCode: state.institutionCode.trim() || undefined,
     questionText: state.questionText.trim(),
@@ -135,13 +138,13 @@ function buildPayload(state: FormState): QuestionPayload {
     optionDImagePublicId: compactValue(state.optionDImagePublicId),
     optionEImageUrl: compactValue(state.optionEImageUrl),
     optionEImagePublicId: compactValue(state.optionEImagePublicId),
-    correctAnswer: state.correctAnswer,
+    correctAnswer: hasOptionContent || hasParentQuestion ? state.correctAnswer : undefined,
     subject: state.subject.trim(),
     topic: compactValue(state.topic),
     difficultyLevel: compactValue(state.difficultyLevel),
     questionType: state.questionType,
     questionPool: state.questionPool,
-    parentQuestionId: state.parentQuestionId.trim()
+    parentQuestionId: hasParentQuestion
       ? Number.parseInt(state.parentQuestionId, 10)
       : null,
     explanationText: compactValue(state.explanationText),
@@ -407,8 +410,16 @@ export function QuestionForm({
     event.preventDefault();
 
     const payload = buildPayload(form);
-    if (!payload.questionText || !payload.optionA || !payload.optionB || !payload.optionC || !payload.optionD || !payload.subject) {
+    const hasOptionContent = [form.optionA, form.optionB, form.optionC, form.optionD].some((value) => value.trim().length > 0);
+    const requiresAnswerFields = hasOptionContent || Boolean(form.parentQuestionId.trim());
+
+    if (!payload.questionText || !payload.subject) {
       toast.error("Complete the required fields before saving.");
+      return;
+    }
+
+    if (requiresAnswerFields && (!payload.optionA || !payload.optionB || !payload.optionC || !payload.optionD)) {
+      toast.error("Complete all answer choices for this question before saving.");
       return;
     }
 
@@ -734,6 +745,9 @@ export function QuestionForm({
                     placeholder="Optional ID"
                     inputMode="numeric"
                   />
+                  <p className="mt-2 text-xs text-[color:var(--muted-foreground)]/80">
+                    Leave all answer choices blank to create a parent prompt without options. Use Parent ID only for child questions that attach to an existing prompt.
+                  </p>
                 </div>
                 <div>
                   <FieldLabel>Institution code</FieldLabel>
