@@ -52,36 +52,69 @@ export default function QuestionsPage() {
   const pagination = questionsQuery.data?.meta;
 
   const metrics = useMemo(
-    () =>
-      overview
-        ? [
-            {
-              label: "Total questions",
-              value: formatCompactNumber(overview.content.totalQuestions),
-              delta: `${formatInteger(questionsQuery.data?.meta.total ?? 0)} matched filters`,
-              tone: "cyan" as const,
-            },
-            {
-              label: "Free exam pool",
-              value: formatInteger(overview.content.freeExamQuestions),
-              delta: "Available to free-tier learners",
-              tone: "amber" as const,
-            },
-            {
-              label: "Real past questions",
-              value: formatInteger(overview.content.realUiQuestions),
-              delta: "Verified bank inventory",
-              tone: "emerald" as const,
-            },
-            {
-              label: "Practice questions",
-              value: formatInteger(overview.content.practiceQuestions),
-              delta: `${formatInteger(overview.content.pendingReports)} pending reports`,
-              tone: "rose" as const,
-            },
-          ]
-        : [],
-    [overview, questionsQuery.data?.meta.total],
+    () => {
+      if (overview) {
+        return [
+          {
+            label: "Total questions",
+            value: formatCompactNumber(overview.content.totalQuestions),
+            delta: `${formatInteger(questionsQuery.data?.meta.total ?? 0)} matched filters`,
+            tone: "cyan" as const,
+          },
+          {
+            label: "Free exam pool",
+            value: formatInteger(overview.content.freeExamQuestions),
+            delta: "Available to free-tier learners",
+            tone: "amber" as const,
+          },
+          {
+            label: "Real past questions",
+            value: formatInteger(overview.content.realUiQuestions),
+            delta: "Verified bank inventory",
+            tone: "emerald" as const,
+          },
+          {
+            label: "Practice questions",
+            value: formatInteger(overview.content.practiceQuestions),
+            delta: `${formatInteger(overview.content.pendingReports)} pending reports`,
+            tone: "rose" as const,
+          },
+        ];
+      }
+
+      if (questionsQuery.data?.meta) {
+        const total = questionsQuery.data.meta.total;
+        return [
+          {
+            label: "Total questions",
+            value: formatCompactNumber(total),
+            delta: `${formatInteger(total)} matched filters`,
+            tone: "cyan" as const,
+          },
+          {
+            label: "Free exam pool",
+            value: "Live",
+            delta: "Available to free-tier learners",
+            tone: "amber" as const,
+          },
+          {
+            label: "Real past questions",
+            value: "Verified",
+            delta: "Verified bank inventory",
+            tone: "emerald" as const,
+          },
+          {
+            label: "Practice questions",
+            value: "Active",
+            delta: "Question bank inventory",
+            tone: "rose" as const,
+          },
+        ];
+      }
+
+      return [];
+    },
+    [overview, questionsQuery.data?.meta],
   );
 
   return (
