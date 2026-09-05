@@ -1,47 +1,68 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import {
-  ArrowRight,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Gift,
-  RotateCcw,
-  Search,
-  ShieldOff,
-  Sparkles,
-  Star,
-  Trophy,
-  X,
-} from "lucide-react";
-
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { MetricCard } from "@/components/ui/metric-card";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { CustomSelect } from "@/components/ui/custom-select";
-
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { Field, FieldShell, SearchField } from "@/components/ui/field";
+import { PageHeader, SectionTitle } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { FilterBar, Pagination } from "@/components/ui/toolbar";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { useAdminQuestions } from "@/features/questions/hooks/use-admin-questions";
 import { useFreeExamCoverage } from "@/features/questions/hooks/use-free-exam-coverage";
-
 import { adminFreeExamApi } from "@/lib/api/admin-free-exam";
-import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
+import type { QuestionListItem } from "@/lib/api/types";
 import { formatInteger } from "@/lib/utils/format";
-import { getQuestionPoolLabel, QUESTION_POOL_OPTIONS } from "@/lib/utils/questions";
+import {
+  getQuestionPoolLabel,
+  QUESTION_POOL_OPTIONS,
+} from "@/lib/utils/questions";
+import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Library, RotateCcw, ShieldCheck, Star, Trophy, X } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-/* ─── Helpers ───────────────────────────────────────── */
+/**
+ * Free exam pool: which real-bank questions free learners are served.
+ *
+ * The important fix is honesty about a backend limitation. The "Featured
+ * status" filter looked like the other filters but ran in the browser, over
+ * the twenty rows already fetched — `/api/questions` has no isFeaturedFree
+ * parameter (questions.service.ts builds its `where` from subject, topic,
+ * questionType, questionPool, hasImage, isAiGenerated, year and search
+ * only). So choosing "Featured" showed the featured questions *on this
+ * page*, while pagination still counted every question in the bank. You
+ * could page through seeing nothing and conclude nothing was featured. It
+ * is now named for what it does and says so in words while it is active.
+ *
+ * "Reset all free exam credits" wipes every free learner's credits and
+ * subject history, calls itself irreversible, and fired on one click. It
+ * confirms now.
+ *
+ * Selection was `onClick` on a `<tr>` with a decorative tick inside — no
+ * keyboard access and nothing for a screen reader. DataTable grew real
+ * checkboxes for this.
+ */
 
-function coverageTone(ratio: number): "emerald" | "amber" | "rose" {
-  if (ratio >= 1) return "emerald";
-  if (ratio >= 0.5) return "amber";
-  return "rose";
+const PAGE_SIZE = 20;
+
+const FEATURED_OPTIONS = [
+  { label: "Everything on this page", value: "" },
+  { label: "Featured only", value: "featured" },
+  { label: "Not featured", value: "not-featured" },
+];
+
+/** A full pool is healthy; an empty one is the reason to be on this page. */
+function coverageTone(ratio: number): BadgeTone {
+  if (ratio >= 1) return "success";
+  if (ratio >= 0.5) return "warning";
+  return "danger";
 }
 
 function coveragePercent(count: number, cap: number) {
@@ -49,30 +70,27 @@ function coveragePercent(count: number, cap: number) {
   return Math.min(100, Math.round((count / cap) * 100));
 }
 
-/* ─── Page ──────────────────────────────────────────── */
-
 export default function FreeExamPage() {
   const queryClient = useQueryClient();
   const { data: session } = useAdminSession();
   const { isActive: isStepUpActive, stepUp } = useAdminStepUp();
   const isSuperadmin = session?.user?.role === "SUPERADMIN";
 
-  // ── Question browser state
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [subject, setSubject] = useState("");
   const [questionPool, setQuestionPool] = useState("");
-  const [featuredFilter, setFeaturedFilter] = useState<string>("");
+  const [featuredFilter, setFeaturedFilter] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string | number>>(
+    new Set(),
+  );
+
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const debouncedSubject = useDebouncedValue(subject.trim(), 350);
 
-  // ── Selected IDs for bulk toggle
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-
-  // ── Data queries
   const questionsQuery = useAdminQuestions({
     page,
-    limit: 20,
+    limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
     subject: debouncedSubject || undefined,
     questionPool: questionPool || undefined,
@@ -80,65 +98,79 @@ export default function FreeExamPage() {
   });
   const coverageQuery = useFreeExamCoverage();
 
-  const questions = questionsQuery.data?.questions ?? [];
+  const questions = useMemo(
+    () => questionsQuery.data?.questions ?? [],
+    [questionsQuery.data],
+  );
   const pagination = questionsQuery.data?.meta;
-  const coverage = coverageQuery.data?.subjects ?? [];
+  const coverage = useMemo(
+    () => coverageQuery.data?.subjects ?? [],
+    [coverageQuery.data],
+  );
 
-  // ── Derived: filter questions by featured status client-side
-  const filteredQuestions = useMemo(() => {
+  /* Browser-side, over this page only — see the note at the top. */
+  const visibleQuestions = useMemo(() => {
     if (!featuredFilter) return questions;
-    if (featuredFilter === "featured") {
-      return questions.filter((q: any) => q.isFeaturedFree === true);
-    }
-    return questions.filter((q: any) => !q.isFeaturedFree);
+    const wantFeatured = featuredFilter === "featured";
+    return questions.filter(
+      (question) => Boolean(question.isFeaturedFree) === wantFeatured,
+    );
   }, [questions, featuredFilter]);
 
-  // ── Metrics
-  const totalFeatured = useMemo(
-    () => coverage.reduce((sum: number, s: any) => sum + s.featuredCount, 0),
-    [coverage],
+  const totalFeatured = coverage.reduce(
+    (sum, row) => sum + row.featuredCount,
+    0,
   );
   const subjectsCovered = coverage.length;
-  const subjectsFull = coverage.filter((s: any) => s.isFull).length;
+  const subjectsFull = coverage.filter((row) => row.isFull).length;
 
-  // ── Selection handlers
-  const toggleSelect = useCallback((id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
+  const toggleSelect = useCallback((id: string | number) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
   }, []);
 
-  const selectAllVisible = useCallback(() => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      for (const q of filteredQuestions) next.add(q.id);
+  const areAllVisibleSelected =
+    visibleQuestions.length > 0 &&
+    visibleQuestions.every((question) => selectedIds.has(question.id));
+
+  const toggleAllVisible = useCallback(() => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      const allSelected = visibleQuestions.every((question) =>
+        next.has(question.id),
+      );
+      for (const question of visibleQuestions) {
+        if (allSelected) next.delete(question.id);
+        else next.add(question.id);
+      }
       return next;
     });
-  }, [filteredQuestions]);
+  }, [visibleQuestions]);
 
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
-
-  // ── Toggle mutation
   const toggleMutation = useMutation({
     mutationFn: (params: { questionIds: number[]; featured: boolean }) =>
       adminFreeExamApi.toggleQuestions(params),
     onSuccess: async (data) => {
       toast.success(data.message);
       setSelectedIds(new Set());
-      await queryClient.invalidateQueries({ queryKey: ["admin", "questions"] });
-      await queryClient.invalidateQueries({ queryKey: ["admin", "free-exam"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "questions"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "free-exam"] }),
+      ]);
     },
     onError: (error) => {
-      toast.error("Toggle failed", {
-        description: <ApiErrorMessage error={error} fallback="Please try again." />,
+      toast.error("Could not change the free pool", {
+        description: (
+          <ApiErrorMessage error={error} fallback="Please try again." />
+        ),
       });
     },
   });
 
-  // ── Reset mutation (SUPERADMIN only)
   const resetMutation = useMutation({
     mutationFn: () => {
       if (!stepUp?.stepUpToken) throw new Error("Step-up required.");
@@ -149,424 +181,407 @@ export default function FreeExamPage() {
       await queryClient.invalidateQueries({ queryKey: ["admin"] });
     },
     onError: (error) => {
-      toast.error("Reset failed", {
-        description: <ApiErrorMessage error={error} fallback="Please try again." />,
+      toast.error("Could not reset credits", {
+        description: (
+          <ApiErrorMessage error={error} fallback="Please try again." />
+        ),
       });
     },
   });
 
-  const handleFeature = () => {
-    if (selectedIds.size === 0) return;
-    toggleMutation.mutate({ questionIds: [...selectedIds], featured: true });
-  };
-  const handleUnfeature = () => {
-    if (selectedIds.size === 0) return;
-    toggleMutation.mutate({ questionIds: [...selectedIds], featured: false });
-  };
+  const selectedCount = selectedIds.size;
+
+  const columns: Column<QuestionListItem>[] = [
+    {
+      key: "question",
+      header: "Question",
+      primary: true,
+      cell: (question) => (
+        <div className="min-w-0">
+          <p className="line-clamp-2">{question.questionText}</p>
+          <p className="sb-nums mt-1 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            #{question.id}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "subject",
+      header: "Subject",
+      width: "12rem",
+      cell: (question) => (
+        <div className="min-w-0">
+          <p className="truncate text-[var(--sb-text)]">{question.subject}</p>
+          <p className="truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            {question.topic ?? "No topic"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "pool",
+      header: "Pool",
+      width: "11rem",
+      showFrom: "lg",
+      cell: (question) => (
+        <Badge tone="neutral">
+          {getQuestionPoolLabel(question.questionPool)}
+        </Badge>
+      ),
+    },
+    {
+      key: "featured",
+      header: "Free exam",
+      width: "9rem",
+      cell: (question) =>
+        question.isFeaturedFree ? (
+          <Badge tone="brand">Featured</Badge>
+        ) : (
+          <span className="text-[var(--sb-text-tertiary)]">Not featured</span>
+        ),
+    },
+  ];
 
   return (
-    <section className="space-y-6">
-      <SectionHeading
-        eyebrow="Free exams"
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
         title="Free exam pool"
-        description="Select questions from the real bank to feature in free exams. Manage per-subject coverage and reset user credits."
+        description="These are the questions free learners get. Pick from the real past-question bank, keeping each subject topped up to its cap."
         action={
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link
+          <>
+            <Button
+              asChild
               href="/questions/free-exam/leaderboard"
-              className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--accent-amber)]/20 bg-[color:var(--accent-amber)]/10 px-4 py-2.5 text-sm font-medium text-[#f2e0c4] transition hover:border-[color:var(--accent-amber)]/30 hover:bg-[color:var(--accent-amber)]/15"
+              variant="secondary"
             >
               <Trophy className="h-4 w-4" />
               Leaderboard
-            </Link>
-            <Link
-              href="/questions"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]"
-            >
-              <ArrowRight className="h-4 w-4" />
-              Full question bank
-            </Link>
-          </div>
+            </Button>
+            <Button asChild href="/questions" variant="secondary">
+              <Library className="h-4 w-4" />
+              Question bank
+            </Button>
+          </>
         }
       />
 
-      {/* ── Metrics ─────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
+      <StatGrid>
+        <StatCard
           label="Featured questions"
           value={formatInteger(totalFeatured)}
-          delta="Available to free users"
-          tone="cyan"
-          className="admin-enter"
-          style={{ animationDelay: "0ms" }}
+          hint="Served to free learners"
         />
-        <MetricCard
+        <StatCard
           label="Subjects covered"
           value={formatInteger(subjectsCovered)}
-          delta={`${formatInteger(subjectsFull)} at full capacity`}
-          tone="emerald"
-          className="admin-enter"
-          style={{ animationDelay: "80ms" }}
+          hint={`${formatInteger(subjectsFull)} are at full capacity`}
         />
-        <MetricCard
+        <StatCard
           label="Questions matched"
           value={formatInteger(pagination?.total ?? 0)}
-          delta="Real bank questions in filter"
-          tone="amber"
-          className="admin-enter"
-          style={{ animationDelay: "160ms" }}
+          hint="Real-bank questions in this filter"
         />
-        <MetricCard
+        <StatCard
           label="Selected"
-          value={formatInteger(selectedIds.size)}
-          delta={selectedIds.size > 0 ? "Ready for action" : "Click rows to select"}
-          tone="rose"
-          className="admin-enter"
-          style={{ animationDelay: "240ms" }}
+          value={formatInteger(selectedCount)}
+          hint={
+            selectedCount
+              ? "Use the bar below to act on them"
+              : "Tick rows to choose questions"
+          }
         />
-      </div>
+      </StatGrid>
 
-      {/* ── Action bar ──────────────────────────────── */}
-      {selectedIds.size > 0 && (
-        <Surface
-          glow="cyan"
-          className="admin-enter flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <p className="text-sm font-medium text-white">
-            {selectedIds.size} question{selectedIds.size !== 1 ? "s" : ""} selected
+      {/* ── Bulk actions ──────────────────────────────────────
+          Sticky, so it stays reachable while working down a long
+          list. Previously it scrolled away with the page. */}
+      {selectedCount > 0 ? (
+        <div className="sticky top-0 z-30 flex flex-col gap-3 rounded-[var(--sb-radius-lg)] border border-[var(--sb-accent-ring)] bg-[var(--sb-surface-2)] p-3 shadow-[var(--sb-shadow)] sm:flex-row sm:items-center sm:justify-between sm:p-4">
+          <p className="text-[length:var(--sb-text-base)] font-medium text-[var(--sb-text)]">
+            {formatInteger(selectedCount)} question
+            {selectedCount === 1 ? "" : "s"} selected
           </p>
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
-              onClick={handleFeature}
+              size="sm"
+              onClick={() =>
+                toggleMutation.mutate({
+                  questionIds: [...selectedIds] as number[],
+                  featured: true,
+                })
+              }
               disabled={toggleMutation.isPending}
-              className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--accent-emerald)]/15 border border-[color:var(--accent-emerald)]/25 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#e0f0cc] transition hover:bg-[color:var(--accent-emerald)]/25 disabled:opacity-50"
+              isLoading={toggleMutation.isPending}
             >
               <Star className="h-3.5 w-3.5" />
-              Feature
-            </button>
-            <button
+              Add to free pool
+            </Button>
+            <Button
               type="button"
-              onClick={handleUnfeature}
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                toggleMutation.mutate({
+                  questionIds: [...selectedIds] as number[],
+                  featured: false,
+                })
+              }
               disabled={toggleMutation.isPending}
-              className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--accent-rose)]/15 border border-[color:var(--accent-rose)]/25 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#f0d5d2] transition hover:bg-[color:var(--accent-rose)]/25 disabled:opacity-50"
             >
               <X className="h-3.5 w-3.5" />
-              Unfeature
-            </button>
-            <button
+              Remove from pool
+            </Button>
+            <Button
               type="button"
-              onClick={clearSelection}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-white/10"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
             >
               Clear
-            </button>
+            </Button>
           </div>
-        </Surface>
-      )}
-
-      {/* ── Filters ─────────────────────────────────── */}
-      <Surface className="p-6">
-        <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr]">
-          <div className="group/search flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 transition-all duration-200 focus-within:border-[color:var(--accent-cyan)]/25 focus-within:shadow-[0_0_0_3px_rgba(110,196,184,0.06)]">
-            <Search className="h-4 w-4 text-[color:var(--muted-foreground)] transition-colors duration-200 group-focus-within/search:text-[color:var(--accent-cyan)]" />
-            <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search question text..."
-              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[color:var(--muted-foreground)]/40"
-            />
-          </div>
-          <input
-            value={subject}
-            onChange={(e) => { setSubject(e.target.value); setPage(1); }}
-            placeholder="Filter by subject..."
-            className="rounded-xl border border-white/8 bg-black/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--muted-foreground)]/50 focus:border-[color:var(--accent-cyan)]/40"
-          />
-          <CustomSelect
-            value={questionPool}
-            onValueChange={(val) => { setQuestionPool(val); setPage(1); }}
-            options={[{ label: "All pools", value: "" }, ...QUESTION_POOL_OPTIONS]}
-            placeholder="All pools"
-          />
-          <CustomSelect
-            value={featuredFilter}
-            onValueChange={(val) => { setFeaturedFilter(val); setPage(1); }}
-            options={[
-              { label: "All questions", value: "" },
-              { label: "★ Featured free", value: "featured" },
-              { label: "Not featured", value: "not-featured" },
-            ]}
-            placeholder="Featured status"
-          />
         </div>
-      </Surface>
+      ) : null}
 
-      {/* ── Questions table ─────────────────────────── */}
-      {questionsQuery.isError && (
-        <Surface glow="rose" className="p-6">
-          <p className="text-base font-semibold text-white">Could not load questions.</p>
-          <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            <ApiErrorMessage error={questionsQuery.error} fallback="Please try again." />
+      <div className="space-y-2">
+        <FilterBar
+          search={
+            <SearchField
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search question text"
+              aria-label="Search question text"
+            />
+          }
+        >
+          <FieldShell label="Subject">
+            <Field
+              value={subject}
+              onChange={(event) => {
+                setSubject(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Any subject"
+              aria-label="Filter by subject"
+            />
+          </FieldShell>
+
+          <FieldShell label="Pool">
+            <CustomSelect
+              aria-label="Filter by pool"
+              value={questionPool}
+              onValueChange={(value) => {
+                setQuestionPool(value);
+                setPage(1);
+              }}
+              options={[
+                { label: "All pools", value: "" },
+                ...QUESTION_POOL_OPTIONS,
+              ]}
+              placeholder="All pools"
+            />
+          </FieldShell>
+
+          {/* Named for what it actually does, not for what it looks like. */}
+          <FieldShell label="Narrow this page">
+            <CustomSelect
+              aria-label="Narrow the questions shown on this page"
+              value={featuredFilter}
+              onValueChange={setFeaturedFilter}
+              options={FEATURED_OPTIONS}
+              placeholder="Everything on this page"
+            />
+          </FieldShell>
+        </FilterBar>
+
+        {featuredFilter ? (
+          <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            Showing {visibleQuestions.length} of the {questions.length}{" "}
+            questions on this page. The backend cannot search by featured
+            status yet, so this does not reach other pages.
           </p>
-        </Surface>
-      )}
+        ) : null}
+      </div>
 
-      <Surface className="overflow-hidden p-0">
-        {questionsQuery.isLoading ? (
-          <div className="space-y-2 px-5 py-6">
-            {Array.from({ length: 6 }).map((_: any, i: number) => (
-              <div key={i} className="skeleton h-16 rounded-xl" />
-            ))}
-          </div>
-        ) : filteredQuestions.length ? (
-          <>
-            {/* Select all bar */}
-            <div className="flex items-center justify-between border-b border-white/8 bg-black/15 px-5 py-2.5">
-              <button
-                type="button"
-                onClick={selectAllVisible}
-                className="text-xs font-medium text-[color:var(--accent-cyan)] transition hover:text-white"
+      <DataTable
+        caption="Real past questions available for the free exam pool"
+        items={visibleQuestions}
+        columns={columns}
+        getKey={(question) => question.id}
+        selection={{
+          selectedIds,
+          onToggle: toggleSelect,
+          onToggleAll: toggleAllVisible,
+          areAllSelected: areAllVisibleSelected,
+          getLabel: (question) =>
+            `Select question ${(question as QuestionListItem).id}`,
+        }}
+        isLoading={questionsQuery.isLoading}
+        error={questionsQuery.isError ? questionsQuery.error : undefined}
+        onRetry={() => questionsQuery.refetch()}
+        emptyIcon={<Library className="h-4 w-4" />}
+        emptyTitle={
+          featuredFilter
+            ? "Nothing on this page matches"
+            : "No questions match these filters"
+        }
+        emptyDescription={
+          featuredFilter
+            ? "Try another page, or set this page's filter back to Everything."
+            : "Try a broader subject, or clear the search."
+        }
+      />
+
+      {pagination ? (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={setPage}
+        />
+      ) : null}
+
+      {/* ── Coverage ──────────────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionTitle
+          title="Coverage by subject"
+          description="How full each subject's free pool is against its cap."
+          action={
+            subjectsCovered > 0 ? (
+              <Badge
+                tone={subjectsFull === subjectsCovered ? "success" : "warning"}
               >
-                Select all visible ({filteredQuestions.length})
-              </button>
-              <p className="text-xs text-[color:var(--muted-foreground)]">
-                {selectedIds.size} selected
-              </p>
-            </div>
+                {subjectsFull} of {subjectsCovered} full
+              </Badge>
+            ) : null
+          }
+        />
 
-            {/* Mobile cards */}
-            <div className="grid gap-3 p-3 md:hidden">
-              {filteredQuestions.map((q: any) => (
-                <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => toggleSelect(q.id)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    selectedIds.has(q.id)
-                      ? "border-[color:var(--accent-cyan)]/30 bg-[color:var(--accent-cyan)]/[0.06]"
-                      : "border-white/[0.06] bg-white/[0.02] hover:border-white/12"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs transition ${
-                      selectedIds.has(q.id)
-                        ? "border-[color:var(--accent-cyan)] bg-[color:var(--accent-cyan)]/20 text-[color:var(--accent-cyan)]"
-                        : "border-white/20 text-transparent"
-                    }`}>
-                      <Check className="h-3 w-3" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-sm font-medium text-white">{q.questionText}</p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <StatusBadge tone="slate">{q.subject}</StatusBadge>
-                        <StatusBadge tone="slate">{getQuestionPoolLabel(q.questionPool)}</StatusBadge>
-                        {q.isFeaturedFree && (
-                          <StatusBadge tone="amber">★ Featured</StatusBadge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </button>
+        <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+          {coverageQuery.isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-14 w-full" />
               ))}
             </div>
-
-            {/* Desktop table */}
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[860px] w-full divide-y divide-white/8 text-sm">
-                <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                  <tr>
-                    <th className="w-12 px-4 py-3" />
-                    <th className="px-5 py-3">Question</th>
-                    <th className="px-5 py-3">Subject</th>
-                    <th className="px-5 py-3">Pool</th>
-                    <th className="px-5 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/8 bg-black/10">
-                  {filteredQuestions.map((q: any) => (
-                    <tr
-                      key={q.id}
-                      onClick={() => toggleSelect(q.id)}
-                      className={`group/row cursor-pointer transition ${
-                        selectedIds.has(q.id)
-                          ? "bg-[color:var(--accent-cyan)]/[0.04]"
-                          : "hover:bg-white/[0.03]"
-                      }`}
-                    >
-                      <td className="px-4 py-3.5">
-                        <span className={`flex h-5 w-5 items-center justify-center rounded border text-xs transition ${
-                          selectedIds.has(q.id)
-                            ? "border-[color:var(--accent-cyan)] bg-[color:var(--accent-cyan)]/20 text-[color:var(--accent-cyan)]"
-                            : "border-white/20 text-transparent group-hover/row:border-white/30"
-                        }`}>
-                          <Check className="h-3 w-3" />
+          ) : coverage.length ? (
+            <ul className="space-y-2.5">
+              {coverage.map((row) => {
+                const percent = coveragePercent(row.featuredCount, row.cap);
+                const tone = coverageTone(
+                  row.cap > 0 ? row.featuredCount / row.cap : 1,
+                );
+                return (
+                  <li
+                    key={`${row.institutionId}-${row.subject}`}
+                    className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                          {row.subject}
+                        </p>
+                        <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                          {row.institutionCode}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2.5">
+                        <span className="sb-nums text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                          {row.featuredCount}/{row.cap}
                         </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <p className="line-clamp-2 font-medium text-white">{q.questionText}</p>
-                        <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">#{q.id}</p>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <p className="text-white">{q.subject}</p>
-                        <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">{q.topic ?? "No topic"}</p>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge tone="slate">{getQuestionPoolLabel(q.questionPool)}</StatusBadge>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {q.isFeaturedFree ? (
-                          <StatusBadge tone="amber">★ Featured</StatusBadge>
-                        ) : (
-                          <StatusBadge tone="slate">—</StatusBadge>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        ) : (
-          <div className="px-5 py-12 text-center text-sm text-[color:var(--muted-foreground)]">
-            No questions match the current filters.
-          </div>
-        )}
-      </Surface>
-
-      {/* ── Pagination ──────────────────────────────── */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-[color:var(--muted-foreground)]">
-            Page {pagination.page} of {pagination.totalPages}
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-3 py-2 text-sm text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" /> Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-              disabled={page >= pagination.totalPages}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-3 py-2 text-sm text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Next <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Coverage dashboard ──────────────────────── */}
-      <Surface className="p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-              Coverage
-            </p>
-            <h3 className="mt-2 text-xl font-semibold text-white">Subject pool capacity</h3>
-            <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
-              How many featured questions exist per subject vs. the configured cap.
-            </p>
-          </div>
-          <StatusBadge tone={subjectsFull === subjectsCovered && subjectsCovered > 0 ? "emerald" : "amber"}>
-            {subjectsFull}/{subjectsCovered} full
-          </StatusBadge>
-        </div>
-
-        {coverageQuery.isLoading ? (
-          <div className="mt-5 space-y-2">
-            {Array.from({ length: 4 }).map((_: any, i: number) => (
-              <div key={i} className="skeleton h-14 rounded-xl" />
-            ))}
-          </div>
-        ) : coverage.length ? (
-          <div className="mt-5 space-y-2.5">
-            {coverage.map((s: any) => {
-              const pct = coveragePercent(s.featuredCount, s.cap);
-              const tone = coverageTone(s.featuredCount / s.cap);
-              return (
-                <div key={`${s.institutionId}-${s.subject}`} className="rounded-xl border border-white/8 bg-black/10 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white truncate">{s.subject}</p>
-                      <p className="text-xs text-[color:var(--muted-foreground)]">{s.institutionCode}</p>
+                        <Badge tone={tone}>
+                          {row.isFull ? "Full" : `${percent}%`}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-sm font-semibold text-white">{s.featuredCount}/{s.cap}</span>
-                      <StatusBadge tone={tone}>
-                        {s.isFull ? "Full" : `${pct}%`}
-                      </StatusBadge>
-                    </div>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        tone === "emerald"
-                          ? "bg-[color:var(--accent-emerald)]"
-                          : tone === "amber"
-                            ? "bg-[color:var(--accent-amber)]"
-                            : "bg-[color:var(--accent-rose)]"
-                      }`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="mt-5 text-sm text-[color:var(--muted-foreground)]">
-            No questions have been featured yet. Select questions above and click &quot;Feature&quot;.
-          </p>
-        )}
-      </Surface>
+                      className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]"
+                      role="progressbar"
+                      aria-valuenow={percent}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${row.subject} pool ${percent}% full`}
+                    >
+                      <div
+                        className="h-full rounded-full transition-[width] duration-[var(--sb-duration-slow)]"
+                        style={{
+                          width: `${percent}%`,
+                          background:
+                            tone === "success"
+                              ? "var(--sb-success)"
+                              : tone === "warning"
+                                ? "var(--sb-warning)"
+                                : "var(--sb-danger)",
+                        }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-tertiary)]">
+              Nothing is featured yet. Tick some questions above and choose
+              &quot;Add to free pool&quot;.
+            </p>
+          )}
+        </div>
+      </section>
 
-      {/* ── SUPERADMIN: Credit reset ────────────────── */}
-      {isSuperadmin && (
-        <Surface glow="rose" className="p-6 admin-enter">
-          <div className="flex items-start justify-between gap-4">
+      {/* ── Credit reset ──────────────────────────────────── */}
+      {isSuperadmin ? (
+        <section className="space-y-3">
+          <SectionTitle title="Free exam credits" />
+          <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-danger-ring)] bg-[var(--sb-danger-soft)] p-4 sm:p-5">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--accent-rose)]/20 bg-[color:var(--accent-rose)]/10 text-[color:var(--accent-rose)]">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sb-radius)] bg-[rgba(248,113,113,0.12)] text-[var(--sb-danger)]">
                 <RotateCcw className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-white">Reset all free exam credits</p>
-                <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
-                  Sets every free user&apos;s credits back to 4 and clears their subject history. This is irreversible.
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+                  Reset everyone&apos;s free exam credits
                 </p>
+                <p className="mt-1 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+                  Puts every free learner back to 4 credits and wipes the
+                  record of which subjects they have already used. This cannot
+                  be undone.
+                </p>
+
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <ConfirmButton
+                    variant="danger"
+                    confirmLabel="Yes, reset every learner"
+                    onConfirm={() => resetMutation.mutate()}
+                    disabled={!isStepUpActive || resetMutation.isPending}
+                    isLoading={resetMutation.isPending}
+                    icon={<RotateCcw className="h-4 w-4" />}
+                  >
+                    Reset credits
+                  </ConfirmButton>
+
+                  {!isStepUpActive ? (
+                    <Button
+                      asChild
+                      href="/step-up?next=/questions/free-exam&intent=Free%20exam%20credit%20reset"
+                      variant="secondary"
+                      size="sm"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Verify first
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              <StatusBadge tone={isStepUpActive ? "emerald" : "amber"}>
-                {isStepUpActive ? "Step-up active" : "Step-up required"}
-              </StatusBadge>
-              <button
-                type="button"
-                onClick={() => resetMutation.mutate()}
-                disabled={!isStepUpActive || resetMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-lg border border-[color:var(--accent-rose)]/25 bg-[color:var(--accent-rose)]/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[color:var(--accent-rose)]/25 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                {resetMutation.isPending ? "Resetting..." : "Reset credits"}
-              </button>
-            </div>
           </div>
-          {!isStepUpActive && (
-            <Link
-              href="/step-up?next=/questions/free-exam&intent=Free%20exam%20credit%20reset"
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[color:var(--background)] transition hover:opacity-90"
-            >
-              Complete step-up verification
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          )}
-        </Surface>
-      )}
-    </section>
+        </section>
+      ) : null}
+    </div>
   );
 }

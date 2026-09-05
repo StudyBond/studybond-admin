@@ -1,56 +1,70 @@
 "use client";
 
-import Link from "next/link";
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import { ErrorState } from "@/components/ui/error-state";
+import { TextArea } from "@/components/ui/field";
+import { PageHeader, SectionTitle } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminReport } from "@/features/reports/hooks/use-admin-report";
+import {
+  MIN_REPORT_NOTE_LENGTH,
+  REPORT_ISSUE_TONE,
+  REPORT_STATUS_TONE,
+  reportLabel,
+} from "@/features/reports/report-display";
 import { adminReportsApi } from "@/lib/api/admin-reports";
 import type { AdminReport } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/utils/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, CheckCheck, FileWarning, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCheck,
-  FileWarning,
-  LoaderCircle,
-  Trash2,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-const statusTone = {
-  PENDING: "amber",
-  REVIEWED: "cyan",
-  RESOLVED: "emerald",
-} as const;
-
-const issueToneMap: Record<string, "amber" | "rose" | "cyan" | "slate"> = {
-  WRONG_ANSWER: "rose",
-  TYPO: "cyan",
-  AMBIGUOUS: "amber",
-  IMAGE_MISSING: "amber",
-  OTHER: "slate",
-};
+/**
+ * One report, in full.
+ *
+ * The most damaging detail was the image. A report of type IMAGE_MISSING or
+ * WRONG_ANSWER usually hinges on what the picture shows, and the picture was
+ * rendered `object-cover` inside a `max-h-[420px]` box — so a tall diagram
+ * was cropped top and bottom, by the very screen an admin opens to judge it.
+ * It is `object-contain` now, on a neutral ground, at its own aspect ratio.
+ *
+ * The note minimum was invisible in the same way it was on the queue: both
+ * action buttons disable below five characters and neither said so.
+ *
+ * Hard delete is permanent and had no confirmation step.
+ *
+ * The status and issue-type colour maps lived here in a second copy that had
+ * already drifted from the queue's — PENDING was amber here and warning
+ * there, TYPO cyan here and info there. Both now import one shared map.
+ */
 
 export default function ReportDetailPage() {
   const params = useParams<{ id: string }>();
   const reportId = Number.parseInt(params.id, 10);
   const queryClient = useQueryClient();
   const { data: session } = useAdminSession();
-  const reportQuery = useAdminReport(Number.isFinite(reportId) ? reportId : undefined);
+  const reportQuery = useAdminReport(
+    Number.isFinite(reportId) ? reportId : undefined,
+  );
   const report: AdminReport | undefined = reportQuery.data;
 
-  const [adminNote, setAdminNote] = useState("");
+  /**
+   * `null` means "the admin has not typed anything yet", so the saved note
+   * shows through. Copying the server value into state with an effect —
+   * which is what this did — meant an in-flight refetch could overwrite what
+   * someone was halfway through typing, and it fired a second render on
+   * every load. The queue page already derives it this way.
+   */
+  const [draftNote, setDraftNote] = useState<string | null>(null);
   const [hardDeleteReason, setHardDeleteReason] = useState("");
 
-  useEffect(() => {
-    setAdminNote(report?.adminNote ?? "");
-  }, [report?.adminNote]);
+  const adminNote = draftNote ?? report?.adminNote ?? "";
 
   const updateMutation = useMutation({
     mutationFn: (status: "REVIEWED" | "RESOLVED") =>
@@ -58,16 +72,20 @@ export default function ReportDetailPage() {
         status,
         adminNote: adminNote.trim(),
       }),
-    onSuccess: async (payload: any) => {
+    onSuccess: async (payload) => {
       toast.success(`Report marked ${payload.status.toLowerCase()}`);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "reports"] }),
-        queryClient.invalidateQueries({ queryKey: ["admin", "report", reportId] }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "report", reportId],
+        }),
       ]);
     },
     onError: (error) => {
-      toast.error("Could not update report", {
-        description: <ApiErrorMessage error={error} fallback="Please try again." />,
+      toast.error("Could not update this report", {
+        description: (
+          <ApiErrorMessage error={error} fallback="Please try again." />
+        ),
       });
     },
   });
@@ -77,255 +95,279 @@ export default function ReportDetailPage() {
       adminReportsApi.hardDelete(reportId, {
         reason: hardDeleteReason.trim(),
       }),
-    onSuccess: async (payload: any) => {
+    onSuccess: async (payload) => {
       toast.success(payload.message);
+      setHardDeleteReason("");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "reports"] }),
-        queryClient.invalidateQueries({ queryKey: ["admin", "report", reportId] }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "report", reportId],
+        }),
       ]);
-      setHardDeleteReason("");
     },
     onError: (error) => {
-      toast.error("Could not delete report", {
-        description: <ApiErrorMessage error={error} fallback="Please try again." />,
+      toast.error("Could not delete this report", {
+        description: (
+          <ApiErrorMessage error={error} fallback="Please try again." />
+        ),
       });
     },
   });
 
-  const reportMeta = useMemo(
-    () => [
-      {
-        label: "Reporter",
-        value: report?.reporter.fullName ?? "Unavailable",
-        helper: report?.reporter.email ?? "No reporter email",
-      },
-      {
-        label: "Subject",
-        value: report?.question.subject ?? "Unavailable",
-        helper: report?.question.topic ?? "No topic assigned",
-      },
-      {
-        label: "Reported",
-        value: report?.createdAt ? formatDateTime(report.createdAt) : "Unavailable",
-        helper: report?.reviewedAt ? `Reviewed ${formatDateTime(report.reviewedAt)}` : "Not reviewed yet",
-      },
-      {
-        label: "Question",
-        value: report ? `#${report.question.id}` : "Unavailable",
-        helper: report?.question.questionPool ?? "No pool",
-      },
-    ],
-    [report],
-  );
+  if (reportQuery.isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Report" description="Loading…" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (reportQuery.isError || !report) {
+    return (
+      <div className="sb-enter space-y-6">
+        <PageHeader
+          title="Report"
+          action={
+            <Button asChild href="/reports" variant="secondary">
+              <ArrowLeft className="h-4 w-4" />
+              Back to reports
+            </Button>
+          }
+        />
+        <ErrorState
+          title="Could not load this report"
+          error={reportQuery.error}
+          onRetry={() => reportQuery.refetch()}
+        />
+      </div>
+    );
+  }
+
+  const isNoteTooShort = adminNote.trim().length < MIN_REPORT_NOTE_LENGTH;
+  const isDeleteReasonTooShort =
+    hardDeleteReason.trim().length < MIN_REPORT_NOTE_LENGTH;
 
   return (
-    <section className="space-y-6">
-      <SectionHeading
-        eyebrow="Reports"
-        title={report ? `Report #${report.id}` : "Report detail"}
-        description="Inspect the report payload, preserve moderator notes, and take the appropriate moderation action."
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
+        title={`Report #${report.id}`}
+        description={`${report.question.subject} · reported ${formatDateTime(
+          report.createdAt,
+        )}`}
+        meta={
+          <>
+            <Badge tone={REPORT_ISSUE_TONE[report.issueType] ?? "neutral"}>
+              {reportLabel(report.issueType)}
+            </Badge>
+            <Badge tone={REPORT_STATUS_TONE[report.status] ?? "neutral"}>
+              {reportLabel(report.status)}
+            </Badge>
+          </>
+        }
         action={
-          <Link
-            href="/reports"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]"
-          >
+          <Button asChild href="/reports" variant="secondary">
             <ArrowLeft className="h-4 w-4" />
             Back to reports
-          </Link>
+          </Button>
         }
       />
 
-      {reportQuery.isLoading ? (
-        <Surface className="p-6">
-          <p className="text-sm text-[color:var(--muted-foreground)]">Loading report details...</p>
-        </Surface>
-      ) : null}
-
-      {reportQuery.isError ? (
-        <Surface glow="rose" className="p-6">
-          <p className="text-base font-semibold text-white">Could not load this report.</p>
-          <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            <ApiErrorMessage error={reportQuery.error} fallback="Please try again." />
-          </p>
-        </Surface>
-      ) : null}
-
-      {report ? (
-        <div className="grid gap-6 2xl:grid-cols-[1.14fr_0.86fr]">
-          <div className="grid gap-6">
-            <Surface glow="cyan" className="p-6">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge tone={issueToneMap[report.issueType] ?? "slate"}>
-                  {report.issueType.replaceAll("_", " ")}
-                </StatusBadge>
-                <StatusBadge tone={statusTone[report.status as keyof typeof statusTone]}>{report.status}</StatusBadge>
-                {report.question.hasImage ? <StatusBadge tone="cyan">has image</StatusBadge> : null}
-              </div>
-
-              <h2 className="mt-4 text-2xl font-semibold text-white">{report.question.subject}</h2>
-              <p className="mt-2 text-sm leading-7 text-[color:var(--muted-foreground)]">
-                {report.description || "The reporter did not add extra notes for this issue."}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        {/* ══ What was reported ═══════════════════════════════ */}
+        <div className="min-w-0 space-y-6">
+          <section className="space-y-3">
+            <SectionTitle title="What the learner said" />
+            <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              <p className="text-[length:var(--sb-text-md)] leading-relaxed text-[var(--sb-text)]">
+                {report.description ||
+                  "The reporter did not write a description."}
               </p>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {reportMeta.map((item: any) => (
-                  <div key={item.label} className="rounded-xl border border-white/8 bg-black/10 p-4">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                      {item.label}
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-white">{item.value}</p>
-                    <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">{item.helper}</p>
-                  </div>
-                ))}
-              </div>
-            </Surface>
-
-            <Surface className="p-6">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                  Prompt
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Question snapshot</h2>
-              </div>
-
-              <div className="mt-5 space-y-4">
-                <div className="rounded-xl border border-white/8 bg-black/10 p-5">
-                  <p className="text-sm leading-7 text-white">{report.question.questionText}</p>
+              <dl className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+                  <dt className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                    Reported by
+                  </dt>
+                  <dd className="mt-1 truncate text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                    {report.reporter.fullName}
+                  </dd>
+                  <dd className="truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                    {report.reporter.email}
+                  </dd>
                 </div>
+                <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+                  <dt className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                    Question
+                  </dt>
+                  <dd className="sb-nums mt-1 text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                    #{report.question.id}
+                  </dd>
+                  <dd className="truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                    {report.question.topic ?? "No topic"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </section>
 
-                {report.question.imageUrl ? (
-                  <div className="overflow-hidden rounded-xl border border-white/8 bg-black/10">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={report.question.imageUrl}
-                      alt={`Question ${report.question.id}`}
-                      className="max-h-[420px] w-full object-cover"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </Surface>
-          </div>
-
-          <div className="grid gap-6">
-            <Surface glow="amber" className="p-6">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                  Moderator note
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Decision log</h2>
-              </div>
-
-              <div className="mt-5">
-                <textarea
-                  rows={7}
-                  value={adminNote}
-                  onChange={(event) => setAdminNote(event.target.value)}
-                  placeholder="Document what was checked, the conclusion reached, and any follow-up work..."
-                  className="w-full rounded-xl border border-white/8 bg-black/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--muted-foreground)]/50 focus:border-[color:var(--accent-cyan)]/40"
-                />
-              </div>
-
-              <div className="mt-5 grid gap-3">
-                <button
-                  type="button"
-                  onClick={() => updateMutation.mutate("REVIEWED")}
-                  disabled={updateMutation.isPending || adminNote.trim().length < 5}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent-cyan)] px-4 py-3 text-sm font-semibold text-[color:var(--background)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          <section className="space-y-3">
+            <SectionTitle
+              title="The question"
+              description="Exactly what the learner was looking at."
+              action={
+                <Button
+                  asChild
+                  href={`/questions/${report.question.id}`}
+                  variant="secondary"
+                  size="sm"
                 >
-                  {updateMutation.isPending ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileWarning className="h-4 w-4" />
-                  )}
+                  Open question
+                </Button>
+              }
+            />
+            <div className="space-y-3 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              <p className="text-[length:var(--sb-text-md)] leading-relaxed text-[var(--sb-text)]">
+                {report.question.questionText}
+              </p>
+
+              {report.question.imageUrl ? (
+                /* object-contain, not object-cover: half these reports are
+                   about the image, and cropping it hides the evidence. */
+                <figure className="overflow-hidden rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={report.question.imageUrl}
+                    alt={`Attached to question ${report.question.id}`}
+                    className="mx-auto max-h-[30rem] w-auto max-w-full object-contain"
+                  />
+                </figure>
+              ) : (
+                <p className="rounded-[var(--sb-radius)] border border-dashed border-[var(--sb-border)] px-3 py-4 text-center text-[length:var(--sb-text-sm)] text-[var(--sb-text-tertiary)]">
+                  This question has no image.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* ══ What you do about it ════════════════════════════ */}
+        <div className="min-w-0 space-y-6">
+          <section className="space-y-3">
+            <SectionTitle
+              title="Your decision"
+              description="Recorded against your account and kept with the report."
+            />
+            <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              <TextArea
+                label="Note"
+                hint={`${MIN_REPORT_NOTE_LENGTH} characters minimum`}
+                rows={6}
+                value={adminNote}
+                onChange={(event) => setDraftNote(event.target.value)}
+                placeholder="What did you check, and what did you decide?"
+              />
+
+              {/* States the rule the buttons are enforcing. */}
+              {isNoteTooShort ? (
+                <p className="mt-1.5 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  Write a note before marking this reviewed or resolved.
+                </p>
+              ) : null}
+
+              <div className="mt-4 grid gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => updateMutation.mutate("REVIEWED")}
+                  disabled={updateMutation.isPending || isNoteTooShort}
+                  isLoading={updateMutation.isPending}
+                >
+                  <FileWarning className="h-4 w-4" />
                   Mark reviewed
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => updateMutation.mutate("RESOLVED")}
-                  disabled={updateMutation.isPending || adminNote.trim().length < 5}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent-emerald)] px-4 py-3 text-sm font-semibold text-[color:var(--background)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={updateMutation.isPending || isNoteTooShort}
+                  isLoading={updateMutation.isPending}
                 >
-                  {updateMutation.isPending ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCheck className="h-4 w-4" />
-                  )}
-                  Resolve report
-                </button>
+                  <CheckCheck className="h-4 w-4" />
+                  Resolve
+                </Button>
               </div>
-            </Surface>
+            </div>
+          </section>
 
-            <Surface className="p-6">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-cyan)]">
-                  Audit
+          <section className="space-y-3">
+            <SectionTitle title="Who handled it" />
+            <div className="space-y-2.5 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+                <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  Reviewed by
                 </p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Review ownership</h2>
+                <p className="mt-1 text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                  {report.reviewedByAdmin?.fullName ?? "Nobody yet"}
+                </p>
+                <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  {report.reviewedAt
+                    ? formatDateTime(report.reviewedAt)
+                    : "Not reviewed"}
+                </p>
               </div>
-
-              <div className="mt-5 space-y-3">
-                <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                  <p className="text-xs text-[color:var(--muted-foreground)]">Reviewed by</p>
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    {report.reviewedByAdmin?.fullName ?? "Not assigned"}
-                  </p>
-                  <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                    {report.reviewedByAdmin?.email ?? "Awaiting review"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                  <p className="text-xs text-[color:var(--muted-foreground)]">Resolved by</p>
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    {report.resolvedByAdmin?.fullName ?? "Not resolved"}
-                  </p>
-                  <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                    {report.resolvedByAdmin?.email ?? "Still open"}
-                  </p>
-                </div>
+              <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+                <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  Resolved by
+                </p>
+                <p className="mt-1 text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                  {report.resolvedByAdmin?.fullName ?? "Nobody yet"}
+                </p>
+                <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  {report.resolvedByAdmin?.email ?? "Still open"}
+                </p>
               </div>
-            </Surface>
+            </div>
+          </section>
 
-            {session?.user?.role === "SUPERADMIN" ? (
-              <Surface glow="rose" className="p-6">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--accent-rose)]/20 bg-[color:var(--accent-rose)]/10 text-[color:var(--accent-rose)]">
-                    <AlertTriangle className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <p className="text-base font-semibold text-white">Hard delete report</p>
-                    <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                      This permanently removes the report record. Use it only for exceptional cleanup or invalid submissions.
-                    </p>
-                  </div>
+          {session?.user?.role === "SUPERADMIN" ? (
+            <section className="space-y-3">
+              <SectionTitle title="Permanent deletion" />
+              <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-danger-ring)] bg-[var(--sb-danger-soft)] p-4 sm:p-5">
+                <p className="text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+                  This erases the report record for good. It is for spam and
+                  invalid submissions — resolving is the normal way to close a
+                  real report.
+                </p>
+
+                <div className="mt-3">
+                  <TextArea
+                    label="Reason"
+                    hint={`${MIN_REPORT_NOTE_LENGTH} characters minimum`}
+                    rows={3}
+                    value={hardDeleteReason}
+                    onChange={(event) => setHardDeleteReason(event.target.value)}
+                    placeholder="Why is this being deleted rather than resolved?"
+                  />
                 </div>
 
-                <textarea
-                  rows={3}
-                  value={hardDeleteReason}
-                  onChange={(event) => setHardDeleteReason(event.target.value)}
-                  placeholder="Reason for permanent deletion..."
-                  className="mt-5 w-full rounded-xl border border-white/8 bg-black/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--muted-foreground)]/50 focus:border-[color:var(--accent-rose)]/40"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => hardDeleteMutation.mutate()}
-                  disabled={hardDeleteMutation.isPending || hardDeleteReason.trim().length < 5}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--accent-rose)]/20 bg-[color:var(--accent-rose)]/10 px-4 py-3 text-sm font-semibold text-[color:var(--accent-rose)] transition hover:bg-[color:var(--accent-rose)]/15 disabled:cursor-not-allowed disabled:opacity-50"
+                <ConfirmButton
+                  variant="danger"
+                  className="mt-3 w-full"
+                  confirmLabel="Yes, delete permanently"
+                  onConfirm={() => hardDeleteMutation.mutate()}
+                  disabled={
+                    hardDeleteMutation.isPending || isDeleteReasonTooShort
+                  }
+                  isLoading={hardDeleteMutation.isPending}
+                  icon={<Trash2 className="h-4 w-4" />}
                 >
-                  {hardDeleteMutation.isPending ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Delete report permanently
-                </button>
-              </Surface>
-            ) : null}
-          </div>
+                  Delete report
+                </ConfirmButton>
+              </div>
+            </section>
+          ) : null}
         </div>
-      ) : null}
-    </section>
+      </div>
+    </div>
   );
 }

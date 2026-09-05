@@ -1,137 +1,174 @@
 "use client";
 
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { adminSystemApi } from "@/lib/api/admin-system";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+/**
+ * Register a new institution.
+ *
+ * Changes:
+ *
+ * 1. The submit button was `bg-white text-black` — a colour that exists
+ *    nowhere else in the console, on the one control that writes a new row
+ *    to a global table.
+ *
+ * 2. Labels read "Institution Code (OAU)", "Full Name", "URL Slug" in
+ *    letter-spaced uppercase. The example belongs in the placeholder, which
+ *    already had it, so the label was carrying it twice.
+ *
+ * 3. The slug had to be typed by hand, character for character, even though
+ *    it is derived from the name in every realistic case. It now fills
+ *    itself from the name until someone edits it, and the two inputs
+ *    silently discarded characters (`replace(/[^a-z-]/g, "")` drops spaces
+ *    and digits) with nothing on screen explaining why.
+ *
+ * 4. `queryClient` was created and never used.
+ */
 export function AddInstitutionPanel() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [isSlugEdited, setIsSlugEdited] = useState(false);
   const { isActive: isStepUpActive, stepUp } = useAdminStepUp();
 
-  const resetForm = () => {
+  function slugify(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-");
+  }
+
+  function resetForm() {
     setCode("");
     setName("");
     setSlug("");
-  };
+    setIsSlugEdited(false);
+  }
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!stepUp?.stepUpToken) {
         throw new Error("Step-up verification required.");
       }
-
       return adminSystemApi.createInstitution(
         { code, name, slug },
-        { stepUpToken: stepUp.stepUpToken }
+        { stepUpToken: stepUp.stepUpToken },
       );
     },
     onSuccess: async (payload) => {
-      toast.success(`Institution ${payload.institution.code} activated successfully.`);
+      toast.success(`${payload.institution.code} added`);
       resetForm();
-      router.refresh(); // Refresh client side so changes bounce back if we rely on RSCs elsewhere
+      router.refresh();
     },
     onError: (error) => {
-      toast.error("Could not register institution", {
-        description: <ApiErrorMessage error={error} fallback="Check the code and slug are unique." />,
+      toast.error("Could not add this institution", {
+        description: (
+          <ApiErrorMessage
+            error={error}
+            fallback="Check that the code and slug are not already taken."
+          />
+        ),
       });
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!code || !name || !slug) return;
+  const isComplete = Boolean(code && name && slug);
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!isComplete || !isStepUpActive) return;
     mutation.mutate();
-  };
+  }
 
   return (
-    <div className="mt-5 rounded-xl border border-white/8 bg-black/10 p-4">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-[color:var(--accent-cyan)]">
-            <Building2 className="h-4 w-4" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-white">Educational Network</p>
-            <p className="max-w-xl mt-1 text-sm text-[color:var(--muted-foreground)]">
-              Register a new university into the StudyBond infrastructure. Ensure the code matches our primary abbreviation standard (e.g. OAU, UNILAG).
-            </p>
-          </div>
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5"
+    >
+      <h3 className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+        Add an institution
+      </h3>
+      <p className="mt-1 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+        Questions, exams, and leaderboards are all scoped to an institution,
+        so this affects everyone who joins under it.
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Field
+          label="Short code"
+          hint="Letters only"
+          id="inst-code"
+          required
+          disabled={!isStepUpActive || mutation.isPending}
+          value={code}
+          onChange={(event) =>
+            setCode(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))
+          }
+          placeholder="OAU"
+        />
+
+        <Field
+          label="Full name"
+          id="inst-name"
+          required
+          disabled={!isStepUpActive || mutation.isPending}
+          value={name}
+          onChange={(event) => {
+            setName(event.target.value);
+            /* Fill the slug from the name until someone takes it over. */
+            if (!isSlugEdited) {
+              setSlug(slugify(event.target.value));
+            }
+          }}
+          placeholder="Obafemi Awolowo University"
+        />
+
+        {/* Field forwards className to the input, so the column span has to
+            live on a wrapper or it lands on the wrong element. */}
+        <div className="sm:col-span-2">
+          <Field
+            label="URL slug"
+            hint={isSlugEdited ? "Edited by hand" : "From the name"}
+            id="inst-slug"
+            required
+            disabled={!isStepUpActive || mutation.isPending}
+            value={slug}
+            onChange={(event) => {
+              setIsSlugEdited(true);
+              setSlug(slugify(event.target.value));
+            }}
+            placeholder="obafemi-awolowo-university"
+          />
         </div>
-
-        <form onSubmit={handleSubmit} className="mt-4 grid gap-4 lg:grid-cols-4 items-end bg-white/[0.02] p-4 rounded-xl border border-white/5">
-          <div className="space-y-1.5">
-            <label htmlFor="inst-code" className="text-xs font-medium text-white/50 uppercase tracking-wider block">
-              Institution Code (OAU)
-            </label>
-            <input
-              id="inst-code"
-              type="text"
-              required
-              disabled={!isStepUpActive || mutation.isPending}
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
-              placeholder="e.g. OAU"
-              className="w-full rounded-xl border border-white/[0.06] bg-black/20 px-3.5 py-2.5 text-sm text-white/90 outline-none transition hover:border-white/[0.1] focus:border-[color:var(--accent-cyan)]/50 focus:bg-white/[0.05] disabled:opacity-50"
-            />
-          </div>
-
-          <div className="space-y-1.5 lg:col-span-1">
-            <label htmlFor="inst-name" className="text-xs font-medium text-white/50 uppercase tracking-wider block">
-              Full Name
-            </label>
-            <input
-              id="inst-name"
-              type="text"
-              required
-              disabled={!isStepUpActive || mutation.isPending}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Obafemi Awolowo University"
-              className="w-full rounded-xl border border-white/[0.06] bg-black/20 px-3.5 py-2.5 text-sm text-white/90 outline-none transition hover:border-white/[0.1] focus:border-[color:var(--accent-cyan)]/50 focus:bg-white/[0.05] disabled:opacity-50"
-            />
-          </div>
-
-          <div className="space-y-1.5 lg:col-span-1">
-            <label htmlFor="inst-slug" className="text-xs font-medium text-white/50 uppercase tracking-wider block">
-              URL Slug
-            </label>
-            <input
-              id="inst-slug"
-              type="text"
-              required
-              disabled={!isStepUpActive || mutation.isPending}
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z-]/g, ""))}
-              placeholder="e.g. obafemi-awolowo-university"
-              className="w-full rounded-xl border border-white/[0.06] bg-black/20 px-3.5 py-2.5 text-sm text-white/90 outline-none transition hover:border-white/[0.1] focus:border-[color:var(--accent-cyan)]/50 focus:bg-white/[0.05] disabled:opacity-50"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={!code || !name || !slug || !isStepUpActive || mutation.isPending}
-            className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/50"
-          >
-            {mutation.isPending ? "Adding..." : "Add"}
-            {!mutation.isPending && <Plus className="h-4 w-4" />}
-          </button>
-        </form>
-
-        {!isStepUpActive && (
-          <div className="mt-2 rounded-lg border border-[color:var(--accent-amber)]/25 bg-[color:var(--accent-amber)]/10 px-3 py-2 text-xs text-white">
-            Step-up verification is required before making destructive or global platform changes.
-          </div>
-        )}
       </div>
-    </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Button
+          type="submit"
+          disabled={!isComplete || !isStepUpActive || mutation.isPending}
+          isLoading={mutation.isPending}
+        >
+          <Plus className="h-4 w-4" />
+          Add institution
+        </Button>
+
+        {/* Says why the button is dead, next to the dead button. */}
+        {!isStepUpActive ? (
+          <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            Verify with step-up first.
+          </p>
+        ) : null}
+      </div>
+    </form>
   );
 }

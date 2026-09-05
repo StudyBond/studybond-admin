@@ -1,10 +1,9 @@
 "use client";
 
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils/cn";
 import { formatInteger } from "@/lib/utils/format";
-import { useEffect, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 export type ActivityPoint = {
   label: string;
@@ -15,243 +14,247 @@ export type ActivityPoint = {
 type ActivityChartProps = {
   data: ActivityPoint[];
   title?: string;
-  eyebrow?: string;
   description?: string;
+  isLoading?: boolean;
+  className?: string;
 };
 
-function getDefaultSelectedIndex(data: ActivityPoint[]) {
-  for (let index = data.length - 1; index >= 0; index -= 1) {
-    const point = data[index];
-    if (point.exams > 0 || point.collaborations > 0) {
-      return index;
-    }
-  }
+/**
+ * Grouped bars, two series, one shared axis.
+ *
+ * Both series are counts, so they share a scale — never a second y-axis.
+ * Series colours are IDENTITY (chart-1 / chart-2), deliberately separate
+ * from the status tokens, so a bar can never be misread as "this is bad".
+ */
+const SERIES = [
+  { key: "exams", label: "Exam starts", color: "var(--sb-chart-1)" },
+  {
+    key: "collaborations",
+    label: "Collaboration sessions",
+    color: "var(--sb-chart-2)",
+  },
+] as const;
 
-  return Math.max(0, data.length - 1);
-}
-
-function getBarHeight(value: number, maxValue: number, minimumHeight: number) {
-  if (value <= 0) {
-    return minimumHeight;
-  }
-
-  return Math.max(minimumHeight + 6, Math.round((value / maxValue) * 112));
+/** Round axis maximum up to a friendly number so gridlines read cleanly. */
+function niceMax(value: number) {
+  if (value <= 5) return 5;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  return Math.ceil(value / (magnitude / 2)) * (magnitude / 2);
 }
 
 export function ActivityChart({
   data,
-  title = "Study and collaboration volume",
-  eyebrow = "7-day activity",
-  description = "Live exam starts and collaboration sessions across the selected window.",
+  title = "Weekly activity",
+  description = "Exam starts and collaboration sessions, last 7 days.",
+  isLoading = false,
+  className,
 }: ActivityChartProps) {
-  const [selectedIndex, setSelectedIndex] = useState(() => getDefaultSelectedIndex(data));
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const headingId = useId();
 
-  useEffect(() => {
-    setSelectedIndex((current) => {
-      if (current >= 0 && current < data.length) {
-        return current;
-      }
-
-      return getDefaultSelectedIndex(data);
-    });
-  }, [data]);
-
-  const maxValue = Math.max(1, ...data.flatMap((item) => [item.exams, item.collaborations]));
-  const selectedPoint = data[selectedIndex];
+  const max = useMemo(
+    () =>
+      niceMax(
+        Math.max(1, ...data.flatMap((d) => [d.exams, d.collaborations])),
+      ),
+    [data],
+  );
 
   const totals = useMemo(
     () =>
       data.reduce(
-        (accumulator, point) => ({
-          exams: accumulator.exams + point.exams,
-          collaborations: accumulator.collaborations + point.collaborations,
+        (acc, point) => ({
+          exams: acc.exams + point.exams,
+          collaborations: acc.collaborations + point.collaborations,
         }),
         { exams: 0, collaborations: 0 },
       ),
     [data],
   );
 
-  const peakDay = useMemo(() => {
-    return data.reduce<ActivityPoint | null>((currentPeak, point) => {
-      if (!currentPeak) {
-        return point;
-      }
-
-      const currentTotal = currentPeak.exams + currentPeak.collaborations;
-      const nextTotal = point.exams + point.collaborations;
-      return nextTotal > currentTotal ? point : currentPeak;
-    }, null);
-  }, [data]);
+  const gridLines = [0, 0.25, 0.5, 0.75, 1];
 
   return (
-    <Surface glow="cyan" className="p-5 sm:p-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--accent-cyan)]">
-            {eyebrow}
-          </p>
-          <h3 className="mt-3 text-[1.75rem] font-semibold leading-tight text-white sm:text-2xl">
+    <section
+      aria-labelledby={headingId}
+      className={cn(
+        "rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5",
+        className,
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2
+            id={headingId}
+            className="text-[length:var(--sb-text-lg)] font-semibold tracking-tight text-[var(--sb-text)]"
+          >
             {title}
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--muted-foreground)]">
+          </h2>
+          <p className="mt-0.5 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
             {description}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge tone="cyan">Exam starts</StatusBadge>
-          <StatusBadge tone="emerald">Collaboration</StatusBadge>
-        </div>
+
+        {/* Legend. Always present for two series — identity is never
+            carried by colour alone. */}
+        <ul className="flex shrink-0 flex-wrap gap-x-4 gap-y-1.5">
+          {SERIES.map((series) => (
+            <li key={series.key} className="flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0 rounded-[2px]"
+                style={{ background: series.color }}
+              />
+              <span className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
+                {series.label}
+              </span>
+              <span className="sb-nums text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text)]">
+                {formatInteger(totals[series.key])}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      {data.length === 0 ? (
-        <div className="mt-6 rounded-[24px] border border-white/8 bg-black/10 px-4 py-10 text-sm text-[color:var(--muted-foreground)]">
-          No activity data is available for the selected period yet.
-        </div>
+      {isLoading ? (
+        <Skeleton className="mt-5 h-52 w-full" />
+      ) : !data.length ? (
+        <p className="mt-5 py-16 text-center text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+          No activity recorded in this window.
+        </p>
       ) : (
-        <>
-          <div className="mt-6 rounded-[24px] border border-white/8 bg-black/10 p-4 md:hidden">
-            <div className="grid h-[11.5rem] grid-cols-7 items-end gap-1.5">
-              {data.map((item: any, index: number) => {
-                const examHeight = getBarHeight(item.exams, maxValue, 8);
-                const collaborationHeight = getBarHeight(item.collaborations, maxValue, 8);
-                const isSelected = index === selectedIndex;
-
-                return (
-                  <button
-                    key={`${item.label}-${index}`}
-                    type="button"
-                    onClick={() => setSelectedIndex(index)}
-                    className={cn(
-                      "flex h-full flex-col items-center justify-end gap-2 rounded-[1.2rem] px-1 pb-2 pt-3 transition-all duration-200",
-                      isSelected
-                        ? "bg-white/[0.06] shadow-[inset_0_0_0_1px_rgba(110,196,184,0.2)]"
-                        : "hover:bg-white/[0.03]",
-                    )}
-                  >
-                    <div className="flex h-24 items-end gap-1">
-                      <span
-                        className="w-2 rounded-full bg-[linear-gradient(180deg,rgba(143,211,200,0.98),rgba(59,130,246,0.68))] shadow-[0_8px_18px_rgba(56,189,248,0.18)]"
-                        style={{ height: `${examHeight}px` }}
-                        title={`Exam starts: ${formatInteger(item.exams)}`}
-                      />
-                      <span
-                        className="w-2 rounded-full bg-[linear-gradient(180deg,rgba(154,199,105,0.98),rgba(21,128,61,0.65))] shadow-[0_8px_18px_rgba(132,204,22,0.18)]"
-                        style={{ height: `${collaborationHeight}px` }}
-                        title={`Collaboration sessions: ${formatInteger(item.collaborations)}`}
-                      />
-                    </div>
-                    <span
-                      className={cn(
-                        "text-[10px] uppercase tracking-[0.14em]",
-                        isSelected ? "text-white" : "text-[color:var(--muted-foreground)]",
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
+        <div className="mt-5">
+          <div className="flex gap-3">
+            {/* Y axis — recessive, four labels, no box */}
+            <div
+              aria-hidden="true"
+              className="sb-nums flex h-44 w-9 shrink-0 flex-col justify-between text-right text-[10px] text-[var(--sb-text-tertiary)]"
+            >
+              {[...gridLines].reverse().map((ratio) => (
+                <span key={ratio} className="leading-none">
+                  {formatInteger(Math.round(max * ratio))}
+                </span>
+              ))}
             </div>
 
-            {selectedPoint ? (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-black/15 px-4 py-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                      Selected day
-                    </p>
-                    <p className="mt-1 text-base font-semibold text-white">{selectedPoint.label}</p>
-                  </div>
-                  <StatusBadge
-                    tone={
-                      selectedPoint.exams + selectedPoint.collaborations > 0 ? "cyan" : "slate"
-                    }
-                  >
-                    {formatInteger(selectedPoint.exams + selectedPoint.collaborations)} total
-                  </StatusBadge>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-white/8 bg-black/15 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                      Exam starts
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-white">
-                      {formatInteger(selectedPoint.exams)}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-white/8 bg-black/15 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                      Collaboration
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-white">
-                      {formatInteger(selectedPoint.collaborations)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-white/8 bg-black/15 p-3.5">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                      7-day exams
-                    </p>
-                    <p className="mt-2 text-lg font-semibold text-white">
-                      {formatInteger(totals.exams)}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-white/8 bg-black/15 p-3.5">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                      Peak day
-                    </p>
-                    <p className="mt-2 text-lg font-semibold text-white">
-                      {peakDay?.label ?? "N/A"}
-                    </p>
-                  </div>
-                </div>
+            <div className="relative min-w-0 flex-1">
+              {/* Gridlines */}
+              <div aria-hidden="true" className="absolute inset-0 h-44">
+                {gridLines.map((ratio) => (
+                  <span
+                    key={ratio}
+                    className="absolute inset-x-0 h-px"
+                    style={{
+                      bottom: `${ratio * 100}%`,
+                      background:
+                        ratio === 0
+                          ? "var(--sb-chart-axis)"
+                          : "var(--sb-chart-grid)",
+                    }}
+                  />
+                ))}
               </div>
-            ) : null}
-          </div>
 
-          <div className="mt-8 hidden grid-cols-7 gap-3 md:grid">
-            {data.map((item: any, index: number) => {
-              const examHeight = getBarHeight(item.exams, maxValue, 12);
-              const collaborationHeight = getBarHeight(item.collaborations, maxValue, 12);
+              {/* Bars */}
+              <div className="relative flex h-44 items-end gap-1 sm:gap-2">
+                {data.map((point, index) => {
+                  const isHovered = hoverIndex === index;
 
-              return (
-                <div
-                  key={`${item.label}-${index}`}
-                  className="admin-enter rounded-[22px] border border-white/8 bg-black/10 px-3 py-4"
-                  style={{ animationDelay: `${index * 60}ms` }}
-                >
-                  <div className="flex h-44 items-end justify-center gap-2">
+                  return (
                     <div
-                      className="w-4 rounded-full bg-[linear-gradient(180deg,rgba(143,211,200,0.98),rgba(59,130,246,0.68))] shadow-[0_10px_24px_rgba(56,189,248,0.18)]"
-                      style={{ height: `${examHeight}px` }}
-                      title={`Exam starts: ${formatInteger(item.exams)}`}
-                    />
-                    <div
-                      className="w-4 rounded-full bg-[linear-gradient(180deg,rgba(154,199,105,0.98),rgba(21,128,61,0.65))] shadow-[0_10px_24px_rgba(132,204,22,0.18)]"
-                      style={{ height: `${collaborationHeight}px` }}
-                      title={`Collaboration sessions: ${formatInteger(item.collaborations)}`}
-                    />
-                  </div>
-                  <div className="mt-4 text-center">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
-                      {item.label}
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-white">
-                      {formatInteger(item.exams)}
-                    </p>
-                    <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                      {formatInteger(item.collaborations)} collab
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+                      key={point.label}
+                      className="group relative flex h-full min-w-0 flex-1 items-end justify-center gap-[2px]"
+                      onMouseEnter={() => setHoverIndex(index)}
+                      onMouseLeave={() => setHoverIndex(null)}
+                      onFocus={() => setHoverIndex(index)}
+                      onBlur={() => setHoverIndex(null)}
+                      tabIndex={0}
+                      role="img"
+                      aria-label={`${point.label}: ${point.exams} exam starts, ${point.collaborations} collaboration sessions`}
+                    >
+                      {/* Hover band, sits behind the bars */}
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "pointer-events-none absolute inset-x-0 inset-y-0 rounded-[var(--sb-radius-sm)] bg-[var(--sb-surface-3)] transition-opacity duration-[var(--sb-duration-fast)]",
+                          isHovered ? "opacity-60" : "opacity-0",
+                        )}
+                      />
+
+                      {SERIES.map((series) => {
+                        const value = point[series.key];
+                        const heightPercent = (value / max) * 100;
+
+                        return (
+                          <span
+                            key={series.key}
+                            className="relative w-full max-w-3 rounded-t-[4px] transition-[height] duration-[var(--sb-duration)] ease-[var(--sb-ease)]"
+                            style={{
+                              height: `max(2px, ${heightPercent}%)`,
+                              background: series.color,
+                              opacity:
+                                hoverIndex === null || isHovered ? 1 : 0.45,
+                            }}
+                          />
+                        );
+                      })}
+
+                      {/* Tooltip */}
+                      {isHovered ? (
+                        <div
+                          role="tooltip"
+                          className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-max -translate-x-1/2 rounded-[var(--sb-radius)] border border-[var(--sb-border-hover)] bg-[var(--sb-surface-3)] px-2.5 py-2 shadow-[var(--sb-shadow-lg)]"
+                        >
+                          <p className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text)]">
+                            {point.label}
+                          </p>
+                          <dl className="mt-1 space-y-0.5">
+                            {SERIES.map((series) => (
+                              <div
+                                key={series.key}
+                                className="flex items-center gap-1.5"
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className="h-1.5 w-1.5 rounded-[1px]"
+                                  style={{ background: series.color }}
+                                />
+                                <dt className="text-[10px] text-[var(--sb-text-secondary)]">
+                                  {series.label}
+                                </dt>
+                                <dd className="sb-nums ml-auto pl-2 text-[10px] font-medium text-[var(--sb-text)]">
+                                  {formatInteger(point[series.key])}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* X axis */}
+              <div className="mt-2 flex gap-1 sm:gap-2">
+                {data.map((point, index) => (
+                  <span
+                    key={point.label}
+                    className={cn(
+                      "sb-nums min-w-0 flex-1 truncate text-center text-[10px] transition-colors duration-[var(--sb-duration-fast)]",
+                      hoverIndex === index
+                        ? "text-[var(--sb-text)]"
+                        : "text-[var(--sb-text-tertiary)]",
+                    )}
+                  >
+                    {point.label}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
-        </>
+        </div>
       )}
-    </Surface>
+    </section>
   );
 }

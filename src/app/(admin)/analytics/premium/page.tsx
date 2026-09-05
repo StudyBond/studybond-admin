@@ -1,19 +1,41 @@
 "use client";
 
-import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { MetricCard } from "@/components/ui/metric-card";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Badge } from "@/components/ui/badge";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader, SectionTitle } from "@/components/ui/page-header";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminPremiumInsights } from "@/features/analytics/hooks/use-admin-premium-insights";
 import {
-  formatCompactNumber,
   formatCurrencyNaira,
   formatDateTime,
   formatInteger,
 } from "@/lib/utils/format";
-import { BarChart3, CreditCard, ReceiptText, Sparkles } from "lucide-react";
+import { Lock, Receipt } from "lucide-react";
+
+/**
+ * Premium analytics.
+ *
+ * Same treatment as the other analytics screens: the four decorative
+ * uppercase kickers, the four icon chips in circles, the `glow` tints and
+ * the three separate box styles are gone. What is left is the numbers, in
+ * one card style, grouped by the question they answer.
+ *
+ * The daily table also lost `min-w-[640px]` — thirty rows of five columns
+ * forced a horizontal scroll on any laptop. It reflows into cards below md
+ * like every other table in the console.
+ */
+
+type PremiumDailyRow = {
+  date: string;
+  successfulPayments: number;
+  revenueNaira: number;
+  manualGrants: number;
+  revocations: number;
+};
 
 export default function PremiumAnalyticsPage() {
   const sessionQuery = useAdminSession();
@@ -23,237 +45,228 @@ export default function PremiumAnalyticsPage() {
 
   if (sessionQuery.isLoading) {
     return (
-      <section className="space-y-6">
-        <SectionHeading
-          eyebrow="Analytics"
+      <div className="space-y-6">
+        <PageHeader
           title="Premium analytics"
-          description="Loading premium insights..."
+          description="Checking your access…"
         />
-        <Surface className="p-6">
-          <p className="text-sm text-[color:var(--muted-foreground)]">Checking access rights...</p>
-        </Surface>
-      </section>
+        <StatGrid>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </StatGrid>
+      </div>
     );
   }
 
   if (!isSuperadmin) {
     return (
-      <section className="space-y-6">
-        <SectionHeading
-          eyebrow="Analytics"
+      <div className="sb-enter space-y-6">
+        <PageHeader
           title="Premium analytics"
-          description="Detailed premium acquisition, revenue, and retention signals."
+          description="Revenue, entitlement operations, and subscription health."
         />
-        <Surface glow="amber" className="p-6">
-          <div className="flex items-start gap-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--accent-amber)]/20 bg-[color:var(--accent-amber)]/10 text-[color:var(--accent-amber)]">
-              <Sparkles className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-base font-semibold text-white">Superadmin access required</p>
-              <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                Premium revenue and entitlement analytics are restricted to superadmins.
-              </p>
-            </div>
-          </div>
-        </Surface>
-      </section>
+        <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)]">
+          <EmptyState
+            icon={<Lock className="h-4 w-4" />}
+            title="Superadmin only"
+            description="Revenue figures are limited to superadmins. The main analytics page has the engagement numbers, which are open to every admin."
+          />
+        </div>
+      </div>
     );
   }
 
-  const metrics = premium
-    ? [
-        {
-          label: "Revenue (30d)",
-          value: formatCurrencyNaira(premium.revenue.successfulRevenueNaira),
-          delta: `${formatInteger(premium.revenue.successfulPayments)} successful payments`,
-          tone: "emerald" as const,
-        },
-        {
-          label: "Active premium",
-          value: formatCompactNumber(premium.current.activePremiumUsers),
-          delta: `${formatInteger(premium.current.activePaidSubscriptions)} paid subscriptions`,
-          tone: "cyan" as const,
-        },
-        {
-          label: "Expiring (7d)",
-          value: formatInteger(premium.current.expiringIn7Days),
-          delta: `${formatInteger(premium.current.expiringIn30Days)} within 30 days`,
-          tone: "amber" as const,
-        },
-        {
-          label: "Manual grants",
-          value: formatInteger(premium.adminActions.manualGrants),
-          delta: `${formatInteger(premium.adminActions.revocations)} revocations`,
-          tone: "rose" as const,
-        },
-      ]
-    : [];
+  /** Zero payments means zero average, not a division by zero. */
+  const averagePayment = premium?.revenue.successfulPayments
+    ? premium.revenue.successfulRevenueNaira / premium.revenue.successfulPayments
+    : 0;
+
+  const dailyRows = (premium?.daily ?? []) as PremiumDailyRow[];
+
+  const dailyColumns: Column<PremiumDailyRow>[] = [
+    {
+      key: "date",
+      header: "Date",
+      primary: true,
+      width: "8rem",
+      cell: (row) => <span className="sb-nums">{row.date}</span>,
+    },
+    {
+      key: "payments",
+      header: "Payments",
+      numeric: true,
+      cell: (row) => formatInteger(row.successfulPayments),
+    },
+    {
+      key: "revenue",
+      header: "Revenue",
+      numeric: true,
+      cell: (row) => formatCurrencyNaira(row.revenueNaira),
+    },
+    {
+      key: "grants",
+      header: "Grants",
+      numeric: true,
+      cell: (row) => formatInteger(row.manualGrants),
+    },
+    {
+      key: "revocations",
+      header: "Revocations",
+      numeric: true,
+      cell: (row) => formatInteger(row.revocations),
+    },
+  ];
 
   return (
-    <section className="space-y-6">
-      <SectionHeading
-        eyebrow="Analytics"
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
         title="Premium analytics"
         description="Revenue, entitlement operations, and subscription health over the last 30 days."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={premium?.dataSource === "ROLLUP" ? "cyan" : "emerald"}>
-              {premium?.dataSource ?? "live"}
-            </StatusBadge>
-            <StatusBadge tone="slate">
-              generated {premium?.generatedAt ? formatDateTime(premium.generatedAt) : "now"}
-            </StatusBadge>
-          </div>
+        meta={
+          premium ? (
+            <>
+              <Badge tone="neutral">
+                {premium.dataSource === "ROLLUP"
+                  ? "From nightly rollups"
+                  : "Live from the database"}
+              </Badge>
+              <Badge tone="neutral">
+                Generated {formatDateTime(premium.generatedAt)}
+              </Badge>
+            </>
+          ) : null
         }
       />
 
       {premiumQuery.isError ? (
-        <Surface glow="rose" className="p-6">
-          <p className="text-base font-semibold text-white">Could not load premium analytics.</p>
-          <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            <ApiErrorMessage
-              error={premiumQuery.error}
-              fallback="Check that the backend is running and this account has superadmin access."
-            />
-          </p>
-        </Surface>
+        <ErrorState
+          title="Could not load premium analytics"
+          error={premiumQuery.error}
+          fallback="Check that the backend is running and this account has superadmin access."
+          onRetry={() => premiumQuery.refetch()}
+        />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric: any, index: number) =>
-          metric ? (
-            <MetricCard key={metric.label} {...metric} className="admin-enter" style={{ animationDelay: `${index * 80}ms` }} />
-          ) : (
-            <Surface key={index} className="h-[140px] p-5 shimmer-line" />
-          ),
-        )}
-      </div>
+      {premiumQuery.isLoading ? (
+        <StatGrid>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </StatGrid>
+      ) : premium ? (
+        <>
+          {/* ── Headline ────────────────────────────────────── */}
+          <StatGrid>
+            <StatCard
+              label="Revenue (30d)"
+              value={formatCurrencyNaira(premium.revenue.successfulRevenueNaira)}
+              hint={`${formatInteger(
+                premium.revenue.successfulPayments,
+              )} successful payments`}
+            />
+            <StatCard
+              label="Active premium"
+              value={formatInteger(premium.current.activePremiumUsers)}
+              hint={`${formatInteger(
+                premium.current.activePaidSubscriptions,
+              )} of them are paid subscriptions`}
+            />
+            <StatCard
+              label="Expiring in 7 days"
+              value={formatInteger(premium.current.expiringIn7Days)}
+              hint={`${formatInteger(
+                premium.current.expiringIn30Days,
+              )} expire within 30 days`}
+              status={premium.current.expiringIn7Days ? "warning" : undefined}
+            />
+            <StatCard
+              label="Manual grants"
+              value={formatInteger(premium.adminActions.manualGrants)}
+              hint={`${formatInteger(
+                premium.adminActions.revocations,
+              )} were revoked`}
+            />
+          </StatGrid>
 
-      <div className="grid gap-6 xl:grid-cols-[0.94fr_1.06fr]">
-        <div className="grid gap-6">
-          <Surface glow="cyan" className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-cyan)]">
-                  Revenue
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Payment health</h2>
-              </div>
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[color:var(--accent-cyan)]">
-                <CreditCard className="h-4 w-4" />
-              </span>
-            </div>
+          {/* ── Revenue detail ──────────────────────────────── */}
+          <section className="space-y-3">
+            <SectionTitle
+              title="Payments"
+              description="How the money arrived, and whether it can be charged again."
+            />
+            <StatGrid>
+              <StatCard
+                label="Average payment"
+                value={formatCurrencyNaira(averagePayment)}
+                hint="Revenue divided by successful payments"
+              />
+              <StatCard
+                label="Reusable authorizations"
+                value={formatInteger(premium.revenue.reusableAuthorizations)}
+                hint="Cards that can be charged again"
+              />
+              <StatCard
+                label="Auto-renew enabled"
+                value={formatInteger(
+                  premium.current.autoRenewEnabledSubscriptions,
+                )}
+                hint="Subscriptions set to renew themselves"
+              />
+              <StatCard
+                label="Admin entitlements"
+                value={formatInteger(premium.current.activeAdminEntitlements)}
+                hint="Active access nobody paid for"
+              />
+            </StatGrid>
+          </section>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Reusable authorizations</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(premium?.revenue.reusableAuthorizations ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Average revenue per payment</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {premium?.revenue.successfulPayments
-                    ? formatCurrencyNaira(
-                        premium.revenue.successfulRevenueNaira / premium.revenue.successfulPayments,
-                      )
-                    : formatCurrencyNaira(0)}
-                </p>
-              </div>
-            </div>
-          </Surface>
+          {/* ── Why admins granted premium ──────────────────── */}
+          <section className="space-y-3">
+            <SectionTitle
+              title="Grants by reason"
+              description="Why premium was given out by hand in the last 30 days."
+            />
+            <StatGrid className="lg:grid-cols-3">
+              <StatCard
+                label="Promotional"
+                value={formatInteger(premium.adminActions.promotionalGrants)}
+                hint="Marketing and campaigns"
+              />
+              <StatCard
+                label="Corrective"
+                value={formatInteger(premium.adminActions.correctiveGrants)}
+                hint="Fixing something that went wrong"
+              />
+              <StatCard
+                label="Revocations"
+                value={formatInteger(premium.adminActions.revocations)}
+                hint="Access taken back"
+              />
+            </StatGrid>
+          </section>
+        </>
+      ) : null}
 
-          <Surface className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                  Operations
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Admin-driven changes</h2>
-              </div>
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[color:var(--accent-amber)]">
-                <ReceiptText className="h-4 w-4" />
-              </span>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Promotional grants</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(premium?.adminActions.promotionalGrants ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Corrective grants</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(premium?.adminActions.correctiveGrants ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Admin entitlements</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(premium?.current.activeAdminEntitlements ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Auto-renew enabled</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(premium?.current.autoRenewEnabledSubscriptions ?? 0)}
-                </p>
-              </div>
-            </div>
-          </Surface>
-        </div>
-
-        <Surface glow="emerald" className="p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-emerald)]">
-                Trend
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-white">Daily payment trail</h2>
-            </div>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[color:var(--accent-emerald)]">
-              <BarChart3 className="h-4 w-4" />
-            </span>
-          </div>
-
-          <div className="mt-5 overflow-x-auto rounded-xl border border-white/8">
-            <table className="min-w-[640px] w-full divide-y divide-white/8 text-sm">
-              <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Payments</th>
-                  <th className="px-4 py-3">Revenue</th>
-                  <th className="px-4 py-3">Grants</th>
-                  <th className="px-4 py-3">Revocations</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/8 bg-black/10">
-                {(premium?.daily ?? []).map((row: { date: string; successfulPayments: number; revenueNaira: number; manualGrants: number; revocations: number }) => (
-                  <tr key={row.date} className="transition hover:bg-white/[0.03]">
-                    <td className="px-4 py-3 text-white">{row.date}</td>
-                    <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                      {formatInteger(row.successfulPayments)}
-                    </td>
-                    <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                      {formatCurrencyNaira(row.revenueNaira)}
-                    </td>
-                    <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                      {formatInteger(row.manualGrants)}
-                    </td>
-                    <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                      {formatInteger(row.revocations)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Surface>
-      </div>
-    </section>
+      {/* ── Daily trail ───────────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionTitle
+          title="Day by day"
+          description="Every day in the window, newest last."
+        />
+        <DataTable
+          caption="Daily premium payments, grants and revocations"
+          items={dailyRows}
+          columns={dailyColumns}
+          getKey={(row) => row.date}
+          isLoading={premiumQuery.isLoading}
+          error={premiumQuery.isError ? premiumQuery.error : undefined}
+          onRetry={() => premiumQuery.refetch()}
+          emptyIcon={<Receipt className="h-4 w-4" />}
+          emptyTitle="No premium activity"
+          emptyDescription="Nothing was paid, granted, or revoked in the last 30 days."
+        />
+      </section>
+    </div>
   );
 }

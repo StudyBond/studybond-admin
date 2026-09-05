@@ -1,20 +1,57 @@
 "use client";
 
-import Link from "next/link";
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { MetricCard } from "@/components/ui/metric-card";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { Field, FieldShell, SearchField } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { FilterBar, Pagination } from "@/components/ui/toolbar";
 import { useAdminOverview } from "@/features/analytics/hooks/use-admin-overview";
 import { useAdminQuestions } from "@/features/questions/hooks/use-admin-questions";
 import { useQuestionYears } from "@/features/questions/hooks/use-question-years";
+import { formatDate, formatInteger } from "@/lib/utils/format";
+import {
+  getQuestionPoolLabel,
+  getQuestionTypeLabel,
+  QUESTION_POOL_OPTIONS,
+  QUESTION_TYPE_OPTIONS,
+} from "@/lib/utils/questions";
 import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
-import { formatCompactNumber, formatDateTime, formatInteger } from "@/lib/utils/format";
-import { getQuestionPoolLabel, getQuestionTypeLabel, QUESTION_POOL_OPTIONS, QUESTION_TYPE_OPTIONS } from "@/lib/utils/questions";
-import { CustomSelect } from "@/components/ui/custom-select";
-import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, FileUp, Plus, Search } from "lucide-react";
+import { FileUp, Library, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+
+/**
+ * Question bank.
+ *
+ * The three worst things about the old page, in order:
+ *
+ * 1. When the overview request failed or had not landed, the stat row
+ *    filled itself with invented values — "Free exam pool: Live", "Real
+ *    past questions: Verified", "Practice questions: Active". Those are
+ *    not numbers, and they were displayed in the same slot, at the same
+ *    size, as the real counts. An admin could not tell a working page
+ *    from a broken one. Missing data now reads as missing: skeletons
+ *    while loading, one honest line if the request fails.
+ *
+ * 2. The footer carried "Open latest visible record", which linked to
+ *    whichever row happened to be first on the current page. It was not
+ *    the latest record, and every row was already a link.
+ *
+ * 3. The filter row was `xl:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_0.8fr]`, so
+ *    five filters stacked to full width on everything below 1280px, then
+ *    snapped to five columns at once. FilterBar reflows them continuously.
+ *
+ * Colour also stopped being decorative. Year was an amber pill with a
+ * calendar icon in the table and a plain badge in the cards — the same
+ * value drawn two ways, in a colour that means "warning" everywhere else.
+ * It is now just a number.
+ */
+
+const PAGE_SIZE = 20;
 
 export default function QuestionsPage() {
   const [page, setPage] = useState(1);
@@ -23,23 +60,35 @@ export default function QuestionsPage() {
   const [questionPool, setQuestionPool] = useState("");
   const [questionType, setQuestionType] = useState("");
   const [year, setYear] = useState("");
+
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const debouncedSubject = useDebouncedValue(subject.trim(), 350);
+
+  /** Any filter change returns to page 1 — page 7 of a new result set is a dead end. */
+  function applyFilter(set: (value: string) => void) {
+    return (value: string) => {
+      set(value);
+      setPage(1);
+    };
+  }
 
   const overviewQuery = useAdminOverview();
   const yearsQuery = useQuestionYears();
 
-  const yearOptions = useMemo(() => {
-    const years = yearsQuery.data ?? [];
-    return [
+  const yearOptions = useMemo(
+    () => [
       { label: "All years", value: "" },
-      ...years.map((y) => ({ label: String(y), value: String(y) })),
-    ];
-  }, [yearsQuery.data]);
+      ...(yearsQuery.data ?? []).map((value) => ({
+        label: String(value),
+        value: String(value),
+      })),
+    ],
+    [yearsQuery.data],
+  );
 
   const questionsQuery = useAdminQuestions({
     page,
-    limit: 20,
+    limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
     subject: debouncedSubject || undefined,
     questionPool: questionPool || undefined,
@@ -47,281 +96,263 @@ export default function QuestionsPage() {
     year: year ? Number(year) : undefined,
   });
 
-  const overview = overviewQuery.data;
+  const content = overviewQuery.data?.content;
   const questions = questionsQuery.data?.questions ?? [];
   const pagination = questionsQuery.data?.meta;
 
-  const metrics = useMemo(
-    () => {
-      if (overview) {
-        return [
-          {
-            label: "Total questions",
-            value: formatCompactNumber(overview.content.totalQuestions),
-            delta: `${formatInteger(questionsQuery.data?.meta.total ?? 0)} matched filters`,
-            tone: "cyan" as const,
-          },
-          {
-            label: "Free exam pool",
-            value: formatInteger(overview.content.freeExamQuestions),
-            delta: "Available to free-tier learners",
-            tone: "amber" as const,
-          },
-          {
-            label: "Real past questions",
-            value: formatInteger(overview.content.realUiQuestions),
-            delta: "Verified bank inventory",
-            tone: "emerald" as const,
-          },
-          {
-            label: "Practice questions",
-            value: formatInteger(overview.content.practiceQuestions),
-            delta: `${formatInteger(overview.content.pendingReports)} pending reports`,
-            tone: "rose" as const,
-          },
-        ];
-      }
-
-      if (questionsQuery.data?.meta) {
-        const total = questionsQuery.data.meta.total;
-        return [
-          {
-            label: "Total questions",
-            value: formatCompactNumber(total),
-            delta: `${formatInteger(total)} matched filters`,
-            tone: "cyan" as const,
-          },
-          {
-            label: "Free exam pool",
-            value: "Live",
-            delta: "Available to free-tier learners",
-            tone: "amber" as const,
-          },
-          {
-            label: "Real past questions",
-            value: "Verified",
-            delta: "Verified bank inventory",
-            tone: "emerald" as const,
-          },
-          {
-            label: "Practice questions",
-            value: "Active",
-            delta: "Question bank inventory",
-            tone: "rose" as const,
-          },
-        ];
-      }
-
-      return [];
-    },
-    [overview, questionsQuery.data?.meta],
+  const hasActiveFilters = Boolean(
+    debouncedSearch || debouncedSubject || questionPool || questionType || year,
   );
 
+  function clearFilters() {
+    setSearch("");
+    setSubject("");
+    setQuestionPool("");
+    setQuestionType("");
+    setYear("");
+    setPage(1);
+  }
+
+  const columns: Column<(typeof questions)[number]>[] = [
+    {
+      key: "question",
+      header: "Question",
+      primary: true,
+      cell: (question) => (
+        <div className="min-w-0">
+          <p className="line-clamp-2">{question.questionText}</p>
+          <p className="sb-nums mt-1 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            #{question.id}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "source",
+      header: "Source",
+      width: "12rem",
+      cell: (question) => (
+        <div className="min-w-0">
+          <Badge tone="neutral">
+            {getQuestionPoolLabel(question.questionPool)}
+          </Badge>
+          <p className="mt-1 truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            {getQuestionTypeLabel(question.questionType)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "subject",
+      header: "Subject",
+      width: "12rem",
+      cell: (question) => (
+        <div className="min-w-0">
+          <p className="truncate text-[var(--sb-text)]">{question.subject}</p>
+          <p className="truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            {question.topic ?? "No topic"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "year",
+      header: "Year",
+      numeric: true,
+      width: "5.5rem",
+      cell: (question) =>
+        question.year ?? <span className="text-[var(--sb-text-tertiary)]">—</span>,
+    },
+    {
+      key: "media",
+      header: "Media",
+      width: "7rem",
+      /* Only images are worth flagging — they are the thing that can be
+         broken or missing. A text-only question is the normal case. */
+      cell: (question) =>
+        question.hasImage ? (
+          <Badge tone="info">Image</Badge>
+        ) : (
+          <span className="text-[var(--sb-text-tertiary)]">Text only</span>
+        ),
+    },
+    {
+      key: "updated",
+      header: "Updated",
+      showFrom: "lg",
+      width: "10rem",
+      cell: (question) => formatDate(question.updatedAt),
+    },
+  ];
+
   return (
-    <section className="space-y-6">
-      <SectionHeading
-        eyebrow="Questions"
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
         title="Question bank"
-        description="Search the live question inventory, inspect source mix, and jump into create, edit, or bulk upload workflows."
+        description="Every question learners can be served. Filter to find one, or add to the bank."
         action={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Link href="/questions/new" className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]">
+          <>
+            <Button asChild href="/questions/new" variant="secondary">
               <Plus className="h-4 w-4" />
               Add question
-            </Link>
-            <Link href="/questions/bulk-upload" className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]">
+            </Button>
+            <Button asChild href="/questions/bulk-upload" variant="secondary">
               <FileUp className="h-4 w-4" />
               Bulk upload
-            </Link>
-          </div>
+            </Button>
+          </>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric: any, index: number) =>
-          metric ? (
-            <MetricCard key={metric.label} {...metric} className="admin-enter" style={{ animationDelay: `${index * 80}ms` }} />
-          ) : (
-            <Surface key={index} className="h-[140px] p-5 shimmer-line" />
-          ),
-        )}
-      </div>
+      {/* ── Inventory ─────────────────────────────────────────
+          These four counts come from the analytics overview, not from
+          the filtered list below. If that request fails, say so rather
+          than filling the boxes with words. */}
+      {overviewQuery.isLoading ? (
+        <StatGrid>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </StatGrid>
+      ) : content ? (
+        <StatGrid>
+          <StatCard
+            label="Total questions"
+            value={formatInteger(content.totalQuestions)}
+            hint="Across every pool"
+          />
+          <StatCard
+            label="Free exam pool"
+            value={formatInteger(content.freeExamQuestions)}
+            hint="Served to free-tier learners"
+          />
+          <StatCard
+            label="Real past questions"
+            value={formatInteger(content.realUiQuestions)}
+            hint="Verified bank inventory"
+          />
+          <StatCard
+            label="Practice questions"
+            value={formatInteger(content.practiceQuestions)}
+            hint="Authored and AI-generated"
+          />
+        </StatGrid>
+      ) : (
+        <p className="text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+          Inventory counts are unavailable.{" "}
+          <ApiErrorMessage
+            error={overviewQuery.error}
+            fallback="The analytics overview did not load."
+          />{" "}
+          The question list below is unaffected.
+        </p>
+      )}
 
-      <Surface className="p-6">
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_0.8fr]">
-          <div className="group/search flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 transition-all duration-200 focus-within:border-[color:var(--accent-cyan)]/25 focus-within:shadow-[0_0_0_3px_rgba(110,196,184,0.06)]">
-            <Search className="h-4 w-4 text-[color:var(--muted-foreground)] transition-colors duration-200 group-focus-within/search:text-[color:var(--accent-cyan)]" />
-            <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search prompt text..." className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[color:var(--muted-foreground)]/40" />
-          </div>
-          <input value={subject} onChange={(event) => { setSubject(event.target.value); setPage(1); }} placeholder="Filter by subject..." className="rounded-xl border border-white/8 bg-black/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--muted-foreground)]/50 focus:border-[color:var(--accent-cyan)]/40" />
+      <FilterBar
+        search={
+          <SearchField
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search question text"
+            aria-label="Search question text"
+          />
+        }
+      >
+        <FieldShell label="Subject">
+          <Field
+            value={subject}
+            onChange={(event) => {
+              setSubject(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Any subject"
+            aria-label="Filter by subject"
+          />
+        </FieldShell>
+
+        <FieldShell label="Pool">
           <CustomSelect
+            aria-label="Filter by pool"
             value={questionPool}
-            onValueChange={(val) => { setQuestionPool(val); setPage(1); }}
+            onValueChange={applyFilter(setQuestionPool)}
             options={[{ label: "All pools", value: "" }, ...QUESTION_POOL_OPTIONS]}
             placeholder="All pools"
           />
+        </FieldShell>
+
+        <FieldShell label="Type">
           <CustomSelect
+            aria-label="Filter by question type"
             value={questionType}
-            onValueChange={(val) => { setQuestionType(val); setPage(1); }}
+            onValueChange={applyFilter(setQuestionType)}
             options={[{ label: "All types", value: "" }, ...QUESTION_TYPE_OPTIONS]}
             placeholder="All types"
           />
+        </FieldShell>
+
+        <FieldShell label="Year">
           <CustomSelect
+            aria-label="Filter by year"
             value={year}
-            onValueChange={(val) => { setYear(val); setPage(1); }}
+            onValueChange={applyFilter(setYear)}
             options={yearOptions}
             placeholder="All years"
             disabled={yearsQuery.isLoading}
           />
-        </div>
-      </Surface>
+        </FieldShell>
+      </FilterBar>
 
-      {questionsQuery.isError ? (
-        <Surface glow="rose" className="p-6">
-          <p className="text-base font-semibold text-white">Could not load questions.</p>
-          <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            <ApiErrorMessage error={questionsQuery.error} fallback="Please try again." />
-          </p>
-        </Surface>
+      <DataTable
+        caption="Question bank"
+        items={questions}
+        columns={columns}
+        getKey={(question) => question.id}
+        href={(question) => `/questions/${question.id}`}
+        isLoading={questionsQuery.isLoading}
+        error={questionsQuery.isError ? questionsQuery.error : undefined}
+        onRetry={() => questionsQuery.refetch()}
+        emptyIcon={<Library className="h-4 w-4" />}
+        emptyTitle={
+          hasActiveFilters
+            ? "No questions match these filters"
+            : "The question bank is empty"
+        }
+        emptyDescription={
+          hasActiveFilters
+            ? "Try a broader subject, or set the pool and year back to All."
+            : "Add a question, or import a batch with bulk upload."
+        }
+        emptyAction={
+          hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          ) : (
+            <Button asChild href="/questions/new" size="sm">
+              <Plus className="h-3.5 w-3.5" />
+              Add question
+            </Button>
+          )
+        }
+      />
+
+      {pagination ? (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={setPage}
+        />
       ) : null}
-
-      <Surface className="overflow-hidden p-0">
-        {questionsQuery.isLoading ? (
-          <div className="space-y-2 px-5 py-6">
-            {Array.from({ length: 6 }).map((_: any, index: number) => (
-              <div key={index} className="skeleton h-20 rounded-xl" />
-            ))}
-          </div>
-        ) : questions.length ? (
-          <>
-            {/* ── Mobile Card View ── */}
-            <div className="grid gap-3 p-3 md:hidden">
-              {questions.map((question: any) => (
-                <Link
-                  key={question.id}
-                  href={`/questions/${question.id}`}
-                  className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-white/12 hover:bg-white/[0.04]"
-                >
-                  <p className="line-clamp-3 font-medium text-white">{question.questionText}</p>
-                  <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">#{question.id}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <StatusBadge tone="cyan">{getQuestionTypeLabel(question.questionType)}</StatusBadge>
-                    <StatusBadge tone="slate">{getQuestionPoolLabel(question.questionPool)}</StatusBadge>
-                    <StatusBadge tone={question.hasImage ? "emerald" : "slate"}>
-                      {question.hasImage ? "has media" : "text only"}
-                    </StatusBadge>
-                    {question.year ? (
-                      <StatusBadge tone="amber">{question.year}</StatusBadge>
-                    ) : null}
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-[color:var(--muted-foreground)]">
-                    <div>
-                      <p className="uppercase tracking-[0.14em] text-[10px]">Subject</p>
-                      <p className="mt-1 text-sm text-white">{question.subject}</p>
-                    </div>
-                    <div>
-                      <p className="uppercase tracking-[0.14em] text-[10px]">Year</p>
-                      <p className="mt-1 text-sm text-white">{question.year ?? "—"}</p>
-                    </div>
-                  </div>
-                  {question.topic ? (
-                    <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">{question.topic}</p>
-                  ) : null}
-                </Link>
-              ))}
-            </div>
-
-            {/* ── Desktop Table View ── */}
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[960px] w-full divide-y divide-white/8 text-sm">
-                <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                  <tr>
-                    <th className="px-5 py-3">Question</th>
-                    <th className="px-5 py-3">Source</th>
-                    <th className="px-5 py-3">Subject</th>
-                    <th className="px-5 py-3">Year</th>
-                    <th className="px-5 py-3">Media</th>
-                    <th className="px-5 py-3">Updated</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/8 bg-black/10">
-                  {questions.map((question: any) => (
-                    <tr key={question.id} className="group/row transition hover:bg-white/[0.03]">
-                      <td className="px-5 py-4">
-                        <Link href={`/questions/${question.id}`} className="block">
-                          <p className="line-clamp-2 font-medium text-white transition group-hover/row:text-[color:var(--accent-cyan)]">
-                            {question.questionText}
-                          </p>
-                          <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">#{question.id}</p>
-                        </Link>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <StatusBadge tone="cyan">{getQuestionTypeLabel(question.questionType)}</StatusBadge>
-                          <StatusBadge tone="slate">{getQuestionPoolLabel(question.questionPool)}</StatusBadge>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <p className="text-white">{question.subject}</p>
-                        <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">{question.topic ?? "No topic"}</p>
-                      </td>
-                      <td className="px-5 py-4">
-                        {question.year ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400">
-                            <CalendarDays className="h-3 w-3" />
-                            {question.year}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-[color:var(--muted-foreground)]/50">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4">
-                        <StatusBadge tone={question.hasImage ? "emerald" : "slate"}>
-                          {question.hasImage ? "has media" : "text only"}
-                        </StatusBadge>
-                      </td>
-                      <td className="px-5 py-4 text-[color:var(--muted-foreground)]">
-                        {question.updatedAt ? formatDateTime(question.updatedAt) : "Unavailable"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        ) : (
-          <div className="px-5 py-12 text-center text-sm text-[color:var(--muted-foreground)]">
-            No questions match the current filters.
-          </div>
-        )}
-      </Surface>
-
-      {pagination && pagination.totalPages > 1 ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-[color:var(--muted-foreground)]">
-            Page {pagination.page} of {pagination.totalPages}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1} className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-3 py-2 text-sm text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </button>
-            <button type="button" onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))} disabled={page >= pagination.totalPages} className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-3 py-2 text-sm text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {questions.length ? (
-        <div className="flex justify-start sm:justify-end">
-          <Link href={`/questions/${questions[0].id}`} className="inline-flex items-center gap-2 text-sm font-medium text-[color:var(--accent-cyan)]">
-            Open latest visible record
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      ) : null}
-    </section>
+    </div>
   );
 }

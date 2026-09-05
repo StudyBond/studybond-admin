@@ -1,538 +1,440 @@
 "use client";
 
 import Link from "next/link";
-import { ApiErrorMessage } from "@/components/ui/api-error-message";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader, SectionTitle } from "@/components/ui/page-header";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
 import { ActivityChart } from "@/features/analytics/components/activity-chart";
 import { useAdminActivity } from "@/features/analytics/hooks/use-admin-activity";
 import { useAdminOverview } from "@/features/analytics/hooks/use-admin-overview";
 import { useAdminSystemHealth } from "@/features/analytics/hooks/use-admin-system-health";
 import { useAdminReports } from "@/features/reports/hooks/use-admin-reports";
-import { MetricCard } from "@/components/ui/metric-card";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
 import {
   formatCompactNumber,
   formatDateTime,
   formatInteger,
 } from "@/lib/utils/format";
 import {
-  AlertTriangle,
   ArrowRight,
-  BookOpenText,
+  CheckCircle2,
   Database,
+  Inbox,
   Layers3,
   Mail,
   ShieldCheck,
-  Sparkles,
-  Users,
 } from "lucide-react";
 import { useMemo } from "react";
 
-type PriorityItem = {
+/**
+ * Dashboard.
+ *
+ * Two sections from the previous version are gone rather than restyled:
+ *
+ * - "Quick actions / Go to" — four large cards linking to Reports,
+ *   Questions, Users and Premium. All four are permanently one click away
+ *   in the sidebar, so the block taught nothing and pushed real work
+ *   below the fold.
+ * - "Question inventory" — a breakdown of the question bank. That is a
+ *   Questions-page concern; it is not something you act on from here.
+ *
+ * What remains is ordered by urgency: what is wrong, then the numbers,
+ * then the trend, then the actual work queue.
+ */
+
+type Priority = {
+  id: string;
   title: string;
   detail: string;
   href: string;
-  tone: "rose" | "amber" | "emerald" | "cyan";
-  value: number | string;
+  severity: "danger" | "warning" | "info";
+  value: string;
 };
 
-const quickActions = [
-  {
-    href: "/reports",
-    title: "Reports",
-    detail: "Review and resolve reported question issues.",
-    icon: AlertTriangle,
-  },
-  {
-    href: "/questions",
-    title: "Questions",
-    detail: "Browse, edit, and upload questions to the question bank.",
-    icon: BookOpenText,
-  },
-  {
-    href: "/users",
-    title: "Users",
-    detail: "Search user accounts, manage roles, and handle bans.",
-    icon: Users,
-  },
-  {
-    href: "/premium",
-    title: "Premium",
-    detail: "Manage subscriptions, entitlements, and renewals.",
-    icon: Sparkles,
-  },
-];
+const severityRank = { danger: 0, warning: 1, info: 2 } as const;
 
 export default function AdminOverviewPage() {
   const overviewQuery = useAdminOverview();
   const activityQuery = useAdminActivity(7);
   const systemHealthQuery = useAdminSystemHealth();
-  const pendingReportsQuery = useAdminReports({ page: 1, limit: 5, status: "PENDING" });
+  const reportsQuery = useAdminReports({
+    page: 1,
+    limit: 6,
+    status: "PENDING",
+  });
 
   const overview = overviewQuery.data;
-  const activity = activityQuery.data;
   const systemHealth = systemHealthQuery.data;
-  const pendingReports = pendingReportsQuery.data?.reports ?? [];
+  const pendingReports = reportsQuery.data?.reports ?? [];
 
-  const metrics = overview
-    ? [
-        {
-          label: "Pending reports",
-          value: formatInteger(overview.content.pendingReports),
-          delta: `${formatCompactNumber(overview.content.totalQuestions)} questions tracked`,
-          tone: "amber" as const,
-        },
-        {
-          label: "Exams completed (7d)",
-          value: formatCompactNumber(overview.engagement.examsCompletedLast7Days),
-          delta: `${formatCompactNumber(overview.engagement.examsStartedLast7Days)} started`,
-          tone: "cyan" as const,
-        },
-        {
-          label: "Premium expiring (7d)",
-          value: formatInteger(overview.premium.expiringIn7Days),
-          delta: `${formatInteger(overview.premium.activeUsers)} active premium users`,
-          tone: "rose" as const,
-        },
-        {
-          label: "Live collaborations",
-          value: formatInteger(overview.engagement.collaborationInProgress),
-          delta: `${formatInteger(overview.engagement.collaborationWaiting)} waiting to start`,
-          tone: "emerald" as const,
-        },
-      ]
-    : [];
-
-  const activityChartData = activity
-    ? activity.daily.map((item: any) => ({
+  const activityData = useMemo(
+    () =>
+      (activityQuery.data?.daily ?? []).map((item) => ({
         label: item.date.slice(5),
         exams: item.examStarts,
         collaborations: item.collaborationSessions,
-      }))
-    : [];
+      })),
+    [activityQuery.data],
+  );
 
-  const priorities = useMemo<PriorityItem[]>(() => {
-    if (!overview || !systemHealth) {
-      return [];
-    }
+  /* ── What needs attention, worst first ─────────────────────── */
+  const priorities = useMemo<Priority[]>(() => {
+    if (!overview || !systemHealth) return [];
 
-    const items: PriorityItem[] = [];
+    const items: Priority[] = [];
 
     if (!systemHealth.dependencies.databaseReachable) {
       items.push({
+        id: "database",
         title: "Database unreachable",
-        detail: "The database is currently unreachable. Avoid sensitive operations until connectivity is restored.",
+        detail:
+          "Avoid destructive operations until connectivity is restored.",
         href: "/analytics/system-health",
-        tone: "rose",
-        value: "down",
-      });
-    }
-
-    if (overview.content.pendingReports > 0) {
-      items.push({
-        title: "Pending reports",
-        detail: `${formatInteger(overview.content.pendingReports)} question reports waiting for review.`,
-        href: "/reports",
-        tone: overview.content.pendingReports > 20 ? "rose" : "amber",
-        value: overview.content.pendingReports,
-      });
-    }
-
-    if (overview.premium.expiringIn7Days > 0) {
-      items.push({
-        title: "Upcoming premium expirations",
-        detail: `${formatInteger(overview.premium.expiringIn7Days)} users have premium expiring in the next 7 days.`,
-        href: "/premium",
-        tone: "amber",
-        value: overview.premium.expiringIn7Days,
+        severity: "danger",
+        value: "Offline",
       });
     }
 
     if (systemHealth.queues.recentEmailFailuresLast24Hours > 0) {
       items.push({
-        title: "Email delivery failures",
-        detail: `${formatInteger(systemHealth.queues.recentEmailFailuresLast24Hours)} failed email deliveries in the last 24 hours.`,
+        id: "email",
+        title: "Email delivery failing",
+        detail: "Failed deliveries in the last 24 hours.",
         href: "/analytics/system-health",
-        tone: "rose",
-        value: systemHealth.queues.recentEmailFailuresLast24Hours,
+        severity: "danger",
+        value: formatInteger(
+          systemHealth.queues.recentEmailFailuresLast24Hours,
+        ),
+      });
+    }
+
+    if (overview.content.pendingReports > 0) {
+      items.push({
+        id: "reports",
+        title: "Reports waiting for review",
+        detail: "Learners have flagged issues with these questions.",
+        href: "/reports",
+        severity: overview.content.pendingReports > 20 ? "danger" : "warning",
+        value: formatInteger(overview.content.pendingReports),
+      });
+    }
+
+    if (overview.premium.expiringIn7Days > 0) {
+      items.push({
+        id: "premium",
+        title: "Premium expiring within 7 days",
+        detail: "Subscriptions that will lapse without a renewal.",
+        href: "/premium",
+        severity: "warning",
+        value: formatInteger(overview.premium.expiringIn7Days),
       });
     }
 
     if (systemHealth.queues.leaderboardProjectionBacklog > 0) {
       items.push({
-        title: "Leaderboard backlog",
-        detail: `${formatInteger(systemHealth.queues.leaderboardProjectionBacklog)} projection events pending.`,
+        id: "queue",
+        title: "Leaderboard projection backlog",
+        detail: "Events still waiting to be projected.",
         href: "/analytics/system-health",
-        tone: "cyan",
-        value: systemHealth.queues.leaderboardProjectionBacklog,
+        severity: "info",
+        value: formatInteger(systemHealth.queues.leaderboardProjectionBacklog),
       });
     }
 
-    if (!items.length) {
-      items.push({
-        title: "All systems normal",
-        detail: "No issues detected. Reports, premium, email, and queues are all operating normally.",
-        href: "/analytics",
-        tone: "emerald",
-        value: "clear",
-      });
-    }
-
-    return items;
+    return items.sort(
+      (a, b) => severityRank[a.severity] - severityRank[b.severity],
+    );
   }, [overview, systemHealth]);
 
-  const totalContent = overview?.content.totalQuestions ?? 0;
-  const contentMix = overview
+  /* ── Key numbers. Status is set only where the number is
+        genuinely good or bad — otherwise it stays neutral. ───── */
+  const stats = overview
     ? [
         {
-          label: "Free exam pool",
-          value: overview.content.freeExamQuestions,
-          tone: "amber" as const,
+          label: "Pending reports",
+          value: formatInteger(overview.content.pendingReports),
+          hint: `${formatCompactNumber(overview.content.totalQuestions)} questions in the bank`,
+          href: "/reports",
+          status:
+            overview.content.pendingReports > 20
+              ? ("danger" as const)
+              : overview.content.pendingReports > 0
+                ? ("warning" as const)
+                : ("success" as const),
         },
         {
-          label: "Real past questions",
-          value: overview.content.realUiQuestions,
-          tone: "cyan" as const,
+          label: "Exams completed (7d)",
+          value: formatCompactNumber(
+            overview.engagement.examsCompletedLast7Days,
+          ),
+          hint: `${formatCompactNumber(overview.engagement.examsStartedLast7Days)} started`,
         },
         {
-          label: "Practice questions",
-          value: overview.content.practiceQuestions,
-          tone: "emerald" as const,
+          label: "Premium expiring (7d)",
+          value: formatInteger(overview.premium.expiringIn7Days),
+          hint: `${formatInteger(overview.premium.activeUsers)} active subscribers`,
+          href: "/premium",
+          status:
+            overview.premium.expiringIn7Days > 0
+              ? ("warning" as const)
+              : undefined,
+        },
+        {
+          label: "Live collaborations",
+          value: formatInteger(overview.engagement.collaborationInProgress),
+          hint: `${formatInteger(overview.engagement.collaborationWaiting)} waiting to start`,
         },
       ]
     : [];
 
-  const priorityItems = priorities.slice(0, 3);
-  const hiddenPriorityCount = Math.max(0, priorities.length - priorityItems.length);
+  const healthChecks = systemHealth
+    ? [
+        {
+          label: "Database",
+          icon: Database,
+          ok: systemHealth.dependencies.databaseReachable,
+          value: systemHealth.dependencies.databaseReachable
+            ? "Reachable"
+            : "Unreachable",
+        },
+        {
+          label: "Email",
+          icon: Mail,
+          ok: systemHealth.dependencies.emailEnabled,
+          value: systemHealth.dependencies.emailEnabled ? "Active" : "Paused",
+        },
+        {
+          label: "Queue backlog",
+          icon: Layers3,
+          ok: systemHealth.queues.leaderboardProjectionBacklog === 0,
+          value: formatInteger(systemHealth.queues.leaderboardProjectionBacklog),
+        },
+        {
+          label: "Step-up challenges",
+          icon: ShieldCheck,
+          ok: true,
+          value: formatInteger(systemHealth.queues.pendingStepUpChallenges),
+        },
+      ]
+    : [];
+
+  type PendingReport = (typeof pendingReports)[number];
+
+  const reportColumns: Column<PendingReport>[] = [
+    {
+      key: "subject",
+      header: "Question",
+      primary: true,
+      cell: (report) => (
+        <span className="line-clamp-2">{report.question.subject}</span>
+      ),
+    },
+    {
+      key: "issue",
+      header: "Issue",
+      cell: (report) => (
+        <Badge tone="warning">{report.issueType.replaceAll("_", " ")}</Badge>
+      ),
+    },
+    {
+      key: "reporter",
+      header: "Reported by",
+      cell: (report) => report.reporter.fullName,
+      showFrom: "lg",
+    },
+    {
+      key: "date",
+      header: "Received",
+      cell: (report) => formatDateTime(report.createdAt),
+      showFrom: "lg",
+    },
+  ];
 
   return (
-    <section className="space-y-6 md:space-y-8">
-      <div className="admin-enter">
-        <SectionHeading
-          eyebrow="Dashboard"
-          title="Platform overview"
-          description="Real-time summary of platform activity, pending actions, and system health."
-          action={
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone={overview?.institution ? "cyan" : "slate"}>
-                {overview?.institution?.code ?? "platform"}
-              </StatusBadge>
-              <StatusBadge tone={systemHealth?.dependencies.databaseReachable ? "emerald" : "rose"} pulse={systemHealth?.dependencies.databaseReachable}>
-                {systemHealth?.dependencies.databaseReachable ? "database live" : "database issue"}
-              </StatusBadge>
-            </div>
-          }
-        />
-        <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">
-          {overview
-            ? `Last updated ${formatDateTime(overview.generatedAt)}`
-            : "Loading data..."}
-        </p>
-      </div>
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
+        title="Dashboard"
+        description="What needs your attention right now."
+        meta={
+          <>
+            {overview?.institution ? (
+              <Badge tone="brand">{overview.institution.code}</Badge>
+            ) : null}
+            <Badge
+              tone={
+                systemHealth?.dependencies.databaseReachable
+                  ? "success"
+                  : "danger"
+              }
+              dot
+            >
+              {systemHealth?.dependencies.databaseReachable
+                ? "Database reachable"
+                : "Database unreachable"}
+            </Badge>
+            {overview ? (
+              <span className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                Updated {formatDateTime(overview.generatedAt)}
+              </span>
+            ) : null}
+          </>
+        }
+      />
 
       {overviewQuery.isError ? (
-        <Surface glow="rose" className="p-5 sm:p-6">
-          <p className="text-sm font-medium text-white">Failed to load overview data.</p>
-          <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            <ApiErrorMessage
-              error={overviewQuery.error}
-              fallback="Check that the backend is running and this account has admin access."
-            />
-          </p>
-        </Surface>
+        <ErrorState
+          title="Could not load the overview"
+          error={overviewQuery.error}
+          onRetry={() => overviewQuery.refetch()}
+        />
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric: any, index: number) =>
-          metric ? (
-            <MetricCard key={metric.label} {...metric} className="admin-enter" style={{ animationDelay: `${index * 80}ms` }} />
-          ) : (
-            <Surface key={index} className="admin-enter h-[132px] p-4 shimmer-line sm:h-[140px] sm:p-5" style={{ animationDelay: `${index * 80}ms` }} />
-          ),
-        )}
-      </div>
+      {/* ── 1. Needs attention ──────────────────────────────────
+          Promoted from a narrow side column to the top of the page.
+          This is the reason an admin opens the dashboard. */}
+      {overview && systemHealth ? (
+        <section className="space-y-3">
+          <SectionTitle
+            title="Needs attention"
+            description={
+              priorities.length
+                ? "Ordered by severity. Each item links to where you resolve it."
+                : undefined
+            }
+          />
 
-      <div className="grid gap-4 md:gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <ActivityChart
-          data={activityChartData}
-          title="Weekly activity"
-          description="Exam starts and collaboration sessions over the last 7 days."
-        />
-
-        <Surface glow="amber" className="admin-enter min-w-0 p-5 sm:p-6">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                Priorities
-              </p>
-              <h3 className="mt-2 text-xl font-semibold text-white">Attention needed</h3>
-            </div>
-            <StatusBadge tone="amber">{priorities.length}</StatusBadge>
-          </div>
-
-          <div className="mt-5 space-y-2.5">
-            {priorityItems.map((item: any, index: number) => (
-              <Link
-                key={`${item.title}-${index}`}
-                href={item.href}
-                className="group/prio admin-enter relative block overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-200 hover:border-white/10 hover:bg-white/[0.04]"
-                style={{ animationDelay: `${index * 80}ms` }}
-              >
-                <span
-                  className={`absolute left-0 top-0 h-full w-[3px] rounded-r-full transition-opacity duration-200 ${
-                    item.tone === 'rose' ? 'bg-[color:var(--accent-rose)]' :
-                    item.tone === 'amber' ? 'bg-[color:var(--accent-amber)]' :
-                    item.tone === 'emerald' ? 'bg-[color:var(--accent-emerald)]' :
-                    'bg-[color:var(--accent-cyan)]'
-                  } opacity-40 group-hover/prio:opacity-100`}
-                />
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge tone={item.tone}>{String(item.value)}</StatusBadge>
-                      <p className="text-sm font-medium text-white">{item.title}</p>
-                    </div>
-                    <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                      {item.detail}
-                    </p>
-                  </div>
-                  <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-white/20 transition-all duration-200 group-hover/prio:translate-x-0.5 group-hover/prio:text-white/50" />
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {hiddenPriorityCount > 0 ? (
-            <Link
-              href="/analytics/system-health"
-              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[color:var(--accent-amber)]"
-            >
-              View {hiddenPriorityCount} more priority item{hiddenPriorityCount === 1 ? "" : "s"}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          ) : null}
-        </Surface>
-      </div>
-
-      <div className="grid gap-4 md:gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <Surface className="admin-enter min-w-0 p-5 sm:p-6">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-cyan)]">
-                Reports
-              </p>
-              <h3 className="mt-2 text-xl font-semibold text-white">Pending reviews</h3>
-            </div>
-            <Link
-              href="/reports"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/8 px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white sm:w-auto"
-            >
-              View all
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          <div className="mt-5 overflow-hidden rounded-xl border border-white/8">
-            {pendingReportsQuery.isLoading ? (
-              <div className="px-4 py-8 text-sm text-[color:var(--muted-foreground)]">
-                Loading reports...
-              </div>
-            ) : pendingReports.length ? (
-              <>
-                <div className="grid gap-3 p-3 md:hidden">
-                  {pendingReports.map((report: any) => (
-                    <Link
-                      key={report.id}
-                      href={`/reports/${report.id}`}
-                      className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition hover:border-white/12 hover:bg-white/[0.04]"
+          {priorities.length ? (
+            <ul className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {priorities.map((item) => (
+                <li key={item.id}>
+                  <Link
+                    href={item.href}
+                    className="group flex h-full items-start gap-3 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 transition-colors duration-[var(--sb-duration-fast)] hover:border-[var(--sb-border-hover)] hover:bg-[var(--sb-surface-2)]"
+                  >
+                    <Badge
+                      tone={item.severity}
+                      className="sb-nums mt-0.5 shrink-0"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <p className="font-medium text-white">{report.question.subject}</p>
-                        <StatusBadge tone="amber">{report.issueType.replaceAll("_", " ")}</StatusBadge>
-                      </div>
-                      <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">{report.reporter.fullName}</p>
-                      <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">{formatDateTime(report.createdAt)}</p>
-                    </Link>
-                  ))}
-                </div>
+                      {item.value}
+                    </Badge>
 
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[720px] divide-y divide-white/8 text-sm">
-                    <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                      <tr>
-                        <th className="px-4 py-3">Subject</th>
-                        <th className="px-4 py-3">Issue</th>
-                        <th className="px-4 py-3">Reporter</th>
-                        <th className="px-4 py-3">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {pendingReports.map((report: any) => (
-                        <tr key={report.id} className="group/row relative transition-colors duration-150 hover:bg-white/[0.03]">
-                          <td className="relative px-4 py-3 text-white">
-                            <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent-amber)] opacity-0 transition-opacity duration-150 group-hover/row:opacity-100" />
-                            {report.question.subject}
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusBadge tone="amber">{report.issueType.replaceAll("_", " ")}</StatusBadge>
-                          </td>
-                          <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                            {report.reporter.fullName}
-                          </td>
-                          <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                            {formatDateTime(report.createdAt)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="px-4 py-8 text-sm text-[color:var(--muted-foreground)]">
-                No pending reports.
-              </div>
-            )}
-          </div>
-        </Surface>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[length:var(--sb-text-base)] font-medium text-[var(--sb-text)]">
+                        {item.title}
+                      </p>
+                      <p className="mt-0.5 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                        {item.detail}
+                      </p>
+                    </div>
 
-        <div className="grid min-w-0 gap-6">
-          <Surface className="admin-enter p-5 sm:p-6">
-            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-emerald)]">
-                  System
-                </p>
-                <h3 className="mt-2 text-xl font-semibold text-white">Health status</h3>
-              </div>
-              <Link
+                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-[var(--sb-text-tertiary)] transition-transform duration-[var(--sb-duration-fast)] group-hover:translate-x-0.5" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="flex items-center gap-2.5 rounded-[var(--sb-radius-lg)] border border-[var(--sb-success-ring)] bg-[var(--sb-success-soft)] px-4 py-3">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--sb-success)]" />
+              <p className="text-[length:var(--sb-text-base)] text-[var(--sb-text)]">
+                Nothing needs attention. Reports, premium, email and queues are
+                all clear.
+              </p>
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {/* ── 2. Key numbers ──────────────────────────────────── */}
+      <StatGrid>
+        {stats.length
+          ? stats.map((stat) => <StatCard key={stat.label} {...stat} />)
+          : Array.from({ length: 4 }).map((_, index) => (
+              <StatCardSkeleton key={index} />
+            ))}
+      </StatGrid>
+
+      {/* ── 3. Trend ────────────────────────────────────────── */}
+      <ActivityChart
+        data={activityData}
+        isLoading={activityQuery.isLoading}
+        title="Weekly activity"
+        description="Exam starts and collaboration sessions, last 7 days."
+      />
+
+      {/* ── 4. The work queue, then system health ───────────── */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section className="min-w-0 space-y-3">
+          <SectionTitle
+            title="Pending reports"
+            action={
+              <Button asChild href="/reports" variant="secondary" size="sm">
+                View all
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            }
+          />
+
+          <DataTable
+            caption="Question reports awaiting review"
+            items={pendingReports}
+            columns={reportColumns}
+            getKey={(report) => report.id}
+            href={(report) => `/reports/${report.id}`}
+            isLoading={reportsQuery.isLoading}
+            error={reportsQuery.error}
+            onRetry={() => reportsQuery.refetch()}
+            emptyIcon={<Inbox className="h-4 w-4" />}
+            emptyTitle="No reports waiting"
+            emptyDescription="Reported questions will appear here as learners flag them."
+          />
+        </section>
+
+        <section className="min-w-0 space-y-3">
+          <SectionTitle
+            title="System health"
+            action={
+              <Button
+                asChild
                 href="/analytics/system-health"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/8 px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white sm:w-auto"
+                variant="ghost"
+                size="sm"
               >
                 Details
                 <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
+              </Button>
+            }
+          />
 
-            <div className="mt-5 grid gap-2.5">
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/10 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <Database className="h-4 w-4 text-[color:var(--accent-cyan)]" />
-                  <span className="text-sm text-white">Database</span>
-                </div>
-                <StatusBadge tone={systemHealth?.dependencies.databaseReachable ? "emerald" : "rose"}>
-                  {systemHealth?.dependencies.databaseReachable ? "live" : "down"}
-                </StatusBadge>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/10 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-[color:var(--accent-amber)]" />
-                  <span className="text-sm text-white">Email</span>
-                </div>
-                <StatusBadge tone={systemHealth?.dependencies.emailEnabled ? "emerald" : "amber"}>
-                  {systemHealth?.dependencies.emailEnabled ? "active" : "paused"}
-                </StatusBadge>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/10 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <Layers3 className="h-4 w-4 text-[color:var(--accent-emerald)]" />
-                  <span className="text-sm text-white">Queue backlog</span>
-                </div>
-                <StatusBadge tone={(systemHealth?.queues.leaderboardProjectionBacklog ?? 0) > 0 ? "amber" : "emerald"}>
-                  {formatInteger(systemHealth?.queues.leaderboardProjectionBacklog ?? 0)}
-                </StatusBadge>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/10 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="h-4 w-4 text-[color:var(--accent-cyan)]" />
-                  <span className="text-sm text-white">Step-up challenges</span>
-                </div>
-                <StatusBadge tone={(systemHealth?.queues.pendingStepUpChallenges ?? 0) > 0 ? "amber" : "slate"}>
-                  {formatInteger(systemHealth?.queues.pendingStepUpChallenges ?? 0)}
-                </StatusBadge>
-              </div>
-            </div>
-          </Surface>
+          <ul className="divide-y divide-[var(--sb-border)] overflow-hidden rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)]">
+            {healthChecks.map((check) => {
+              const Icon = check.icon;
+              return (
+                <li
+                  key={check.label}
+                  className="flex items-center gap-3 px-4 py-2.5"
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-[var(--sb-text-tertiary)]" />
+                  <span className="min-w-0 flex-1 truncate text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+                    {check.label}
+                  </span>
+                  <Badge tone={check.ok ? "success" : "danger"}>
+                    {check.value}
+                  </Badge>
+                </li>
+              );
+            })}
 
-          <Surface className="admin-enter p-5 sm:p-6">
-            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                  Content
-                </p>
-                <h3 className="mt-2 text-xl font-semibold text-white">Question inventory</h3>
-              </div>
-              <StatusBadge tone="slate">{formatCompactNumber(totalContent)} total</StatusBadge>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {contentMix.map((item: any, index: number) => {
-                const width = totalContent > 0 ? Math.max(6, (item.value / totalContent) * 100) : 0;
-                return (
-                  <div
-                    key={item.label}
-                    className="admin-enter rounded-xl border border-white/8 bg-black/10 p-4"
-                    style={{ animationDelay: `${index * 60}ms` }}
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <p className="text-sm font-medium text-white">{item.label}</p>
-                      <StatusBadge tone={item.tone}>{formatInteger(item.value)}</StatusBadge>
-                    </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.05]">
-                      <div
-                        className={
-                          item.tone === "cyan"
-                            ? "h-full rounded-full bg-[color:var(--accent-cyan)]"
-                            : item.tone === "emerald"
-                              ? "h-full rounded-full bg-[color:var(--accent-emerald)]"
-                              : "h-full rounded-full bg-[color:var(--accent-amber)]"
-                        }
-                        style={{ width: `${width}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Surface>
-        </div>
+            {!healthChecks.length ? (
+              <li className="px-4 py-8 text-center text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+                Loading health checks…
+              </li>
+            ) : null}
+          </ul>
+        </section>
       </div>
-
-      <Surface className="admin-enter p-5 sm:p-6">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-cyan)]">
-            Quick actions
-          </p>
-          <h3 className="mt-2 text-xl font-semibold text-white">Go to</h3>
-        </div>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {quickActions.map((action: any, index: number) => {
-            const Icon = action.icon;
-            return (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="group/qa admin-enter rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-white/10 hover:bg-white/[0.04] hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] sm:p-5"
-                style={{ animationDelay: `${index * 80}ms` }}
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-[color:var(--accent-cyan)] transition-colors duration-200 group-hover/qa:border-[color:var(--accent-cyan)]/20 group-hover/qa:bg-[color:var(--accent-cyan)]/8 sm:h-10 sm:w-10">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h4 className="mt-3 text-base font-semibold text-white sm:mt-4">{action.title}</h4>
-                <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                  {action.detail}
-                </p>
-                <div className="mt-3 inline-flex items-center gap-2 text-[13px] font-medium text-[color:var(--muted-foreground)] transition-colors duration-200 group-hover/qa:text-white sm:mt-4">
-                  Open
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover/qa:translate-x-0.5" />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </Surface>
-    </section>
+    </div>
   );
 }

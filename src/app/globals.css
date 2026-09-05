@@ -1,26 +1,118 @@
 @import "tailwindcss";
 
-/* ── Design tokens ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   StudyBond Admin — Design System
+   Built on the "Luminous Calm" language from studybond-web,
+   retuned for dense, table-and-form admin work.
+
+   Rules this file enforces:
+   1. Carbon Amber is the BRAND. It never means "status".
+   2. Status colour is semantic only: success / warning / danger / info.
+   3. Every border, radius, shadow, size and duration comes from a
+      scale below. Components do not invent arbitrary values.
+   ═══════════════════════════════════════════════════════════════ */
+
 :root {
-  --background: #0c0c0f;
-  --foreground: #e8e4de;
-  --muted-foreground: #8a8279;
-  --border: rgba(255, 255, 255, 0.06);
-  --panel: rgba(18, 18, 22, 0.78);
-  --panel-strong: rgba(12, 12, 15, 0.94);
-  --accent-cyan: #6ec4b8;
-  --accent-emerald: #7db34f;
-  --accent-amber: #c4944a;
-  --accent-rose: #b87872;
-  --mobile-bottom-nav-height: 86px;
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --duration-fast: 150ms;
-  --duration-base: 260ms;
-  --duration-slow: 480ms;
+  /* ── Ground & surfaces (graduated depth) ─────────────────── */
+  --sb-bg:            #09090b;
+  --sb-bg-inset:      #0e0e11;
+  --sb-surface-1:     #0f0f12;
+  --sb-surface-2:     #141418;
+  --sb-surface-3:     #1a1a1f;
+  --sb-surface-hover: #1c1c21;
+
+  /* ── Text hierarchy (3 levels, all AA on --sb-bg) ────────── */
+  --sb-text:           #fafafa;
+  --sb-text-secondary: #a1a1aa;
+  --sb-text-tertiary:  #8b8b96;
+
+  /* ── Borders ──────────────────────────────────────────────── */
+  --sb-border:        rgba(255, 255, 255, 0.06);
+  --sb-border-hover:  rgba(255, 255, 255, 0.12);
+  --sb-border-active: rgba(255, 255, 255, 0.18);
+
+  /* ── Brand: Carbon Amber ──────────────────────────────────── */
+  --sb-accent:       #c17a28;
+  --sb-accent-hover: #d48a34;
+  --sb-accent-soft:  rgba(193, 122, 40, 0.10);
+  --sb-accent-ring:  rgba(193, 122, 40, 0.22);
+  --sb-accent-text:  #e8b87a;
+
+  /* ── Semantic status (meaning only — never decoration) ────── */
+  --sb-success:      #4ade80;
+  --sb-success-soft: rgba(74, 222, 128, 0.10);
+  --sb-success-ring: rgba(74, 222, 128, 0.22);
+
+  --sb-warning:      #f5b544;
+  --sb-warning-soft: rgba(245, 181, 68, 0.10);
+  --sb-warning-ring: rgba(245, 181, 68, 0.22);
+
+  --sb-danger:       #f87171;
+  --sb-danger-soft:  rgba(248, 113, 113, 0.10);
+  --sb-danger-ring:  rgba(248, 113, 113, 0.22);
+
+  --sb-info:         #60a5fa;
+  --sb-info-soft:    rgba(96, 165, 250, 0.10);
+  --sb-info-ring:    rgba(96, 165, 250, 0.22);
+
+  /* Premium / gold — the one place brand gold is allowed */
+  --sb-gold:      #d4a121;
+  --sb-gold-soft: rgba(212, 161, 33, 0.10);
+
+  /* ── Chart series (categorical, fixed order — never cycled) ──
+     Validated against the dark chart surface (#0f0f12): OKLCH
+     lightness inside the 0.48–0.67 dark band, chroma above floor,
+     adjacent CVD ΔE 28.5 (deutan) / 18.7 (tritan), contrast >= 3:1.
+     These are IDENTITY colours. They are separate from the status
+     tokens above and must never be used to mean good/bad. */
+  --sb-chart-1: #c17a28; /* amber  — exam activity      */
+  --sb-chart-2: #8b7cf6; /* violet — collaboration      */
+  --sb-chart-grid: rgba(255, 255, 255, 0.05);
+  --sb-chart-axis: rgba(255, 255, 255, 0.10);
+
+  /* ── Type scale (denser than web: admin reads tables) ─────── */
+  --sb-text-2xs:  0.6875rem; /* 11px — table micro-labels only */
+  --sb-text-xs:   0.75rem;   /* 12px — meta, captions           */
+  --sb-text-sm:   0.8125rem; /* 13px — table cells, dense body  */
+  --sb-text-base: 0.875rem;  /* 14px — default body             */
+  --sb-text-md:   0.9375rem; /* 15px — emphasised body          */
+  --sb-text-lg:   1.0625rem; /* 17px — card titles              */
+  --sb-text-xl:   1.25rem;   /* 20px — section titles           */
+  --sb-text-2xl:  1.5rem;    /* 24px — page titles              */
+  --sb-text-3xl:  1.875rem;  /* 30px — stat figures             */
+
+  /* ── Radius ───────────────────────────────────────────────── */
+  --sb-radius-sm:   6px;
+  --sb-radius:      10px;
+  --sb-radius-lg:   14px;
+  --sb-radius-xl:   18px;
+  --sb-radius-full: 9999px;
+
+  /* ── Shadow / elevation ───────────────────────────────────── */
+  --sb-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --sb-shadow:    0 2px 8px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20);
+  --sb-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.40), 0 2px 8px rgba(0, 0, 0, 0.20);
+  --sb-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.50), 0 4px 12px rgba(0, 0, 0, 0.30);
+
+  /* ── Motion ───────────────────────────────────────────────── */
+  --sb-ease:        cubic-bezier(0.16, 1, 0.3, 1);
+  --sb-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --sb-duration-fast: 120ms;
+  --sb-duration:      200ms;
+  --sb-duration-slow: 320ms;
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  --sb-sidebar-width:           264px;
+  --sb-sidebar-width-collapsed: 72px;
+  --sb-topbar-height:           56px;
+  --sb-bottom-nav-height:       64px;
+  --sb-content-max:             1600px;
 }
 
-/* ── Base resets ────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   Reset & base
+   ═══════════════════════════════════════════════════════════════ */
+
 * {
   box-sizing: border-box;
 }
@@ -29,6 +121,13 @@ html {
   max-width: 100%;
   overflow-x: hidden;
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+
+  /* The console is dark-only. Telling the browser so makes the controls we
+     do not draw ourselves match it: the date picker and its calendar icon,
+     native scrollbars, autofill backgrounds, and spinner arrows. Without
+     this a date field renders as a white panel on a black page. */
+  color-scheme: dark;
 }
 
 body {
@@ -36,10 +135,11 @@ body {
   min-height: 100vh;
   max-width: 100%;
   overflow-x: hidden;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: "Inter", "Segoe UI Variable", system-ui, sans-serif;
-  font-feature-settings: "cv11", "ss01"; /* stylistic alternates for Inter */
+  background: var(--sb-bg);
+  color: var(--sb-text);
+  font-family: var(--font-sans), "Inter", system-ui, sans-serif;
+  font-size: var(--sb-text-base);
+  line-height: 1.55;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -48,157 +148,160 @@ body {
 a { color: inherit; text-decoration: none; }
 button, input, textarea, select { font: inherit; }
 
-::selection {
-  background: rgba(110, 196, 184, 0.24);
-  color: #fff;
-}
-
-/* ── Focus styles ──────────────────────────────────────────── */
-:focus-visible {
-  outline: 2px solid rgba(110, 196, 184, 0.5);
-  outline-offset: 2px;
-}
-
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: none; /* inputs use border-color shift instead */
-}
-
-/* ── Scrollbar ─────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 99px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-/* ── Interactive defaults ──────────────────────────────────── */
 button {
   cursor: pointer;
   user-select: none;
 }
 
-button:active:not(:disabled) {
-  transform: scale(0.975);
+::selection {
+  background: var(--sb-accent-ring);
+  color: var(--sb-text);
 }
 
-/* ── Keyframes ─────────────────────────────────────────────── */
-@keyframes admin-rise {
-  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+/* ── Focus: one ring, everywhere ──────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 2px;
+  border-radius: var(--sb-radius-sm);
+}
+
+/* Inputs signal focus with border + ring, not an outline box */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: var(--sb-radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Numeric columns line up */
+.sb-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.sb-mono {
+  font-family: var(--font-mono), "JetBrains Mono", Consolas, monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Motion — deliberately small. Two entrances, one shimmer.
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes sb-fade-in {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-@keyframes admin-fade {
+@keyframes sb-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-@keyframes shimmer-sweep {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+@keyframes sb-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
 }
 
-@keyframes pulse-ring {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50%      { opacity: 1;   transform: scale(1.6); }
+@keyframes sb-spin {
+  to { transform: rotate(360deg); }
 }
 
-@keyframes gradient-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+/* One entrance for a whole page, not one per card. */
+.sb-enter {
+  animation: sb-fade-in var(--sb-duration-slow) var(--sb-ease) both;
 }
 
-@keyframes float-slow {
-  0%, 100% { transform: translate(0, 0); }
-  33%      { transform: translate(4px, -6px); }
-  66%      { transform: translate(-3px, 3px); }
+.sb-fade {
+  animation: sb-fade var(--sb-duration) var(--sb-ease-smooth) both;
 }
 
-/* ── Utility classes ───────────────────────────────────────── */
-.admin-enter {
-  animation: admin-rise 500ms var(--ease-out-expo) both;
-}
-
-.admin-fade {
-  animation: admin-fade 400ms ease both;
-}
-
-.shimmer-line {
-  position: relative;
-  overflow: hidden;
-}
-.shimmer-line::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.04) 45%,
-    rgba(255, 255, 255, 0.08) 50%,
-    rgba(255, 255, 255, 0.04) 55%,
-    transparent 100%
-  );
-  animation: shimmer-sweep 2.4s ease-in-out infinite;
-}
-
-.pulse-dot {
-  position: relative;
-}
-.pulse-dot::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0;
-  animation: pulse-ring 2s ease-in-out infinite;
-}
-
-.gradient-animate {
-  background-size: 200% 200%;
-  animation: gradient-shift 8s ease infinite;
-}
-
-.float-ambient {
-  animation: float-slow 16s ease-in-out infinite;
-}
-
-.admin-safe-bottom {
-  padding-bottom: 2rem;
-}
-
-.admin-mobile-bottom-nav {
-  padding-bottom: max(0.55rem, env(safe-area-inset-bottom));
-}
-
-@media (max-width: 1023px) {
-  .admin-safe-bottom {
-    padding-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom) + 1rem);
-  }
-}
-
-/* ── Skeleton loading ──────────────────────────────────────── */
-.skeleton {
+/* ── Skeleton ─────────────────────────────────────────────── */
+.sb-skeleton {
   position: relative;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
+  border-radius: var(--sb-radius);
 }
-.skeleton::after {
+
+.sb-skeleton::after {
   content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
     90deg,
-    transparent 25%,
-    rgba(255, 255, 255, 0.06) 50%,
-    transparent 75%
+    transparent 20%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 80%
   );
-  animation: shimmer-sweep 1.8s ease-in-out infinite;
+  animation: sb-shimmer 1.6s var(--sb-ease-smooth) infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Layout helpers
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Clears the fixed mobile bottom nav; smaller inset on desktop. */
+.sb-safe-bottom {
+  padding-bottom: 1.5rem;
+}
+
+@media (max-width: 1023px) {
+  .sb-safe-bottom {
+    padding-bottom: calc(
+      var(--sb-bottom-nav-height) + env(safe-area-inset-bottom) + 1rem
+    );
+  }
+}
+
+.sb-bottom-nav-inset {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Horizontal scroll is opt-in and always contained to one element. */
+.sb-scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.sb-scroll-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.sb-scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Respect the user's motion setting. Web is missing this; we are not.
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .sb-skeleton::after {
+    animation: none;
+    opacity: 0.4;
+  }
 }

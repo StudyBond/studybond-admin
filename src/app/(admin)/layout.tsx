@@ -7,91 +7,77 @@ import {
 } from "@/components/layout/admin-sidebar";
 import { AdminTopbar } from "@/components/layout/admin-topbar";
 import { cn } from "@/lib/utils/cn";
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
-const DESKTOP_SIDEBAR_STORAGE_KEY = "studybond-admin:sidebar-mode";
+const SIDEBAR_STORAGE_KEY = "studybond-admin:sidebar-mode";
 
 export default function AdminLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const [desktopSidebarMode, setDesktopSidebarMode] = useState<SidebarMode>("expanded");
-  const [isDesktopSidebarReady, setIsDesktopSidebarReady] = useState(false);
+}: Readonly<{ children: React.ReactNode }>) {
+  const [desktopSidebarMode, setDesktopSidebarMode] =
+    useState<SidebarMode>("expanded");
+  const [isSidebarReady, setIsSidebarReady] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
     try {
-      const storedValue = window.localStorage.getItem(DESKTOP_SIDEBAR_STORAGE_KEY);
-      if (storedValue === "expanded" || storedValue === "collapsed") {
-        setDesktopSidebarMode(storedValue);
+      const stored = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (stored === "expanded" || stored === "collapsed") {
+        setDesktopSidebarMode(stored);
       }
     } catch {
-      // Ignore storage failures and fall back to the default expanded desktop sidebar.
+      // Storage can throw in private mode. The default is fine.
     } finally {
-      setIsDesktopSidebarReady(true);
+      setIsSidebarReady(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!isDesktopSidebarReady || typeof window === "undefined") {
-      return;
-    }
+    if (!isSidebarReady) return;
 
     try {
-      window.localStorage.setItem(DESKTOP_SIDEBAR_STORAGE_KEY, desktopSidebarMode);
+      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, desktopSidebarMode);
     } catch {
-      // Ignore storage failures. The UI still works without persistence.
+      // Persistence is a convenience, not a requirement.
     }
-  }, [desktopSidebarMode, isDesktopSidebarReady]);
+  }, [desktopSidebarMode, isSidebarReady]);
 
+  // Close the mobile drawer if the viewport grows into desktop territory.
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(min-width: 1024px)");
-    const handleViewportChange = (event?: MediaQueryListEvent) => {
-      if (event ? event.matches : mediaQuery.matches) {
-        setIsMobileSidebarOpen(false);
-      }
+    const query = window.matchMedia("(min-width: 1024px)");
+    const handleChange = () => {
+      if (query.matches) setIsMobileSidebarOpen(false);
     };
 
-    handleViewportChange();
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", handleViewportChange);
-      return () => mediaQuery.removeEventListener("change", handleViewportChange);
-    }
-
-    mediaQuery.addListener(handleViewportChange);
-    return () => mediaQuery.removeListener(handleViewportChange);
+    handleChange();
+    query.addEventListener("change", handleChange);
+    return () => query.removeEventListener("change", handleChange);
   }, []);
 
-  const closeMobileSidebar = useCallback(() => setIsMobileSidebarOpen(false), []);
-  const toggleMobileSidebar = useCallback(() => {
-    setIsMobileSidebarOpen((current) => !current);
-  }, []);
-  const toggleDesktopSidebar = useCallback(() => {
-    setDesktopSidebarMode((current) => (current === "expanded" ? "collapsed" : "expanded"));
-  }, []);
+  const closeMobileSidebar = useCallback(
+    () => setIsMobileSidebarOpen(false),
+    [],
+  );
+  const toggleMobileSidebar = useCallback(
+    () => setIsMobileSidebarOpen((open) => !open),
+    [],
+  );
+  const toggleDesktopSidebar = useCallback(
+    () =>
+      setDesktopSidebarMode((mode) =>
+        mode === "expanded" ? "collapsed" : "expanded",
+      ),
+    [],
+  );
 
   return (
-    <div className="h-dvh overflow-hidden bg-[color:var(--background)] text-[color:var(--foreground)]">
+    <div className="h-dvh overflow-hidden bg-[var(--sb-bg)] text-[var(--sb-text)]">
       <div
         className={cn(
-          "relative h-full min-h-0 overflow-hidden transition-[grid-template-columns] duration-300 ease-out lg:grid",
+          "h-full transition-[grid-template-columns] duration-[var(--sb-duration)] ease-[var(--sb-ease)] lg:grid",
           desktopSidebarMode === "collapsed"
-            ? "lg:grid-cols-[88px_minmax(0,1fr)]"
-            : "lg:grid-cols-[272px_minmax(0,1fr)]",
+            ? "lg:grid-cols-[var(--sb-sidebar-width-collapsed)_minmax(0,1fr)]"
+            : "lg:grid-cols-[var(--sb-sidebar-width)_minmax(0,1fr)]",
         )}
       >
         <AdminSidebar
@@ -99,16 +85,23 @@ export default function AdminLayout({
           isMobileOpen={isMobileSidebarOpen}
           onMobileClose={closeMobileSidebar}
         />
-        <div className="grid h-full min-h-0 min-w-0 overflow-hidden grid-rows-[auto,minmax(0,1fr)]">
+
+        <div className="grid h-full min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
           <AdminTopbar
             desktopSidebarMode={desktopSidebarMode}
             isMobileSidebarOpen={isMobileSidebarOpen}
             onDesktopSidebarToggle={toggleDesktopSidebar}
             onMobileMenuToggle={toggleMobileSidebar}
           />
-          <main className="admin-safe-bottom relative min-h-0 overflow-x-clip overflow-y-auto overscroll-contain px-4 pb-8 pt-4 sm:px-5 sm:pt-5 md:px-6 md:pb-10 md:pt-6 lg:px-8">
-            <div className="relative mx-auto w-full max-w-full">{children}</div>
+
+          <main className="sb-safe-bottom min-w-0 overflow-y-auto overscroll-contain px-4 pt-5 sm:px-5 lg:px-6 lg:pt-6">
+            {/* Content is capped so tables stay readable on ultrawide
+                displays instead of stretching to 2500px. */}
+            <div className="mx-auto w-full max-w-[var(--sb-content-max)]">
+              {children}
+            </div>
           </main>
+
           <AdminBottomNav />
         </div>
       </div>

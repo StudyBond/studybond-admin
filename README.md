@@ -62,9 +62,11 @@ NEXT_PUBLIC_WEB_URL=https://studybond.app
 Set these in Vercel for `studybond-admin`:
 
 ```bash
-BACKEND_API_BASE_URL=https://your-backend.onrender.com
-NEXT_PUBLIC_API_BASE_URL=https://your-backend.onrender.com
-NEXT_PUBLIC_WEB_URL=https://your-web-domain.vercel.app
+BACKEND_API_BASE_URL=https://<your-railway-backend-host>
+NEXT_PUBLIC_API_BASE_URL=https://<your-railway-backend-host>
+NEXT_PUBLIC_WEB_URL=https://studybond.app
 ```
+
+The backend runs on Railway in production — see `studybond-backend/docs/infrastructure.md`.
 
 `BACKEND_API_BASE_URL` is the critical one. The admin app proxies all browser `/api/*` calls through its own Next.js routes and those routes forward to this backend URL.

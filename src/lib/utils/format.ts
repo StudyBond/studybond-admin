@@ -3,6 +3,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-NG", {
   timeStyle: "short",
 });
 
+const dateFormatter = new Intl.DateTimeFormat("en-NG", {
+  dateStyle: "medium",
+});
+
 const numberFormatter = new Intl.NumberFormat("en-NG");
 
 const compactNumberFormatter = new Intl.NumberFormat("en-NG", {
@@ -27,6 +31,25 @@ export function formatDateTime(value: string | Date | null | undefined) {
   }
 
   return dateTimeFormatter.format(date);
+}
+
+/**
+ * Date without the time. Use in table columns where the clock time is noise
+ * — a "Joined" or "Created" column reads better, and stays narrower, without
+ * "14:32" after every date. Keep formatDateTime for anything an admin might
+ * need to correlate with a log line.
+ */
+export function formatDate(value: string | Date | null | undefined) {
+  if (!value) {
+    return "Unavailable";
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Unavailable";
+  }
+
+  return dateFormatter.format(date);
 }
 
 export function formatInteger(value: number | null | undefined) {

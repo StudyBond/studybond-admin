@@ -1,59 +1,74 @@
 "use client";
 
-import Link from "next/link";
-import { Surface } from "@/components/ui/surface";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { CustomSelect } from "@/components/ui/custom-select";
+import { Field, FieldShell, TextArea } from "@/components/ui/field";
+import { SectionTitle } from "@/components/ui/page-header";
 import { usePremiumMutations } from "@/features/premium/hooks/use-premium-mutations";
-import {
-  ArrowRight,
-  Crown,
-  Gift,
-  LoaderCircle,
-  ShieldCheck,
-  Sparkles,
-  XCircle,
-} from "lucide-react";
+import { cn } from "@/lib/utils/cn";
+import { Crown, Gift, ShieldCheck, XCircle } from "lucide-react";
 import { useState } from "react";
+
+/**
+ * Grant, extend, or revoke premium for one user.
+ *
+ * Four things were wrong beyond the styling:
+ *
+ * 1. The step-up prompt appeared twice — a "Verify" link in the status bar
+ *    at the top, and an amber box at the bottom saying the same thing. One
+ *    prompt, at the point of action.
+ *
+ * 2. The submit button disabled itself silently. `canSubmit` requires a
+ *    non-empty note, but the only hint was a red asterisk on the label, so
+ *    a dead button looked like a broken page. It now says what it is
+ *    waiting for.
+ *
+ * 3. Revoke — described in its own copy as "immediately revoke all active
+ *    admin entitlements" — fired on a single click, in the same position
+ *    the grant button had occupied a moment earlier. It confirms now.
+ *
+ * 4. A `compact` prop threaded `mt-3`/`mt-5` ternaries through six places
+ *    to produce two nearly identical layouts. There is one layout.
+ */
 
 type PremiumActionKind = "grant" | "extend" | "revoke";
 type EntitlementKind = "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
 
-const actionConfig: Record<
-  PremiumActionKind,
+const ACTIONS: {
+  value: PremiumActionKind;
+  label: string;
+  icon: typeof Crown;
+  description: string;
+}[] = [
   {
-    tone: "emerald" | "cyan" | "rose";
-    icon: typeof Crown;
-    label: string;
-    description: string;
-  }
-> = {
-  grant: {
-    tone: "emerald",
+    value: "grant",
+    label: "Grant",
     icon: Crown,
-    label: "Grant premium",
-    description: "Issue a new premium entitlement for this user.",
+    description: "Give this user premium access for a fixed number of days.",
   },
-  extend: {
-    tone: "cyan",
+  {
+    value: "extend",
+    label: "Extend",
     icon: Gift,
-    label: "Extend premium",
-    description: "Add more time to the user's existing premium access.",
+    description: "Add more days on top of the access they already have.",
   },
-  revoke: {
-    tone: "rose",
+  {
+    value: "revoke",
+    label: "Revoke",
     icon: XCircle,
-    label: "Revoke premium",
-    description: "Immediately revoke all active admin entitlements.",
+    description:
+      "End every admin-granted entitlement now. Paid subscriptions are not affected.",
   },
-};
+];
 
-const durationPresets = [
-  { label: "7 days", value: 7 },
-  { label: "30 days", value: 30 },
-  { label: "90 days", value: 90 },
-  { label: "180 days", value: 180 },
-  { label: "365 days", value: 365 },
+const DURATION_PRESETS = [7, 30, 90, 180, 365];
+
+const KIND_OPTIONS = [
+  { value: "MANUAL", label: "Manual — a standard admin grant" },
+  { value: "PROMOTIONAL", label: "Promotional — a campaign or giveaway" },
+  { value: "CORRECTIVE", label: "Corrective — fixing something that broke" },
 ];
 
 interface PremiumActionPanelProps {
@@ -63,8 +78,6 @@ interface PremiumActionPanelProps {
   isStepUpActive: boolean;
   stepUpToken: string | null | undefined;
   stepUpRedirectUrl: string;
-  /** Compact mode hides the eyebrow and shows a more condensed layout */
-  compact?: boolean;
 }
 
 export function PremiumActionPanel({
@@ -74,7 +87,6 @@ export function PremiumActionPanel({
   isStepUpActive,
   stepUpToken,
   stepUpRedirectUrl,
-  compact = false,
 }: PremiumActionPanelProps) {
   const [actionType, setActionType] = useState<PremiumActionKind>(
     isPremium ? "extend" : "grant",
@@ -91,20 +103,44 @@ export function PremiumActionPanel({
       onSuccess: () => setNote(""),
     });
 
+  const activeAction =
+    ACTIONS.find((action) => action.value === actionType) ?? ACTIONS[0];
+  const isRevoke = actionType === "revoke";
+
+  const days = Number.parseInt(durationDays, 10);
+  const hasValidDuration = Number.isFinite(days) && days > 0;
+  const hasNote = note.trim().length > 0;
+
+  /**
+   * Say which requirement is unmet, rather than leaving a dead button. The
+   * order matters: verification first, because it blocks everything else.
+   */
+  const blockedReason = !userId
+    ? "Select a user first."
+    : !isStepUpActive
+      ? "Verify with step-up before changing premium access."
+      : !hasNote
+        ? "Add a note explaining why. It is saved to the audit log."
+        : !isRevoke && !hasValidDuration
+          ? "Enter how many days this should last."
+          : null;
+
+  const canSubmit = !blockedReason && !isPending;
+
   function handleSubmit() {
-    if (!userId) return;
+    if (!userId || !canSubmit) return;
 
     const trimmedNote = note.trim();
-    if (!trimmedNote) return;
 
-    if (actionType === "revoke") {
+    if (isRevoke) {
       revokeMutation.mutate({ note: trimmedNote });
       return;
     }
 
-    const days = Number.parseInt(durationDays, 10);
-    if (!Number.isFinite(days) || days <= 0) return;
+    grantOrExtend(trimmedNote);
+  }
 
+  function grantOrExtend(trimmedNote: string) {
     const payload = {
       kind: entitlementKind,
       durationDays: days,
@@ -118,229 +154,182 @@ export function PremiumActionPanel({
     }
   }
 
-  const config = actionConfig[actionType];
-  const canSubmit =
-    userId &&
-    isStepUpActive &&
-    note.trim() &&
-    !isPending &&
-    (actionType === "revoke" || (durationDays && Number(durationDays) > 0));
-
   return (
-    <Surface glow={config.tone} className="p-6">
-      {!compact && (
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-              Premium actions
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-white">
-              {userName
-                ? `Manage ${userName.split(" ")[0]}'s access`
-                : "Manage premium access"}
-            </h2>
-          </div>
-          <StatusBadge tone={isPremium ? "emerald" : "slate"} pulse={isPremium}>
-            {isPremium ? "premium active" : "free tier"}
-          </StatusBadge>
+    <section className="min-w-0 space-y-3">
+      <SectionTitle
+        title="Premium actions"
+        description={
+          userName ? `Change what ${userName.split(" ")[0]} has access to.` : undefined
+        }
+        action={
+          isPremium ? (
+            <Badge tone="premium">Has premium</Badge>
+          ) : (
+            <Badge tone="neutral">Free</Badge>
+          )
+        }
+      />
+
+      <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+        {/* ── Which action ─────────────────────────────────── */}
+        <div
+          role="group"
+          aria-label="Premium action"
+          className="grid grid-cols-3 gap-1 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-1"
+        >
+          {ACTIONS.map((action) => {
+            const isActive = action.value === actionType;
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.value}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => setActionType(action.value)}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-[var(--sb-radius-sm)] px-2 py-2",
+                  "text-[length:var(--sb-text-sm)] font-medium",
+                  "transition-colors duration-[var(--sb-duration-fast)]",
+                  isActive
+                    ? /* Revoke reads as destructive even before you commit. */
+                      action.value === "revoke"
+                      ? "bg-[var(--sb-danger-soft)] text-[var(--sb-danger)]"
+                      : "bg-[var(--sb-surface-3)] text-[var(--sb-text)]"
+                    : "text-[var(--sb-text-secondary)] hover:bg-[var(--sb-surface-2)] hover:text-[var(--sb-text)]",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {action.label}
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      {compact && (
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-base font-semibold text-white">
-            Premium actions
-          </h3>
-          <StatusBadge tone={isPremium ? "emerald" : "slate"} pulse={isPremium}>
-            {isPremium ? "premium" : "free"}
-          </StatusBadge>
-        </div>
-      )}
+        <p className="mt-2.5 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+          {activeAction.description}
+        </p>
 
-      {/* Step-up status */}
-      <div
-        className={`${compact ? "mt-3" : "mt-5"} flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/10 px-4 py-3`}
-      >
-        <div className="flex items-center gap-2.5">
-          <ShieldCheck
-            className={`h-4 w-4 ${isStepUpActive ? "text-[color:var(--accent-emerald)]" : "text-[color:var(--accent-amber)]"}`}
-          />
-          <span className="text-sm text-white">
-            {isStepUpActive
-              ? "Step-up verified"
-              : "Step-up required for changes"}
-          </span>
-        </div>
-        {!isStepUpActive && (
-          <Link
-            href={`/step-up?next=${encodeURIComponent(stepUpRedirectUrl)}&intent=Premium%20access%20change`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--accent-cyan)] transition hover:text-white"
-          >
-            Verify
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        )}
-      </div>
+        {/* ── Fields ───────────────────────────────────────── */}
+        <div className="mt-4 space-y-4">
+          {!isRevoke ? (
+            <>
+              <FieldShell label="How long">
+                <div className="flex flex-wrap gap-1.5">
+                  {DURATION_PRESETS.map((preset) => {
+                    const isActive = durationDays === String(preset);
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        aria-pressed={isActive}
+                        onClick={() => setDurationDays(String(preset))}
+                        className={cn(
+                          "rounded-[var(--sb-radius-full)] border px-3 py-1.5",
+                          "text-[length:var(--sb-text-xs)] font-medium",
+                          "transition-colors duration-[var(--sb-duration-fast)]",
+                          isActive
+                            ? "border-[var(--sb-accent-ring)] bg-[var(--sb-accent-soft)] text-[var(--sb-accent-text)]"
+                            : "border-[var(--sb-border)] bg-[var(--sb-surface-2)] text-[var(--sb-text-secondary)] hover:border-[var(--sb-border-hover)] hover:text-[var(--sb-text)]",
+                        )}
+                      >
+                        {preset} days
+                      </button>
+                    );
+                  })}
+                </div>
 
-      {/* Action type selector */}
-      <div
-        className={`${compact ? "mt-3" : "mt-5"} grid grid-cols-3 gap-1 rounded-xl border border-white/8 bg-black/10 p-1`}
-      >
-        {(["grant", "extend", "revoke"] as PremiumActionKind[]).map((value: PremiumActionKind) => {
-          const active = actionType === value;
-          const cfg = actionConfig[value];
-          return (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setActionType(value)}
-              className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium capitalize transition ${
-                active
-                  ? "bg-white text-[color:var(--background)] shadow-sm"
-                  : "text-[color:var(--muted-foreground)] hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <cfg.icon className="h-3.5 w-3.5" />
-              {value}
-            </button>
-          );
-        })}
-      </div>
+                {/* Was a 7rem box wedged next to the word "or". */}
+                <div className="mt-2">
+                  <Field
+                    value={durationDays}
+                    onChange={(event) =>
+                      setDurationDays(event.target.value.replace(/[^\d]/g, ""))
+                    }
+                    inputMode="numeric"
+                    size="sm"
+                    placeholder="Or type a number of days"
+                    aria-label="Custom number of days"
+                  />
+                </div>
+              </FieldShell>
 
-      {/* Action description  */}
-      <p
-        className={`${compact ? "mt-2" : "mt-3"} text-xs text-[color:var(--muted-foreground)]`}
-      >
-        {config.description}
-      </p>
-
-      {/* Form fields */}
-      <div className={`${compact ? "mt-3" : "mt-5"} space-y-4`}>
-        {actionType !== "revoke" && (
-          <>
-            {/* Duration presets */}
-            <div className="space-y-1.5">
-              <span className="text-xs font-medium text-[color:var(--muted-foreground)]">
-                Duration
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {durationPresets.map((preset: any) => {
-                  const active = durationDays === String(preset.value);
-                  return (
-                    <button
-                      key={preset.value}
-                      type="button"
-                      onClick={() =>
-                        setDurationDays(String(preset.value))
-                      }
-                      className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
-                        active
-                          ? "border-[color:var(--accent-cyan)]/30 bg-[color:var(--accent-cyan)]/10 text-white"
-                          : "border-white/8 bg-black/10 text-[color:var(--muted-foreground)] hover:border-white/14 hover:text-white"
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex items-center gap-3 pt-1">
-                <span className="text-xs text-[color:var(--muted-foreground)]">
-                  or
-                </span>
-                <input
-                  value={durationDays}
-                  onChange={(event) =>
-                    setDurationDays(event.target.value.replace(/[^\d]/g, ""))
+              <FieldShell label="Why this grant exists">
+                <CustomSelect
+                  aria-label="Grant type"
+                  value={entitlementKind}
+                  onValueChange={(value) =>
+                    setEntitlementKind(value as EntitlementKind)
                   }
-                  inputMode="numeric"
-                  placeholder="Custom days"
-                  className="w-28 rounded-lg border border-white/8 bg-black/10 px-3 py-2 text-xs text-white outline-none transition focus:border-[color:var(--accent-cyan)]/40"
+                  options={KIND_OPTIONS}
                 />
-              </div>
-            </div>
+              </FieldShell>
+            </>
+          ) : null}
 
-            {/* Grant type */}
-            <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-[color:var(--muted-foreground)]">
-                Grant type
-              </span>
-              <CustomSelect
-                value={entitlementKind}
-                onValueChange={(val) => setEntitlementKind(val as EntitlementKind)}
-                options={[
-                  { value: "MANUAL", label: "Manual — Standard admin grant" },
-                  { value: "PROMOTIONAL", label: "Promotional — Time-limited promotion" },
-                  { value: "CORRECTIVE", label: "Corrective — Fix a billing issue" },
-                ]}
-              />
-            </label>
-          </>
-        )}
-
-        {/* Note */}
-        <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-[color:var(--muted-foreground)]">
-            Admin note{" "}
-            <span className="text-[color:var(--accent-rose)]">*</span>
-          </span>
-          <textarea
+          <TextArea
+            label="Note"
+            hint="Required"
+            rows={3}
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            rows={compact ? 2 : 3}
             placeholder={
-              actionType === "revoke"
-                ? "Explain why this user's premium access is being revoked..."
-                : "Explain why this entitlement is being issued..."
+              isRevoke
+                ? "Why is this access being taken away?"
+                : "Why is this access being given?"
             }
-            className="w-full rounded-xl border border-white/8 bg-black/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--muted-foreground)]/50 focus:border-[color:var(--accent-cyan)]/40"
           />
-        </label>
 
-        {/* Submit */}
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-            actionType === "revoke"
-              ? "bg-[color:var(--accent-rose)] text-[color:var(--background)] hover:opacity-90"
-              : "bg-[color:var(--accent-cyan)] text-[color:var(--background)] hover:opacity-90"
-          }`}
-        >
-          {isPending ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
+          {/* ── Commit ─────────────────────────────────────── */}
+          {isRevoke ? (
+            <ConfirmButton
+              variant="danger"
+              className="w-full"
+              confirmLabel="Yes, revoke all entitlements"
+              onConfirm={handleSubmit}
+              disabled={!canSubmit}
+              isLoading={isPending}
+              icon={<XCircle className="h-4 w-4" />}
+            >
+              Revoke premium
+            </ConfirmButton>
           ) : (
-            <config.icon className="h-4 w-4" />
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              isLoading={isPending}
+            >
+              {!isPending ? <activeAction.icon className="h-4 w-4" /> : null}
+              {actionType === "grant"
+                ? `Grant ${hasValidDuration ? days : "—"} days`
+                : `Extend by ${hasValidDuration ? days : "—"} days`}
+            </Button>
           )}
-          {isPending
-            ? "Processing..."
-            : actionType === "revoke"
-              ? "Revoke all entitlements"
-              : actionType === "grant"
-                ? `Grant ${durationDays || "?"} days premium`
-                : `Extend by ${durationDays || "?"} days`}
-        </button>
 
-        {/* Help text */}
-        {!isStepUpActive && (
-          <div className="rounded-xl border border-[color:var(--accent-amber)]/20 bg-[color:var(--accent-amber)]/8 p-3 text-xs text-white">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-[color:var(--accent-amber)]" />
-              <span>
-                Complete{" "}
-                <Link
-                  href={`/step-up?next=${encodeURIComponent(stepUpRedirectUrl)}&intent=Premium%20access%20change`}
-                  className="font-semibold text-[color:var(--accent-cyan)] underline underline-offset-2 transition hover:text-white"
+          {/* One prompt, next to the control it unblocks. */}
+          {blockedReason ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] px-3 py-2.5">
+              <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
+                {blockedReason}
+              </p>
+              {!isStepUpActive ? (
+                <Button
+                  asChild
+                  href={`/step-up?next=${encodeURIComponent(
+                    stepUpRedirectUrl,
+                  )}&intent=Premium%20access%20change`}
+                  variant="secondary"
+                  size="sm"
                 >
-                  step-up verification
-                </Link>{" "}
-                before making premium changes.
-              </span>
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Verify
+                </Button>
+              ) : null}
             </div>
-          </div>
-        )}
+          ) : null}
+        </div>
       </div>
-    </Surface>
+    </section>
   );
 }

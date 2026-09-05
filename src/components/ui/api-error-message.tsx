@@ -27,7 +27,7 @@ export function ApiErrorMessage({
           {" "}
           <Link
             href="/login"
-            className="font-semibold text-[color:var(--accent-cyan)] underline underline-offset-4 transition hover:text-white"
+            className="font-medium text-[var(--sb-accent-text)] underline underline-offset-4 transition-colors duration-[var(--sb-duration-fast)] hover:text-[var(--sb-text)]"
           >
             Sign in again
           </Link>{" "}

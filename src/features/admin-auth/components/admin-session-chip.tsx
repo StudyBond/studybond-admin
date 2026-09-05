@@ -1,22 +1,34 @@
 "use client";
 
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { authApi } from "@/lib/api/auth";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
+import { authApi } from "@/lib/api/auth";
+import { cn } from "@/lib/utils/cn";
+import { useDismissable } from "@/lib/utils/use-dismissable";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useState, useEffect, useRef } from "react";
-import { cn } from "@/lib/utils/cn";
 
+/**
+ * Who you are signed in as, and how to leave.
+ *
+ * The menu animated in with `animate-in fade-in zoom-in-95` — classes from
+ * `tailwindcss-animate`, which is not a dependency of this project and is
+ * not defined in globals.css either. They compiled to nothing.
+ *
+ * The role badge also painted SUPERADMIN in rose, the colour this design
+ * system reserves for something being broken. Being a superadmin is not an
+ * error state; it is the brand-toned fact that you hold the highest role.
+ */
 export function AdminSessionChip() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data, isLoading } = useAdminSession();
+  const { isOpen, setIsOpen, ref } = useDismissable<HTMLDivElement>();
 
-  const handleLogout = async () => {
+  async function handleLogout() {
     try {
       await authApi.logout();
       await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
@@ -24,74 +36,86 @@ export function AdminSessionChip() {
       router.push("/login");
       router.refresh();
     } catch (error) {
-      toast.error("Logout failed", {
+      toast.error("Could not sign you out", {
         description: (
-          <ApiErrorMessage error={error} fallback="Could not end the admin session." />
+          <ApiErrorMessage
+            error={error}
+            fallback="Your session may still be open."
+          />
         ),
       });
     }
-  };
-
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }
 
   if (isLoading) {
-    return (
-      <div className="h-10 w-10 animate-pulse rounded-full border border-white/8 bg-white/5" />
-    );
+    return <div className="sb-skeleton h-9 w-9 rounded-full" />;
   }
 
   const user = data?.user;
-
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
-    <div className="relative z-50" ref={menuRef}>
+    <div className="relative" ref={ref}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label={`Account menu for ${user.fullName}`}
         className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-[color:var(--accent-cyan)] transition-all duration-300",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
+          "transition-colors duration-[var(--sb-duration-fast)]",
           isOpen
-            ? "border-[color:var(--accent-cyan)] bg-[color:var(--accent-cyan)]/10 shadow-[0_0_12px_rgba(34,211,238,0.2)]"
-            : "border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.08]"
+            ? "border-[var(--sb-accent-ring)] bg-[var(--sb-accent-soft)] text-[var(--sb-accent-text)]"
+            : "border-[var(--sb-border)] bg-[var(--sb-surface-2)] text-[var(--sb-text-secondary)] hover:border-[var(--sb-border-hover)] hover:text-[var(--sb-text)]",
         )}
       >
-        <UserRound className="h-[18px] w-[18px]" />
+        <UserRound className="h-4 w-4" />
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-3 w-64 origin-top-right animate-in fade-in zoom-in-95 rounded-2xl border border-white/10 bg-[rgba(26,23,21,0.96)] p-2 shadow-[0_24px_48px_rgba(0,0,0,0.4)] backdrop-blur-xl">
-          <div className="px-3 py-3">
-            <p className="truncate text-[15px] font-semibold text-white">{user.fullName}</p>
-            <div className="mt-1.5 flex items-center gap-2">
-              <StatusBadge tone={user.role === "SUPERADMIN" ? "rose" : "cyan"}>{user.role}</StatusBadge>
-              <span className="truncate text-xs text-[color:var(--muted-foreground)]">{user.email}</span>
+      {isOpen ? (
+        <div
+          role="menu"
+          className={cn(
+            "sb-fade absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden",
+            "rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)]",
+            "bg-[var(--sb-surface-2)] shadow-[var(--sb-shadow-xl)]",
+          )}
+        >
+          <div className="border-b border-[var(--sb-border)] p-3">
+            <p className="truncate text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+              {user.fullName}
+            </p>
+            <p className="mt-0.5 truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+              {user.email}
+            </p>
+            <div className="mt-2">
+              <Badge tone={user.role === "USER" ? "neutral" : "brand"}>
+                {user.role === "SUPERADMIN"
+                  ? "Superadmin"
+                  : user.role === "ADMIN"
+                    ? "Admin"
+                    : "User"}
+              </Badge>
             </div>
           </div>
-          <div className="my-1 h-px w-full bg-white/5" />
+
           <button
             type="button"
+            role="menuitem"
             onClick={handleLogout}
-            className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[color:var(--muted-foreground)] transition hover:bg-white/5 hover:text-white"
+            className={cn(
+              "flex w-full items-center gap-2.5 px-3 py-2.5 text-left",
+              "text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]",
+              "transition-colors duration-[var(--sb-duration-fast)]",
+              "hover:bg-[var(--sb-surface-3)] hover:text-[var(--sb-text)]",
+            )}
           >
-            <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+            <LogOut className="h-4 w-4" />
             Sign out
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

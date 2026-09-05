@@ -7,6 +7,9 @@ export const adminAuditApi = {
     limit?: number;
     action?: string;
     targetType?: string;
+    /** Full ISO timestamps. The backend compares them with gte/lte directly. */
+    startDate?: string;
+    endDate?: string;
   }) {
     const search = new URLSearchParams();
 
@@ -14,6 +17,8 @@ export const adminAuditApi = {
     if (params?.limit) search.set("limit", String(params.limit));
     if (params?.action) search.set("action", params.action);
     if (params?.targetType) search.set("targetType", params.targetType);
+    if (params?.startDate) search.set("startDate", params.startDate);
+    if (params?.endDate) search.set("endDate", params.endDate);
 
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return apiClient<AdminAuditLogsResponse>(`/api/admin/audit-logs${suffix}`);

@@ -1,162 +1,182 @@
 "use client";
 
-import Link from "next/link";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { SearchField } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar, Pagination } from "@/components/ui/toolbar";
 import { useAdminUsers } from "@/features/users/hooks/use-admin-users";
-import { formatDateTime } from "@/lib/utils/format";
-import { ChevronLeft, ChevronRight, Search, ShieldOff } from "lucide-react";
+import type { AdminUserListResponse } from "@/lib/api/types";
+import { formatDate } from "@/lib/utils/format";
+import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
+import { ShieldOff } from "lucide-react";
 import { useState } from "react";
+
+/**
+ * Banned accounts.
+ *
+ * This is /users pre-filtered to isBanned=true, so it stays deliberately
+ * thin — the same DataTable, minus the filters that cannot apply.
+ *
+ * Fixes carried over from the old version:
+ *
+ * 1. It had a "Status" column in which every row read "Banned". A column
+ *    with one constant value on a list defined by that value is noise; the
+ *    page title already says it. Dropped.
+ *
+ * 2. Search had no debounce, so it fired a request per keystroke while
+ *    /users debounced the identical box at 350ms.
+ *
+ * 3. Loading was the string "Loading banned users..." and a failed request
+ *    rendered as "No banned users" — an outage looked like an empty queue.
+ *    DataTable gives this skeleton rows and a real error state with retry.
+ */
+
+type AdminUserRow = AdminUserListResponse["users"][number];
+
+const PAGE_SIZE = 20;
+
+const roleLabel: Record<string, string> = {
+  USER: "User",
+  ADMIN: "Admin",
+  SUPERADMIN: "Superadmin",
+};
 
 export default function BannedUsersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const limit = 20;
+  const debouncedSearch = useDebouncedValue(search.trim(), 350);
 
-  const { data, isLoading } = useAdminUsers({
+  const usersQuery = useAdminUsers({
     page,
-    limit,
+    limit: PAGE_SIZE,
     isBanned: true,
-    search: search.trim() || undefined,
+    search: debouncedSearch || undefined,
   });
 
-  const users = data?.users ?? [];
-  const pagination = data?.pagination;
+  const users = usersQuery.data?.users ?? [];
+  const pagination = usersQuery.data?.pagination;
+
+  const columns: Column<AdminUserRow>[] = [
+    {
+      key: "user",
+      header: "User",
+      primary: true,
+      cell: (user) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium text-[var(--sb-text)]">
+            {user.fullName}
+          </p>
+          <p className="mt-0.5 truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            {user.email}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "role",
+      header: "Role",
+      cell: (user) =>
+        user.role === "USER" ? (
+          <span className="text-[var(--sb-text-tertiary)]">User</span>
+        ) : (
+          <Badge tone="brand">{roleLabel[user.role] ?? user.role}</Badge>
+        ),
+    },
+    {
+      key: "plan",
+      header: "Plan",
+      /* Worth keeping here: a banned account still holding premium is
+         the one an admin needs to deal with first. */
+      cell: (user) =>
+        user.isPremium ? (
+          <Badge tone="premium">Premium</Badge>
+        ) : (
+          <span className="text-[var(--sb-text-tertiary)]">Free</span>
+        ),
+    },
+    {
+      key: "devices",
+      header: "Devices",
+      numeric: true,
+      width: "6rem",
+      cell: (user) => user.deviceCount,
+    },
+    {
+      key: "joined",
+      header: "Joined",
+      showFrom: "lg",
+      width: "10rem",
+      cell: (user) => formatDate(user.createdAt),
+    },
+  ];
 
   return (
-    <section className="space-y-6">
-      <SectionHeading
-        eyebrow="Security"
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
         title="Banned users"
-        description="View and manage restricted accounts."
+        description="Accounts currently blocked from signing in. Open one to review the ban or lift it."
       />
 
-      <Surface className="p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex w-full items-center gap-3 rounded-xl border border-white/8 bg-black/10 px-4 py-2.5 sm:w-auto">
-            <Search className="h-4 w-4 text-[color:var(--muted-foreground)]" />
-            <input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+      <FilterBar
+        search={
+          <SearchField
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search name or email"
+            aria-label="Search banned users by name or email"
+          />
+        }
+      />
+
+      <DataTable
+        caption="Banned user accounts"
+        items={users}
+        columns={columns}
+        getKey={(user) => user.id}
+        href={(user) => `/users/${user.id}`}
+        isLoading={usersQuery.isLoading}
+        error={usersQuery.isError ? usersQuery.error : undefined}
+        onRetry={() => usersQuery.refetch()}
+        emptyIcon={<ShieldOff className="h-4 w-4" />}
+        emptyTitle={
+          debouncedSearch ? "No banned user matches that search" : "No banned users"
+        }
+        emptyDescription={
+          debouncedSearch
+            ? "Try a shorter search term, or clear it to see every banned account."
+            : "Nobody is currently blocked from signing in."
+        }
+        emptyAction={
+          debouncedSearch ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setSearch("");
                 setPage(1);
               }}
-              placeholder="Search banned users..."
-              className="w-full min-w-0 bg-transparent text-sm text-white outline-none placeholder:text-[color:var(--muted-foreground)]/60 sm:w-64"
-            />
-          </div>
-          {pagination ? (
-            <p className="text-sm text-[color:var(--muted-foreground)]">
-              {pagination.total} banned {pagination.total === 1 ? "user" : "users"}
-            </p>
-          ) : null}
-        </div>
-      </Surface>
-
-      <Surface className="overflow-hidden p-0">
-        {isLoading ? (
-          <div className="px-5 py-12 text-center text-sm text-[color:var(--muted-foreground)]">
-            Loading banned users...
-          </div>
-        ) : users.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-5 py-12">
-            <ShieldOff className="h-8 w-8 text-[color:var(--muted-foreground)]/60" />
-            <p className="text-sm text-[color:var(--muted-foreground)]">
-              {search ? "No banned users matched your search." : "No banned users."}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-3 p-3 md:hidden">
-              {users.map((row: any) => (
-                <Link
-                  key={row.id}
-                  href={`/users/${row.id}`}
-                  className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-white/12 hover:bg-white/[0.04]"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium text-white">{row.fullName}</p>
-                      <p className="mt-1 truncate text-xs text-[color:var(--muted-foreground)]">{row.email}</p>
-                    </div>
-                    <StatusBadge tone="rose">Banned</StatusBadge>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <StatusBadge tone="slate">{row.role}</StatusBadge>
-                  </div>
-                  <div className="mt-3 text-xs text-[color:var(--muted-foreground)]">
-                    <p className="uppercase tracking-[0.14em] text-[10px]">Joined</p>
-                    <p className="mt-1 text-sm text-white">{formatDateTime(row.createdAt)}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[640px] w-full divide-y divide-white/8 text-sm">
-                <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                  <tr>
-                    <th className="px-5 py-3">User</th>
-                    <th className="px-5 py-3">Role</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Joined</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/8 bg-black/10">
-                  {users.map((row: any) => (
-                    <tr key={row.id} className="transition hover:bg-white/[0.03]">
-                      <td className="px-5 py-3.5">
-                        <Link href={`/users/${row.id}`} className="block">
-                          <p className="font-medium text-white hover:underline">{row.fullName}</p>
-                          <p className="mt-0.5 text-xs text-[color:var(--muted-foreground)]">{row.email}</p>
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge tone="slate">{row.role}</StatusBadge>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge tone="rose">Banned</StatusBadge>
-                      </td>
-                      <td className="px-5 py-3.5 text-[color:var(--muted-foreground)]">
-                        {formatDateTime(row.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </Surface>
-
-      {pagination && pagination.totalPages > 1 ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-[color:var(--muted-foreground)]">
-            Page {pagination.page} of {pagination.totalPages}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-3 py-2 text-sm text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-              disabled={page >= pagination.totalPages}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-3 py-2 text-sm text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+              Clear search
+            </Button>
+          ) : null
+        }
+      />
+
+      {pagination ? (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          pageSize={pagination.limit}
+          onPageChange={setPage}
+        />
       ) : null}
-    </section>
+    </div>
   );
 }

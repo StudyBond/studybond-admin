@@ -1,9 +1,19 @@
 "use client";
 
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
+import { Button } from "@/components/ui/button";
 import { getErrorMeta } from "@/lib/api/errors";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useEffect } from "react";
 
+/**
+ * Route-level error boundary.
+ *
+ * Was raw slate/rose Tailwind with an uppercase "Application error" kicker
+ * and a cyan button, none of which match the app around it. The copy also
+ * said "while rendering the admin workspace", which describes React's job
+ * rather than telling the reader what to do.
+ */
 export default function Error({
   error,
   reset,
@@ -18,28 +28,42 @@ export default function Error({
   const meta = getErrorMeta(error);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-slate-100">
-      <div className="max-w-lg rounded-3xl border border-rose-900/40 bg-slate-900 p-8">
-        <p className="text-xs uppercase tracking-[0.24em] text-rose-300">
-          Application error
-        </p>
-        <h1 className="mt-3 text-2xl font-semibold">Something went wrong</h1>
-        <p className="mt-3 text-sm text-slate-400">
-          We hit an unexpected error while rendering the admin workspace.
-        </p>
-        <p className="mt-4 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-500">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--sb-bg)] px-6">
+      <div className="w-full max-w-lg rounded-[var(--sb-radius-lg)] border border-[var(--sb-danger-ring)] bg-[var(--sb-surface-1)] p-6 sm:p-8">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sb-radius)] bg-[var(--sb-danger-soft)] text-[var(--sb-danger)]">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[length:var(--sb-text-xl)] font-semibold text-[var(--sb-text)]">
+              Something went wrong
+            </h1>
+            <p className="mt-1.5 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+              This page could not be shown. Trying again often clears it.
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-4 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
           <ApiErrorMessage error={error} />
         </p>
+
+        {/* Kept for support to quote, not for the reader to interpret. */}
         {meta ? (
-          <p className="mt-3 text-[11px] text-slate-500">{meta}</p>
+          <p className="sb-mono mt-2 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            {meta}
+          </p>
         ) : null}
-        <button
-          type="button"
-          onClick={reset}
-          className="mt-6 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950"
-        >
-          Try again
-        </button>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button type="button" onClick={reset}>
+            <RotateCcw className="h-4 w-4" />
+            Try again
+          </Button>
+          <Button asChild href="/" variant="secondary">
+            Back to the dashboard
+          </Button>
+        </div>
       </div>
     </main>
   );

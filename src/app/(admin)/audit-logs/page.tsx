@@ -1,231 +1,377 @@
 "use client";
 
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { Field, FieldShell } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar, FilterChips, Pagination } from "@/components/ui/toolbar";
 import { useAdminAuditLogs } from "@/features/audit-logs/hooks/use-admin-audit-logs";
-import { formatDateTime } from "@/lib/utils/format";
 import type { AdminAuditLogEntry } from "@/lib/api/types";
-import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { formatDateTime } from "@/lib/utils/format";
+import { ScrollText } from "lucide-react";
 import { useState } from "react";
 
-const actionTones: Record<string, "emerald" | "cyan" | "amber" | "rose" | "slate"> = {
-  ROLE_PROMOTED: "emerald",
-  ROLE_DEMOTED: "amber",
-  USER_BANNED: "rose",
-  USER_UNBANNED: "cyan",
-  DEVICE_REMOVED: "amber",
-  EMAIL_SYSTEM_TOGGLED: "cyan",
-  QUESTION_DELETED: "rose",
-  QUESTION_EDITED: "amber",
-  PREMIUM_GRANTED: "emerald",
-  PREMIUM_EXTENDED: "cyan",
-  PREMIUM_REVOKED: "rose",
-  STEP_UP_CHALLENGE_REQUESTED: "cyan",
-  STEP_UP_CHALLENGE_VERIFIED: "emerald",
-  STEP_UP_CHALLENGE_FAILED: "rose",
-  REPORT_REVIEWED: "amber",
-  REPORT_RESOLVED: "emerald",
-  REPORT_HARD_DELETED: "rose",
-  UNAUTHORIZED_ACTION_ATTEMPT: "rose",
-  ROLE_PROMOTION_ATTEMPT_FAILED: "rose",
-  ROLE_DEMOTION_ATTEMPT_FAILED: "rose",
+/**
+ * Admin audit trail.
+ *
+ * The old page put all twenty-one action types in a single horizontally
+ * scrolling chip row. Finding "Premium revoked" meant scrubbing sideways
+ * through an undifferentiated list, and nothing told you the chips were
+ * mutually exclusive. Two other filters the backend already accepts —
+ * `targetType` and a date range — were not on the page at all.
+ *
+ * It is now two orthogonal questions, each with its own labelled control:
+ *
+ *   what was affected   targetType, six exclusive chips
+ *   what happened       action, one select, options prefixed by category
+ *
+ * plus a date range, because the first thing anyone asks an audit log is
+ * "what happened on the day this broke".
+ *
+ * Colour follows severity, not variety. The old map picked from five
+ * colours per action with no rule behind it — "role promoted" was green,
+ * "user unbanned" cyan, "question edited" amber. Now there are three
+ * meanings and an auditor can learn them at a glance:
+ *
+ *   danger   an attempt failed or was blocked — investigate
+ *   warning  something privileged or destructive succeeded
+ *   neutral  routine
+ */
+
+const PAGE_SIZE = 25;
+
+/** Attempts that were refused. These are the rows worth investigating. */
+const BLOCKED_ACTIONS = new Set([
+  "ROLE_PROMOTION_ATTEMPT_FAILED",
+  "ROLE_DEMOTION_ATTEMPT_FAILED",
+  "STEP_UP_CHALLENGE_FAILED",
+  "UNAUTHORIZED_ACTION_ATTEMPT",
+]);
+
+/** Succeeded, but changed privilege or destroyed something. */
+const SENSITIVE_ACTIONS = new Set([
+  "ROLE_PROMOTED",
+  "ROLE_DEMOTED",
+  "USER_BANNED",
+  "PREMIUM_REVOKED",
+  "QUESTION_DELETED",
+  "REPORT_HARD_DELETED",
+]);
+
+function actionTone(action: string): BadgeTone {
+  if (BLOCKED_ACTIONS.has(action)) return "danger";
+  if (SENSITIVE_ACTIONS.has(action)) return "warning";
+  return "neutral";
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  ROLE_PROMOTED: "Promoted",
+  ROLE_DEMOTED: "Demoted",
+  ROLE_PROMOTION_ATTEMPT_FAILED: "Promotion blocked",
+  ROLE_DEMOTION_ATTEMPT_FAILED: "Demotion blocked",
+  USER_BANNED: "User banned",
+  USER_UNBANNED: "User unbanned",
+  DEVICE_REMOVED: "Device removed",
+  PREMIUM_GRANTED: "Premium granted",
+  PREMIUM_EXTENDED: "Premium extended",
+  PREMIUM_REVOKED: "Premium revoked",
+  STEP_UP_CHALLENGE_REQUESTED: "Step-up requested",
+  STEP_UP_CHALLENGE_VERIFIED: "Step-up verified",
+  STEP_UP_CHALLENGE_FAILED: "Step-up failed",
+  QUESTION_EDITED: "Question edited",
+  QUESTION_DELETED: "Question deleted",
+  REPORT_REVIEWED: "Report reviewed",
+  REPORT_RESOLVED: "Report resolved",
+  REPORT_HARD_DELETED: "Report deleted",
+  EMAIL_SYSTEM_TOGGLED: "Email system toggled",
+  UNAUTHORIZED_ACTION_ATTEMPT: "Unauthorized attempt",
 };
 
-const actionFilters = [
-  { label: "All", value: "" },
-  { label: "Role promoted", value: "ROLE_PROMOTED" },
-  { label: "Role demoted", value: "ROLE_DEMOTED" },
-  { label: "Role promote failed", value: "ROLE_PROMOTION_ATTEMPT_FAILED" },
-  { label: "Role demote failed", value: "ROLE_DEMOTION_ATTEMPT_FAILED" },
-  { label: "User banned", value: "USER_BANNED" },
-  { label: "User unbanned", value: "USER_UNBANNED" },
-  { label: "Device removed", value: "DEVICE_REMOVED" },
-  { label: "Premium granted", value: "PREMIUM_GRANTED" },
-  { label: "Premium extended", value: "PREMIUM_EXTENDED" },
-  { label: "Premium revoked", value: "PREMIUM_REVOKED" },
-  { label: "Step-up requested", value: "STEP_UP_CHALLENGE_REQUESTED" },
-  { label: "Step-up verified", value: "STEP_UP_CHALLENGE_VERIFIED" },
-  { label: "Step-up failed", value: "STEP_UP_CHALLENGE_FAILED" },
-  { label: "Email toggled", value: "EMAIL_SYSTEM_TOGGLED" },
-  { label: "Report reviewed", value: "REPORT_REVIEWED" },
-  { label: "Report resolved", value: "REPORT_RESOLVED" },
-  { label: "Report deleted", value: "REPORT_HARD_DELETED" },
-  { label: "Question edited", value: "QUESTION_EDITED" },
-  { label: "Question deleted", value: "QUESTION_DELETED" },
-  { label: "Unauthorized", value: "UNAUTHORIZED_ACTION_ATTEMPT" },
+function actionLabel(action: string) {
+  return ACTION_LABELS[action] ?? action.replaceAll("_", " ").toLowerCase();
+}
+
+/**
+ * Category prefixes give a flat select the grouping the component cannot
+ * render natively, and keep related actions adjacent in the list.
+ */
+const ACTION_OPTIONS = [
+  { label: "Any action", value: "" },
+
+  { label: "Roles · Promoted", value: "ROLE_PROMOTED" },
+  { label: "Roles · Demoted", value: "ROLE_DEMOTED" },
+  { label: "Roles · Promotion blocked", value: "ROLE_PROMOTION_ATTEMPT_FAILED" },
+  { label: "Roles · Demotion blocked", value: "ROLE_DEMOTION_ATTEMPT_FAILED" },
+
+  { label: "Moderation · User banned", value: "USER_BANNED" },
+  { label: "Moderation · User unbanned", value: "USER_UNBANNED" },
+  { label: "Moderation · Device removed", value: "DEVICE_REMOVED" },
+
+  { label: "Premium · Granted", value: "PREMIUM_GRANTED" },
+  { label: "Premium · Extended", value: "PREMIUM_EXTENDED" },
+  { label: "Premium · Revoked", value: "PREMIUM_REVOKED" },
+
+  { label: "Security · Step-up requested", value: "STEP_UP_CHALLENGE_REQUESTED" },
+  { label: "Security · Step-up verified", value: "STEP_UP_CHALLENGE_VERIFIED" },
+  { label: "Security · Step-up failed", value: "STEP_UP_CHALLENGE_FAILED" },
+  { label: "Security · Unauthorized attempt", value: "UNAUTHORIZED_ACTION_ATTEMPT" },
+
+  { label: "Content · Question edited", value: "QUESTION_EDITED" },
+  { label: "Content · Question deleted", value: "QUESTION_DELETED" },
+  { label: "Content · Report reviewed", value: "REPORT_REVIEWED" },
+  { label: "Content · Report resolved", value: "REPORT_RESOLVED" },
+  { label: "Content · Report deleted", value: "REPORT_HARD_DELETED" },
+
+  { label: "System · Email system toggled", value: "EMAIL_SYSTEM_TOGGLED" },
 ];
+
+const TARGET_OPTIONS = [
+  { label: "Everything", value: "" },
+  { label: "Users", value: "USER" },
+  { label: "Questions", value: "QUESTION" },
+  { label: "Devices", value: "DEVICE" },
+  { label: "Reports", value: "REPORT" },
+  { label: "System", value: "SYSTEM" },
+];
+
+/**
+ * A date input gives us "2026-08-31", and the backend does
+ * `createdAt.lte = new Date(value)` — which is UTC midnight. Sent as-is,
+ * picking today as the end date would exclude everything that happened
+ * today. So each bound is widened to the edge of that day, parsed in the
+ * admin's own timezone rather than UTC, and sent as a full timestamp.
+ */
+function dayStart(value: string) {
+  return value ? new Date(`${value}T00:00:00`).toISOString() : undefined;
+}
+
+function dayEnd(value: string) {
+  return value ? new Date(`${value}T23:59:59.999`).toISOString() : undefined;
+}
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
-  const [actionFilter, setActionFilter] = useState("");
-  const limit = 25;
+  const [action, setAction] = useState("");
+  const [targetType, setTargetType] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
-  const { data, isLoading } = useAdminAuditLogs({
+  /** Any filter change returns to page 1 — page 7 of a new result set is a dead end. */
+  function applyFilter(set: (value: string) => void) {
+    return (value: string) => {
+      set(value);
+      setPage(1);
+    };
+  }
+
+  const isRangeBackwards = Boolean(
+    startDate && endDate && startDate > endDate,
+  );
+
+  const logsQuery = useAdminAuditLogs({
     page,
-    limit,
-    action: actionFilter || undefined,
+    limit: PAGE_SIZE,
+    action: action || undefined,
+    targetType: targetType || undefined,
+    startDate: dayStart(startDate),
+    endDate: dayEnd(endDate),
   });
 
-  const logs: AdminAuditLogEntry[] = data?.logs ?? [];
-  const meta = data?.meta;
+  const logs: AdminAuditLogEntry[] = logsQuery.data?.logs ?? [];
+  const meta = logsQuery.data?.meta;
+  const hasActiveFilters = Boolean(
+    action || targetType || startDate || endDate,
+  );
+
+  function clearFilters() {
+    setAction("");
+    setTargetType("");
+    setStartDate("");
+    setEndDate("");
+    setPage(1);
+  }
+
+  const columns: Column<AdminAuditLogEntry>[] = [
+    {
+      key: "action",
+      header: "Action",
+      primary: true,
+      width: "13rem",
+      cell: (log) => (
+        <Badge tone={actionTone(log.action)} dot={BLOCKED_ACTIONS.has(log.action)}>
+          {actionLabel(log.action)}
+        </Badge>
+      ),
+    },
+    {
+      key: "time",
+      header: "When",
+      width: "12rem",
+      cell: (log) => (
+        <span className="sb-nums whitespace-nowrap">
+          {formatDateTime(log.createdAt)}
+        </span>
+      ),
+    },
+    {
+      key: "actor",
+      header: "Admin",
+      cell: (log) => (
+        <div className="min-w-0">
+          <p className="truncate text-[var(--sb-text)]">{log.actor.fullName}</p>
+          <p className="truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            {log.actorRole}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "target",
+      header: "Target",
+      width: "9rem",
+      cell: (log) => (
+        <span className="whitespace-nowrap">
+          {log.targetType}
+          {log.targetId ? (
+            <span className="sb-nums text-[var(--sb-text-tertiary)]">
+              {" "}
+              #{log.targetId}
+            </span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      key: "reason",
+      header: "Reason",
+      showFrom: "lg",
+      cell: (log) =>
+        log.reason ? (
+          <span className="line-clamp-2">{log.reason}</span>
+        ) : (
+          <span className="text-[var(--sb-text-tertiary)]">No reason given</span>
+        ),
+    },
+    {
+      key: "ip",
+      header: "IP",
+      showFrom: "xl",
+      width: "9rem",
+      cell: (log) =>
+        log.ipAddress ? (
+          <span className="sb-mono text-[length:var(--sb-text-xs)]">
+            {log.ipAddress}
+          </span>
+        ) : (
+          <span className="text-[var(--sb-text-tertiary)]">—</span>
+        ),
+    },
+  ];
 
   return (
-    <section className="space-y-6">
-      <SectionHeading
-        eyebrow="Security"
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
         title="Audit logs"
-        description="Activity history for all admin actions. Filter by action type to investigate specific events."
+        description="Every privileged action taken in this console, newest first. Red means an attempt was blocked; amber means something privileged or destructive went through."
       />
 
-      <Surface className="p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-[color:var(--muted-foreground)]" />
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {actionFilters.map((filter: any) => (
-                <button
-                  key={filter.label}
-                  type="button"
-                  onClick={() => {
-                    setActionFilter(filter.value);
-                    setPage(1);
-                  }}
-                  className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-                    actionFilter === filter.value
-                      ? "border-[color:var(--accent-cyan)]/30 bg-[color:var(--accent-cyan)]/10 text-white"
-                      : "border-white/8 text-[color:var(--muted-foreground)] hover:border-white/14 hover:text-white"
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {meta ? (
-            <p className="text-sm text-[color:var(--muted-foreground)]">
-              {meta.total} entries
-            </p>
-          ) : null}
-        </div>
-      </Surface>
+      <div className="space-y-3">
+        <FieldShell label="What was affected">
+          <FilterChips
+            options={TARGET_OPTIONS}
+            value={targetType}
+            onChange={applyFilter(setTargetType)}
+          />
+        </FieldShell>
 
-      <Surface className="overflow-hidden p-0">
-        {isLoading ? (
-          <div className="px-5 py-12 text-center text-sm text-[color:var(--muted-foreground)]">
-            Loading audit logs...
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-[color:var(--muted-foreground)]">
-            No audit logs found for the current filters.
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-3 p-3 md:hidden">
-              {logs.map((log: any) => (
-                <div key={log.id} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <StatusBadge tone={actionTones[log.action] ?? "slate"}>
-                      {log.action.replaceAll("_", " ")}
-                    </StatusBadge>
-                    <p className="text-xs text-[color:var(--muted-foreground)]">{formatDateTime(log.createdAt)}</p>
-                  </div>
-                  <div className="mt-3 grid gap-3 text-sm">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">Admin</p>
-                      <p className="mt-1 font-medium text-white">{log.actor.fullName}</p>
-                      <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">{log.actorRole}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">Target</p>
-                      <p className="mt-1 text-white">
-                        {log.targetType ? `${log.targetType}${log.targetId ? ` #${log.targetId}` : ""}` : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">Reason</p>
-                      <p className="mt-1 text-[color:var(--muted-foreground)]">{log.reason || "—"}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <FilterBar>
+          <FieldShell label="Action">
+            <CustomSelect
+              aria-label="Filter by action"
+              value={action}
+              onValueChange={applyFilter(setAction)}
+              options={ACTION_OPTIONS}
+              placeholder="Any action"
+            />
+          </FieldShell>
 
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[860px] w-full divide-y divide-white/8 text-sm">
-                <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                  <tr>
-                    <th className="px-5 py-3">Timestamp</th>
-                    <th className="px-5 py-3">Admin</th>
-                    <th className="px-5 py-3">Action</th>
-                    <th className="px-5 py-3">Target</th>
-                    <th className="px-5 py-3">Reason</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/8 bg-black/10">
-                  {logs.map((log: any) => (
-                    <tr key={log.id} className="transition hover:bg-white/[0.03]">
-                      <td className="whitespace-nowrap px-5 py-3.5 text-[color:var(--muted-foreground)]">
-                        {formatDateTime(log.createdAt)}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <p className="font-medium text-white">{log.actor.fullName}</p>
-                        <p className="mt-0.5 text-xs text-[color:var(--muted-foreground)]">{log.actorRole}</p>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge tone={actionTones[log.action] ?? "slate"}>
-                          {log.action.replaceAll("_", " ")}
-                        </StatusBadge>
-                      </td>
-                      <td className="px-5 py-3.5 text-[color:var(--muted-foreground)]">
-                        {log.targetType ? (
-                          <span>
-                            {log.targetType}
-                            {log.targetId ? ` #${log.targetId}` : ""}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="max-w-xs px-5 py-3.5 text-[color:var(--muted-foreground)]">
-                        <span className="truncate block">{log.reason || "—"}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </Surface>
+          <FieldShell label="From">
+            <Field
+              type="date"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(event) => {
+                setStartDate(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Show entries from this date"
+            />
+          </FieldShell>
 
-      {meta && meta.totalPages > 1 ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-[color:var(--muted-foreground)]">
-            Page {meta.page} of {meta.totalPages}
+          <FieldShell label="To">
+            <Field
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(event) => {
+                setEndDate(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Show entries up to this date"
+            />
+          </FieldShell>
+        </FilterBar>
+
+        {isRangeBackwards ? (
+          <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-warning)]">
+            The start date is after the end date, so nothing can match. Swap them
+            to see results.
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
+        ) : null}
+      </div>
+
+      <DataTable
+        caption="Admin audit trail"
+        items={logs}
+        columns={columns}
+        getKey={(log) => log.id}
+        isLoading={logsQuery.isLoading}
+        error={logsQuery.isError ? logsQuery.error : undefined}
+        onRetry={() => logsQuery.refetch()}
+        emptyIcon={<ScrollText className="h-4 w-4" />}
+        emptyTitle={
+          hasActiveFilters ? "Nothing matches these filters" : "No admin activity yet"
+        }
+        emptyDescription={
+          hasActiveFilters
+            ? "Widen the date range, or set the action back to Any."
+            : "Privileged actions are recorded here as admins perform them."
+        }
+        emptyAction={
+          hasActiveFilters ? (
+            <Button
               type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-3 py-2 text-sm text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+              variant="secondary"
+              size="sm"
+              onClick={clearFilters}
             >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-              disabled={page >= meta.totalPages}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-3 py-2 text-sm text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+              Clear filters
+            </Button>
+          ) : null
+        }
+      />
+
+      {meta ? (
+        <Pagination
+          page={meta.page}
+          totalPages={meta.totalPages}
+          total={meta.total}
+          pageSize={meta.limit}
+          onPageChange={setPage}
+        />
       ) : null}
-    </section>
+    </div>
   );
 }

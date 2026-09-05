@@ -1,254 +1,311 @@
 "use client";
 
-import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { MetricCard } from "@/components/ui/metric-card";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader, SectionTitle } from "@/components/ui/page-header";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { useAdminSystemHealth } from "@/features/analytics/hooks/use-admin-system-health";
 import {
-  formatCompactNumber,
   formatDateTime,
   formatDurationSeconds,
   formatInteger,
 } from "@/lib/utils/format";
-import { Activity, Database, Mail, Radio, ShieldCheck } from "lucide-react";
+
+/**
+ * System health.
+ *
+ * This page is read in one situation: something looks wrong and an admin
+ * wants to know whether the platform is the cause. The old version made
+ * that hard.
+ *
+ * Colour carried no rule. "Email failures (24h)" was amber when the count
+ * was zero and red when it was not — so a healthy system showed a warning
+ * colour. "Queue backlog" was cyan at zero and amber otherwise. Database
+ * was emerald/rose. Every state had its own hue and none of them agreed on
+ * what green meant. Here there is one rule, applied everywhere: green is
+ * fine, amber needs looking at, red is broken, grey is a fact.
+ *
+ * Wording was also wrong in a way that matters at 3am. Redis being switched
+ * off in config rendered as "redis down", identical to Redis having crashed.
+ * This page reads flags, not health checks, so it now distinguishes
+ * "Disabled" (someone chose this) from "Unreachable" (it is broken).
+ *
+ * Structurally: three uppercase kickers, three different box styles and
+ * nine one-off status pills became a headline stat row, one list of checks,
+ * and one grid of counters.
+ */
+
+type CheckStatus = "ok" | "warn" | "bad" | "info";
+
+const checkTone: Record<CheckStatus, BadgeTone> = {
+  ok: "success",
+  warn: "warning",
+  bad: "danger",
+  info: "neutral",
+};
+
+/** One dependency or flag, drawn the same way every time. */
+function CheckRow({
+  label,
+  description,
+  value,
+  status,
+}: {
+  label: string;
+  description?: string;
+  value: string;
+  status: CheckStatus;
+}) {
+  return (
+    <li className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-[length:var(--sb-text-base)] font-medium text-[var(--sb-text)]">
+          {label}
+        </p>
+        {description ? (
+          <p className="mt-0.5 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      <Badge tone={checkTone[status]} dot={status !== "info"}>
+        {value}
+      </Badge>
+    </li>
+  );
+}
 
 export default function SystemHealthPage() {
   const systemHealthQuery = useAdminSystemHealth();
   const health = systemHealthQuery.data;
 
-  const metrics: Array<{
-    label: string;
-    value: string;
-    delta: string;
-    tone: "amber" | "cyan" | "emerald" | "rose";
-  }> = health
+  const emailFailures = health?.queues.recentEmailFailuresLast24Hours ?? 0;
+  const projectionBacklog = health?.queues.leaderboardProjectionBacklog ?? 0;
+  const rollupLagDays = health?.analytics.rollupLagDays ?? 0;
+  const isDatabaseReachable = health?.dependencies.databaseReachable ?? false;
+
+  /**
+   * The header should answer "is anything wrong?" before the admin reads a
+   * single number. A rollup one day behind is normal for a nightly job, so
+   * only two or more days counts.
+   */
+  const problems = health
     ? [
-        {
-          label: "Database",
-          value: health.dependencies.databaseReachable ? "Live" : "Down",
-          delta: `Updated ${formatDateTime(health.generatedAt)}`,
-          tone: health.dependencies.databaseReachable ? "emerald" : "rose",
-        },
-        {
-          label: "Email failures (24h)",
-          value: formatInteger(health.queues.recentEmailFailuresLast24Hours),
-          delta: health.dependencies.emailEnabled ? "Delivery enabled" : "Email paused",
-          tone: health.queues.recentEmailFailuresLast24Hours > 0 ? "rose" : "amber",
-        },
-        {
-          label: "Queue backlog",
-          value: formatInteger(health.queues.leaderboardProjectionBacklog),
-          delta: `${formatInteger(health.queues.pendingQuestionReports)} reports pending`,
-          tone: health.queues.leaderboardProjectionBacklog > 0 ? "amber" : "cyan",
-        },
-        {
-          label: "Active sockets",
-          value: formatCompactNumber(health.live.activeWsConnections),
-          delta: `${formatCompactNumber(health.live.totalHttpRequests)} HTTP requests tracked`,
-          tone: "cyan" as const,
-        },
-      ]
+        !isDatabaseReachable && "database",
+        emailFailures > 0 && "email failures",
+        projectionBacklog > 0 && "projection backlog",
+        rollupLagDays > 1 && "stale rollups",
+      ].filter(Boolean)
     : [];
 
   return (
-    <section className="space-y-6">
-      <SectionHeading
-        eyebrow="Analytics"
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
         title="System health"
-        description="Live operational signals for infrastructure, queues, and activity in the admin platform."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={health?.dependencies.databaseReachable ? "emerald" : "rose"}>
-              {health?.dependencies.databaseReachable ? "database live" : "database down"}
-            </StatusBadge>
-            <StatusBadge tone={health?.runtime.redisEnabled ? "cyan" : "rose"}>
-              {health?.runtime.redisEnabled ? "redis live" : "redis down"}
-            </StatusBadge>
-          </div>
+        description="Whether the backend, its dependencies, and its queues are behaving. Read this before assuming a bug is in the app."
+        meta={
+          health ? (
+            <>
+              <Badge
+                tone={problems.length ? "warning" : "success"}
+                dot
+              >
+                {problems.length
+                  ? `Needs attention: ${problems.join(", ")}`
+                  : "Everything healthy"}
+              </Badge>
+              <Badge tone="neutral">
+                Checked {formatDateTime(health.generatedAt)}
+              </Badge>
+            </>
+          ) : null
         }
       />
 
       {systemHealthQuery.isError ? (
-        <Surface glow="rose" className="p-6">
-          <p className="text-base font-semibold text-white">Could not load system health.</p>
-          <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            <ApiErrorMessage
-              error={systemHealthQuery.error}
-              fallback="Check backend connectivity and admin permissions."
-            />
-          </p>
-        </Surface>
+        <ErrorState
+          title="Could not load system health"
+          error={systemHealthQuery.error}
+          fallback="Check backend connectivity and that this account has admin access."
+          onRetry={() => systemHealthQuery.refetch()}
+        />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {(metrics.length ? metrics : new Array(4).fill(null)).map((metric: any, index: number) =>
-          metric ? (
-            <MetricCard key={metric.label} {...metric} className="admin-enter" style={{ animationDelay: `${index * 80}ms` }} />
-          ) : (
-            <Surface key={index} className="h-[140px] p-5 shimmer-line" />
-          ),
-        )}
+      {/* ── The four numbers worth seeing first ───────────────── */}
+      {systemHealthQuery.isLoading ? (
+        <StatGrid>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </StatGrid>
+      ) : health ? (
+        <StatGrid>
+          <StatCard
+            label="Database"
+            value={isDatabaseReachable ? "Reachable" : "Unreachable"}
+            hint="The backend answered a query"
+            status={isDatabaseReachable ? "success" : "danger"}
+          />
+          <StatCard
+            label="Email failures (24h)"
+            value={formatInteger(emailFailures)}
+            hint={
+              health.dependencies.emailEnabled
+                ? "Delivery is switched on"
+                : "Delivery is paused, so nothing is being sent"
+            }
+            status={emailFailures > 0 ? "danger" : undefined}
+          />
+          <StatCard
+            label="Projection backlog"
+            value={formatInteger(projectionBacklog)}
+            hint={`${formatInteger(
+              health.queues.pendingQuestionReports,
+            )} question reports pending`}
+            status={projectionBacklog > 0 ? "warning" : undefined}
+          />
+          <StatCard
+            label="Live connections"
+            value={formatInteger(health.live.activeWsConnections)}
+            hint={`${formatInteger(
+              health.live.totalHttpRequests,
+            )} HTTP requests tracked`}
+          />
+        </StatGrid>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        {/* ── Checks ────────────────────────────────────────── */}
+        <section className="min-w-0 space-y-3">
+          <SectionTitle
+            title="Dependencies and flags"
+            description="What the backend is connected to, and what it has switched on."
+          />
+          <ul className="divide-y divide-[var(--sb-border)] overflow-hidden rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)]">
+            <CheckRow
+              label="Environment"
+              value={health?.runtime.environment ?? "Unknown"}
+              status="info"
+            />
+            <CheckRow
+              label="Uptime"
+              description="Since the backend last restarted"
+              value={formatDurationSeconds(health?.runtime.uptimeSeconds)}
+              status="info"
+            />
+            <CheckRow
+              label="Database"
+              value={isDatabaseReachable ? "Reachable" : "Unreachable"}
+              status={isDatabaseReachable ? "ok" : "bad"}
+            />
+            <CheckRow
+              label="Email delivery"
+              description="Sign-up codes, resets, and receipts"
+              value={health?.dependencies.emailEnabled ? "Enabled" : "Paused"}
+              status={health?.dependencies.emailEnabled ? "ok" : "warn"}
+            />
+            <CheckRow
+              label="Redis"
+              /* A config flag, not a ping. Say what it is. */
+              description="Caching and rate limiting"
+              value={health?.runtime.redisEnabled ? "Enabled" : "Disabled"}
+              status={health?.runtime.redisEnabled ? "ok" : "info"}
+            />
+            <CheckRow
+              label="Background jobs"
+              description="Rollups, expiry sweeps, projections"
+              value={health?.runtime.jobsEnabled ? "Enabled" : "Paused"}
+              status={health?.runtime.jobsEnabled ? "ok" : "warn"}
+            />
+            <CheckRow
+              label="Leaderboard projection"
+              value={
+                health?.runtime.leaderboardProjectionEnabled
+                  ? "Enabled"
+                  : "Disabled"
+              }
+              status={
+                health?.runtime.leaderboardProjectionEnabled ? "ok" : "info"
+              }
+            />
+            <CheckRow
+              label="Leaderboard reads"
+              description="Where the leaderboard is served from"
+              value={
+                health?.runtime.leaderboardRedisReadEnabled
+                  ? "Projection cache"
+                  : "Direct from database"
+              }
+              status="info"
+            />
+            <CheckRow
+              label="Analytics rollups"
+              description={
+                health?.analytics.latestRollupUpdatedAt
+                  ? `Last built ${formatDateTime(
+                      health.analytics.latestRollupUpdatedAt,
+                    )}`
+                  : "No rollup has been recorded yet"
+              }
+              value={
+                rollupLagDays > 0
+                  ? `${rollupLagDays} day${rollupLagDays === 1 ? "" : "s"} behind`
+                  : "Current"
+              }
+              /* One day behind is what a nightly job looks like. */
+              status={rollupLagDays > 1 ? "warn" : "ok"}
+            />
+          </ul>
+        </section>
+
+        {/* ── Counters ──────────────────────────────────────── */}
+        <section className="min-w-0 space-y-3">
+          <SectionTitle
+            title="Queues and traffic"
+            description="Counts since the backend started. Anything climbing steadily is worth a look."
+          />
+          <StatGrid className="lg:grid-cols-2">
+            <StatCard
+              label="Projection backlog"
+              value={formatInteger(projectionBacklog)}
+              hint="Leaderboard rows waiting"
+              status={projectionBacklog > 0 ? "warning" : undefined}
+            />
+            <StatCard
+              label="Pending reports"
+              value={formatInteger(health?.queues.pendingQuestionReports ?? 0)}
+              hint="Awaiting moderation"
+              href="/reports"
+            />
+            <StatCard
+              label="Pending step-ups"
+              value={formatInteger(health?.queues.pendingStepUpChallenges ?? 0)}
+              hint="Challenges issued, not yet used"
+            />
+            <StatCard
+              label="Dropped WS events"
+              value={formatInteger(
+                health?.live.totalWsDroppedOutboundEvents ?? 0,
+              )}
+              hint="Messages that never reached a client"
+              status={
+                health?.live.totalWsDroppedOutboundEvents ? "warning" : undefined
+              }
+            />
+            <StatCard
+              label="WS outbound queue"
+              value={formatInteger(health?.live.wsOutboundQueueLength ?? 0)}
+              hint="Waiting to be sent right now"
+            />
+            <StatCard
+              label="Latest rollup"
+              value={health?.analytics.latestRollupDate ?? "None"}
+              hint="Most recent analytics day built"
+            />
+          </StatGrid>
+        </section>
       </div>
-
-      <div className="grid gap-6 xl:grid-cols-[0.96fr_1.04fr]">
-        <Surface glow="cyan" className="p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-cyan)]">
-                Runtime
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-white">Environment snapshot</h2>
-            </div>
-            <StatusBadge tone="slate">{health?.runtime.environment ?? "..."}</StatusBadge>
-          </div>
-
-          <div className="mt-5 grid gap-3">
-            <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Activity className="h-4 w-4 text-[color:var(--accent-cyan)]" />
-                  <span className="text-sm text-white">Uptime</span>
-                </div>
-                <span className="text-sm font-semibold text-white">
-                  {formatDurationSeconds(health?.runtime.uptimeSeconds)}
-                </span>
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Radio className="h-4 w-4 text-[color:var(--accent-emerald)]" />
-                  <span className="text-sm text-white">Background jobs</span>
-                </div>
-                <StatusBadge tone={health?.runtime.jobsEnabled ? "emerald" : "amber"}>
-                  {health?.runtime.jobsEnabled ? "enabled" : "paused"}
-                </StatusBadge>
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Database className="h-4 w-4 text-[color:var(--accent-cyan)]" />
-                  <span className="text-sm text-white">Leaderboard projection</span>
-                </div>
-                <StatusBadge tone={health?.runtime.leaderboardProjectionEnabled ? "emerald" : "amber"}>
-                  {health?.runtime.leaderboardProjectionEnabled ? "enabled" : "disabled"}
-                </StatusBadge>
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="h-4 w-4 text-[color:var(--accent-amber)]" />
-                  <span className="text-sm text-white">Pending step-up challenges</span>
-                </div>
-                <StatusBadge tone={(health?.queues.pendingStepUpChallenges ?? 0) > 0 ? "amber" : "slate"}>
-                  {formatInteger(health?.queues.pendingStepUpChallenges ?? 0)}
-                </StatusBadge>
-              </div>
-            </div>
-          </div>
-        </Surface>
-
-        <div className="grid gap-6">
-          <Surface glow="emerald" className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-emerald)]">
-                  Dependencies
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-white">Service state</h2>
-              </div>
-              <StatusBadge tone={(health?.analytics.rollupLagDays ?? 0) > 0 ? "amber" : "emerald"}>
-                lag {health?.analytics.rollupLagDays ?? 0}d
-              </StatusBadge>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <Database className="h-4 w-4 text-[color:var(--accent-cyan)]" />
-                    <span className="text-sm text-white">Database</span>
-                  </div>
-                  <StatusBadge tone={health?.dependencies.databaseReachable ? "emerald" : "rose"}>
-                    {health?.dependencies.databaseReachable ? "reachable" : "offline"}
-                  </StatusBadge>
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-4 w-4 text-[color:var(--accent-amber)]" />
-                    <span className="text-sm text-white">Email delivery</span>
-                  </div>
-                  <StatusBadge tone={health?.dependencies.emailEnabled ? "emerald" : "amber"}>
-                    {health?.dependencies.emailEnabled ? "enabled" : "paused"}
-                  </StatusBadge>
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Latest analytics rollup</p>
-                <p className="mt-2 text-sm font-semibold text-white">
-                  {health?.analytics.latestRollupDate ?? "Unavailable"}
-                </p>
-                <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                  {health?.analytics.latestRollupUpdatedAt
-                    ? `Updated ${formatDateTime(health.analytics.latestRollupUpdatedAt)}`
-                    : "No rollup recorded yet"}
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Redis read mode</p>
-                <p className="mt-2 text-sm font-semibold text-white">
-                  {health?.runtime.leaderboardRedisReadEnabled ? "Projection cache active" : "Direct database reads"}
-                </p>
-                <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                  Adjusts leaderboard reads depending on projection mode.
-                </p>
-              </div>
-            </div>
-          </Surface>
-
-          <Surface className="p-6">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                Queues and traffic
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-white">Live counters</h2>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Projection backlog</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(health?.queues.leaderboardProjectionBacklog ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Pending reports</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(health?.queues.pendingQuestionReports ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">Dropped WS events</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(health?.live.totalWsDroppedOutboundEvents ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                <p className="text-xs text-[color:var(--muted-foreground)]">WS outbound queue</p>
-                <p className="mt-2 text-2xl font-semibold text-white">
-                  {formatInteger(health?.live.wsOutboundQueueLength ?? 0)}
-                </p>
-              </div>
-            </div>
-          </Surface>
-        </div>
-      </div>
-    </section>
+    </div>
   );
 }

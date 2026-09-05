@@ -1,14 +1,14 @@
 "use client";
 
-import { AdminSessionChip } from "@/features/admin-auth/components/admin-session-chip";
-import { AdminStepUpChip } from "@/features/admin-auth/components/admin-step-up-chip";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import {
   adminNavigation,
   isAdminRouteActive,
+  resolveAdminSection,
+  type AdminNavItem,
 } from "@/lib/navigation/admin-navigation";
 import { cn } from "@/lib/utils/cn";
-import { ChevronRight, PanelLeftClose } from "lucide-react";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -21,6 +21,62 @@ type AdminSidebarProps = {
   onMobileClose: () => void;
 };
 
+function NavRow({
+  item,
+  isActive,
+  isCollapsed,
+  isChild,
+  onNavigate,
+}: {
+  item: AdminNavItem;
+  isActive: boolean;
+  isCollapsed: boolean;
+  isChild?: boolean;
+  onNavigate: () => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={isActive ? "page" : undefined}
+      title={isCollapsed ? item.label : undefined}
+      className={cn(
+        "group relative flex items-center gap-2.5 rounded-[var(--sb-radius)] px-2.5 py-2",
+        "text-[length:var(--sb-text-base)] transition-colors duration-[var(--sb-duration-fast)]",
+        isActive
+          ? "bg-[var(--sb-accent-soft)] font-medium text-[var(--sb-accent-text)]"
+          : "text-[var(--sb-text-secondary)] hover:bg-[var(--sb-surface-2)] hover:text-[var(--sb-text)]",
+        isChild && !isCollapsed && "ml-3.5 py-1.5",
+        isCollapsed && "lg:justify-center lg:px-0",
+      )}
+    >
+      {/* Active rail. Always in the DOM at the same size, only its opacity
+          changes — so switching pages cannot shift the row. */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute -left-2.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r-full bg-[var(--sb-accent)] transition-opacity duration-[var(--sb-duration-fast)]",
+          isActive ? "opacity-100" : "opacity-0",
+          isCollapsed && "lg:hidden",
+        )}
+      />
+
+      <Icon
+        className={cn(
+          "h-4 w-4 shrink-0",
+          isChild && !isCollapsed && "h-3.5 w-3.5",
+        )}
+      />
+
+      <span className={cn("min-w-0 truncate", isCollapsed && "lg:hidden")}>
+        {item.label}
+      </span>
+    </Link>
+  );
+}
+
 export function AdminSidebar({
   desktopMode,
   isMobileOpen,
@@ -29,15 +85,18 @@ export function AdminSidebar({
   const pathname = usePathname();
   const { data: session } = useAdminSession();
   const isCollapsed = desktopMode === "collapsed";
+  const activeSection = resolveAdminSection(pathname);
+
   const displayName =
     session?.user?.fullName?.trim() || session?.user?.email || "Admin";
   const initials = displayName
     .split(" ")
     .filter(Boolean)
-    .map((part: any) => part[0])
+    .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const isSuperadmin = session?.user?.role === "SUPERADMIN";
 
   useEffect(() => {
     onMobileClose();
@@ -75,208 +134,141 @@ export function AdminSidebar({
         aria-label="Close navigation menu"
         onClick={onMobileClose}
         className={cn(
-          "fixed inset-0 z-30 bg-slate-950/72 backdrop-blur-sm transition duration-300 lg:hidden",
+          "fixed inset-0 z-30 bg-black/60 backdrop-blur-sm transition-opacity duration-[var(--sb-duration)] lg:hidden",
           isMobileOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       />
 
       <aside
         id="admin-sidebar"
+        aria-label="Admin navigation"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[min(88vw,320px)] max-w-full flex-col overflow-y-auto overscroll-contain border-r border-white/[0.04] bg-[rgba(10,10,13,0.96)] px-4 py-5 shadow-[0_24px_64px_rgba(0,0,0,0.42)] backdrop-blur-xl transition-[transform,width,padding] duration-300 ease-out lg:relative lg:inset-auto lg:z-0 lg:h-full lg:min-h-0 lg:w-auto lg:translate-x-0 lg:shadow-none",
+          "fixed inset-y-0 left-0 z-40 flex w-[min(84vw,300px)] flex-col",
+          "border-r border-[var(--sb-border)] bg-[var(--sb-surface-1)]",
+          "transition-transform duration-[var(--sb-duration)] ease-[var(--sb-ease)]",
+          "lg:relative lg:inset-auto lg:z-0 lg:h-full lg:w-auto lg:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full",
-          isCollapsed ? "lg:px-3 lg:py-4" : "lg:px-5 lg:py-6",
         )}
       >
-        <div className="flex min-h-full flex-col">
-          <div className="mb-4 flex items-center justify-between lg:hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-              Navigation
-            </p>
-            <button
-              type="button"
-              onClick={onMobileClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[color:var(--muted-foreground)] transition hover:border-white/14 hover:text-white"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div
+        {/* ── Brand ─────────────────────────────────────────── */}
+        <div
+          className={cn(
+            "flex h-[var(--sb-topbar-height)] shrink-0 items-center gap-2.5 border-b border-[var(--sb-border)] px-4",
+            isCollapsed && "lg:justify-center lg:px-0",
+          )}
+        >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--sb-radius-sm)] bg-[var(--sb-accent)] text-[length:var(--sb-text-xs)] font-bold text-[#0a0a0a]">
+            SB
+          </span>
+          <span
             className={cn(
-              "rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition-[padding,background-color,border-color] duration-300",
-              isCollapsed && "lg:border-transparent lg:bg-transparent lg:p-0",
+              "text-[length:var(--sb-text-md)] font-semibold tracking-tight text-[var(--sb-text)]",
+              isCollapsed && "lg:hidden",
             )}
           >
-            <div
-              className={cn(
-                "flex items-center gap-3",
-                isCollapsed &&
-                  "lg:h-14 lg:w-14 lg:justify-center lg:rounded-2xl lg:border lg:border-white/[0.06] lg:bg-white/[0.02]",
-              )}
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[color:var(--accent-cyan)] to-[color:var(--accent-emerald)] shadow-[0_2px_8px_rgba(110,196,184,0.2)]">
-                <span className="text-xs font-bold text-[color:var(--background)]">
-                  SB
-                </span>
-              </div>
-              <div className={cn(isCollapsed && "lg:hidden")}>
-                <p className="text-sm font-semibold text-white">StudyBond</p>
-                <p className="text-[10px] text-[color:var(--muted-foreground)]">
-                  Admin workspace
-                </p>
-              </div>
-            </div>
-          </div>
+            StudyBond
+          </span>
 
-          <nav className="mt-6 flex-1 space-y-6">
-            {adminNavigation.map((group: any) => (
+          <button
+            type="button"
+            onClick={onMobileClose}
+            aria-label="Close navigation menu"
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-[var(--sb-radius-sm)] text-[var(--sb-text-secondary)] transition-colors hover:bg-[var(--sb-surface-2)] hover:text-[var(--sb-text)] lg:hidden"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* ── Nav ───────────────────────────────────────────── */}
+        <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">
+          <div className="space-y-5">
+            {adminNavigation.map((group) => (
               <div key={group.title}>
                 <p
                   className={cn(
-                    "mb-2.5 pl-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]/50",
+                    "mb-1.5 px-2.5 text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-tertiary)]",
                     isCollapsed && "lg:hidden",
                   )}
                 >
                   {group.title}
                 </p>
+
                 <div className="space-y-0.5">
-                  {group.items.map((item: any) => {
+                  {group.items.map((item) => {
                     const isActive = isAdminRouteActive(pathname, item.href);
-                    const Icon = item.icon;
+                    const isInSection = activeSection?.href === item.href;
 
                     return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onMobileClose}
-                        aria-label={item.label}
-                        title={isCollapsed ? item.label : undefined}
-                        className={cn(
-                          "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200",
-                          isActive
-                            ? "bg-white/[0.06] text-white"
-                            : "text-[color:var(--muted-foreground)] hover:bg-white/[0.03] hover:text-white",
-                          isCollapsed && "lg:justify-center lg:px-2",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-300 ease-[var(--ease-out-expo)]",
-                            isActive
-                              ? "scale-y-100 bg-[color:var(--accent-cyan)] opacity-100"
-                              : "scale-y-0 bg-transparent opacity-0",
-                          )}
+                      <div key={item.href} className="space-y-0.5">
+                        <NavRow
+                          item={item}
+                          isActive={isActive}
+                          isCollapsed={isCollapsed}
+                          onNavigate={onMobileClose}
                         />
 
-                        <span
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
-                            isActive
-                              ? "bg-[color:var(--accent-cyan)]/10 text-[color:var(--accent-cyan)]"
-                              : "text-[color:var(--muted-foreground)] group-hover:text-white",
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </span>
-
-                        <span
-                          className={cn(
-                            "min-w-0 flex-1",
-                            isCollapsed && "lg:hidden",
-                          )}
-                        >
-                          <span className="block text-[13px] font-medium leading-tight">
-                            {item.label}
-                          </span>
-                          {isActive ? (
-                            <span className="mt-0.5 block truncate text-[11px] text-[color:var(--muted-foreground)]">
-                              {item.description}
-                            </span>
-                          ) : null}
-                        </span>
-
-                        <ChevronRight
-                          className={cn(
-                            "h-3 w-3 shrink-0 transition-all duration-200",
-                            isActive
-                              ? "text-[color:var(--accent-cyan)]/50"
-                              : "text-white/8 group-hover:text-white/25",
-                            isCollapsed && "lg:hidden",
-                          )}
-                        />
-                      </Link>
+                        {/* Sub-screens appear only inside their section. */}
+                        {item.children && isInSection && !isCollapsed
+                          ? item.children.map((child) => (
+                              <NavRow
+                                key={child.href}
+                                item={child}
+                                isChild
+                                isActive={isAdminRouteActive(
+                                  pathname,
+                                  child.href,
+                                )}
+                                isCollapsed={isCollapsed}
+                                onNavigate={onMobileClose}
+                              />
+                            ))
+                          : null}
+                      </div>
                     );
                   })}
                 </div>
               </div>
             ))}
-          </nav>
+          </div>
+        </nav>
 
-          {session?.user ? (
-            <>
-              <div
-                className={cn(
-                  "mt-4 rounded-xl border border-white/[0.04] bg-white/[0.02] p-3",
-                  isCollapsed && "lg:hidden",
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold",
-                      session.user.role === "SUPERADMIN"
-                        ? "bg-[color:var(--accent-amber)]/12 text-[color:var(--accent-amber)]"
-                        : "bg-[color:var(--accent-cyan)]/12 text-[color:var(--accent-cyan)]",
-                    )}
-                  >
-                    {initials}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-white">
-                      {displayName}
-                    </p>
-                    <p className="text-[10px] text-[color:var(--muted-foreground)]">
-                      {session.user.role === "SUPERADMIN"
-                        ? "Superadmin"
-                        : "Admin"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 hidden lg:flex lg:justify-center">
-                <div
-                  title={`${displayName} • ${session.user.role === "SUPERADMIN" ? "Superadmin" : "Admin"}`}
-                  className={cn(
-                    "relative hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03] text-[11px] font-bold text-white",
-                    isCollapsed && "lg:flex",
-                  )}
-                >
-                  {initials}
-                  <span
-                    className={cn(
-                      "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[color:var(--background)]",
-                      session.user.role === "SUPERADMIN"
-                        ? "bg-[color:var(--accent-amber)]"
-                        : "bg-[color:var(--accent-cyan)]",
-                    )}
-                  />
-                </div>
-              </div>
-            </>
-          ) : null}
-
+        {/* ── Signed-in admin ───────────────────────────────── */}
+        {session?.user ? (
           <div
             className={cn(
-              "mt-4 grid gap-3 xl:hidden",
-              isCollapsed && "lg:hidden",
+              "shrink-0 border-t border-[var(--sb-border)] p-3",
+              isCollapsed && "lg:flex lg:justify-center",
             )}
           >
-            <AdminStepUpChip />
-            <AdminSessionChip />
+            <div
+              className={cn(
+                "flex items-center gap-2.5",
+                isCollapsed && "lg:gap-0",
+              )}
+              title={isCollapsed ? displayName : undefined}
+            >
+              <span
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sb-radius-sm)] text-[length:var(--sb-text-xs)] font-semibold",
+                  isSuperadmin
+                    ? "bg-[var(--sb-gold-soft)] text-[var(--sb-gold)]"
+                    : "bg-[var(--sb-accent-soft)] text-[var(--sb-accent-text)]",
+                )}
+              >
+                {initials}
+              </span>
+
+              <div className={cn("min-w-0", isCollapsed && "lg:hidden")}>
+                <p className="truncate text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                  {displayName}
+                </p>
+                <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  {isSuperadmin ? "Superadmin" : "Admin"}
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : null}
       </aside>
     </>
   );

@@ -1,42 +1,75 @@
 "use client";
 
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { adminPremiumApi } from "@/lib/api/admin-premium";
 import { clearAdminStepUp, writeAdminStepUp } from "@/lib/auth/admin-step-up";
-import { formatDateTime, formatRelativeWindow } from "@/lib/utils/format";
+import { cn } from "@/lib/utils/cn";
+import { formatDateTime } from "@/lib/utils/format";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowRight, ShieldCheck, Sparkles, TimerReset } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight, ShieldOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+
+/**
+ * Step-up verification.
+ *
+ * This is a two-step task: ask for a code, then type it in. The old page
+ * spent a 1152px two-column layout on it — a `text-4xl` headline, three
+ * info boxes (one of which displayed the raw return path, "/premium"), and
+ * two side-by-side cards titled "Request challenge" and "Verify challenge".
+ * Both cards were always visible, so the verify half sat there with a dead
+ * button and no explanation before any code had been requested. Four accent
+ * colours appeared on one screen: cyan and amber and rose glows, an emerald
+ * button, a cyan button.
+ *
+ * It now reads top to bottom, one step at a time, on the same centred card
+ * as the sign-in screen next door — which is the other place an admin types
+ * a six-digit code, and should not look like a different product.
+ *
+ * "Resend code" is new. Codes expire, and the old page's only recovery was
+ * a "Reset" button that cleared the challenge without sending another.
+ */
+
+const OTP_LENGTH = 6;
 
 export default function StepUpPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, isLoading } = useAdminSession();
   const { stepUp, isActive } = useAdminStepUp();
+
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [challengeExpiry, setChallengeExpiry] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
 
   const nextPath = searchParams.get("next") || "/premium";
-  const intent = searchParams.get("intent") || "Unlock premium actions";
+  /**
+   * Callers pass a noun phrase ("Premium access change", "System settings"),
+   * so it has to read as the subject of a sentence rather than be spliced
+   * mid-clause. Kept capitalised for that reason.
+   */
+  const intent = searchParams.get("intent") || "This change";
 
   const requestChallenge = useMutation({
     mutationFn: () => adminPremiumApi.requestStepUp(),
     onSuccess: (payload) => {
       setChallengeId(payload.challengeId);
       setChallengeExpiry(payload.expiresAt);
-      toast.success("Challenge sent", { description: payload.message });
+      setOtp("");
+      toast.success("Code sent", { description: payload.message });
     },
     onError: (error) => {
-      toast.error("Could not request challenge", {
-        description: <ApiErrorMessage error={error} fallback="Please try again." />,
+      toast.error("Could not send a code", {
+        description: (
+          <ApiErrorMessage error={error} fallback="Please try again." />
+        ),
       });
     },
   });
@@ -49,16 +82,19 @@ export default function StepUpPage() {
       }),
     onSuccess: (payload) => {
       writeAdminStepUp(payload);
-      toast.success("Step-up verified", {
-        description: "Elevated access is now active for this session.",
+      toast.success("Verified", {
+        description: "You can make the change now.",
       });
       router.push(nextPath);
       router.refresh();
     },
     onError: (error) => {
-      toast.error("Verification failed", {
+      toast.error("That code did not work", {
         description: (
-          <ApiErrorMessage error={error} fallback="Invalid OTP. Please try again." />
+          <ApiErrorMessage
+            error={error}
+            fallback="Check the code and try again. Codes expire after a few minutes."
+          />
         ),
       });
     },
@@ -66,181 +102,196 @@ export default function StepUpPage() {
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6 py-10">
-        <Surface glow="cyan" className="w-full max-w-2xl p-8 md:p-10">
-          <StatusBadge tone="cyan">Loading</StatusBadge>
-          <h1 className="mt-5 text-3xl font-semibold text-white">Step-up verification</h1>
-          <p className="mt-4 max-w-xl text-sm leading-6 text-[color:var(--muted-foreground)]">
-            Verifying admin session...
-          </p>
-        </Surface>
+      <main className="flex flex-1 items-center justify-center px-5 py-12">
+        <div className="w-full max-w-[28rem] space-y-4">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-56 w-full" />
+        </div>
       </main>
     );
   }
 
   if (session?.user?.role !== "SUPERADMIN") {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6 py-10">
-        <Surface glow="amber" className="w-full max-w-2xl p-8 md:p-10">
-          <StatusBadge tone="amber">Restricted</StatusBadge>
-          <h1 className="mt-5 text-3xl font-semibold text-white">Superadmin access required</h1>
-          <p className="mt-4 max-w-xl text-sm leading-6 text-[color:var(--muted-foreground)]">
-            Step-up verification is only available to superadmins for sensitive operations like premium grants and revocations.
-          </p>
-          <Link
-            href="/"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl border border-white/8 px-4 py-3 text-sm text-white transition hover:border-white/14"
-          >
-            Return to dashboard
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Surface>
+      <main className="flex flex-1 items-center justify-center px-5 py-12">
+        <div className="sb-enter w-full max-w-[28rem] rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] shadow-[var(--sb-shadow-lg)]">
+          <EmptyState
+            icon={<ShieldOff className="h-4 w-4" />}
+            title="Superadmin only"
+            description="Step-up verification exists to guard superadmin actions, so there is nothing here for your role to unlock."
+            action={
+              <Button asChild href="/" variant="secondary" size="sm">
+                Back to dashboard
+              </Button>
+            }
+          />
+        </div>
       </main>
     );
   }
 
+  const hasChallenge = Boolean(challengeId);
+
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-10">
-      <div className="grid w-full max-w-6xl gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <Surface glow="cyan" className="admin-enter p-8 md:p-10">
-          <StatusBadge tone={isActive ? "emerald" : "cyan"}>
-            {isActive ? "Step-up active" : "Step-up required"}
-          </StatusBadge>
-          <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white">
-            Verify your identity before proceeding.
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-[color:var(--muted-foreground)]">
-            Step-up verification adds an extra layer of security for sensitive admin actions.
-            Request an OTP, verify it, and your elevated access will be active for this browser session.
+    <main className="flex flex-1 items-center justify-center px-5 py-12">
+      <div className="sb-enter w-full max-w-[28rem] space-y-5">
+        <div className="flex items-baseline gap-2">
+          <p className="text-[length:var(--sb-text-lg)] font-semibold tracking-tight text-[var(--sb-text)]">
+            StudyBond
           </p>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-              <p className="text-xs font-medium text-[color:var(--muted-foreground)]">Intent</p>
-              <p className="mt-2 text-base font-semibold text-white">{intent}</p>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-              <p className="text-xs font-medium text-[color:var(--muted-foreground)]">Return to</p>
-              <p className="mt-2 text-base font-semibold text-white">{nextPath}</p>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-              <p className="text-xs font-medium text-[color:var(--muted-foreground)]">Token status</p>
-              <p className="mt-2 text-base font-semibold text-white">
-                {isActive && stepUp ? formatRelativeWindow(stepUp.expiresAt) : "Inactive"}
-              </p>
-            </div>
-          </div>
-
-          {isActive && stepUp ? (
-            <div className="mt-8 rounded-xl border border-[color:var(--accent-emerald)]/20 bg-[color:var(--accent-emerald)]/8 p-5">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-white">Elevated access active</p>
-                  <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                    Expires {formatDateTime(stepUp.expiresAt)}. Clear the token when you're finished with sensitive operations.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      clearAdminStepUp();
-                      toast.success("Step-up token cleared");
-                    }}
-                    className="rounded-lg border border-white/8 px-3 py-1.5 text-xs font-medium text-white transition hover:border-white/14"
-                  >
-                    Clear token
-                  </button>
-                  <Link
-                    href={nextPath}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--accent-emerald)] px-4 py-3 text-sm font-semibold text-[color:var(--background)] transition hover:opacity-90"
-                  >
-                    Continue
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </Surface>
-
-        <div className="grid gap-6">
-          <Surface glow="amber" className="admin-enter p-7">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/8 bg-white/[0.04] text-[color:var(--accent-amber)]">
-                <ShieldCheck className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-white">Request challenge</p>
-                <p className="text-sm text-[color:var(--muted-foreground)]">
-                  Send a one-time code to your registered email.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => requestChallenge.mutate()}
-              disabled={requestChallenge.isPending}
-              className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[color:var(--accent-cyan)] px-4 py-3 text-sm font-semibold text-[color:var(--background)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {requestChallenge.isPending ? "Sending..." : "Request OTP"}
-            </button>
-            {challengeId ? (
-              <p className="mt-4 text-xs text-[color:var(--muted-foreground)]">
-                Challenge ready until {formatDateTime(challengeExpiry)}.
-              </p>
-            ) : null}
-          </Surface>
-
-          <Surface glow="rose" className="admin-enter p-7">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/8 bg-white/[0.04] text-[color:var(--accent-rose)]">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-white">Verify challenge</p>
-                <p className="text-sm text-[color:var(--muted-foreground)]">
-                  Enter the OTP to activate elevated access.
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 space-y-2">
-              <label className="block text-xs font-medium text-[color:var(--muted-foreground)]" htmlFor="step-up-otp">
-                OTP code
-              </label>
-              <input
-                id="step-up-otp"
-                inputMode="numeric"
-                value={otp}
-                onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="Enter 6 digits"
-                className="w-full rounded-xl border border-white/8 bg-black/10 px-4 py-3 text-sm tracking-[0.35em] text-white outline-none transition placeholder:tracking-normal placeholder:text-[color:var(--muted-foreground)]/50 focus:border-[color:var(--accent-cyan)]/40"
-              />
-            </div>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => verifyChallenge.mutate()}
-                disabled={!challengeId || otp.length !== 6 || verifyChallenge.isPending}
-                className="inline-flex flex-1 items-center justify-center rounded-xl bg-[color:var(--accent-emerald)] px-4 py-3 text-sm font-semibold text-[color:var(--background)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {verifyChallenge.isPending ? "Verifying..." : "Activate"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setChallengeId(null);
-                  setChallengeExpiry(null);
-                  setOtp("");
-                }}
-                className="inline-flex items-center justify-center rounded-xl border border-white/8 px-4 py-3 text-sm text-white transition hover:border-white/14"
-              >
-                <TimerReset className="mr-2 h-4 w-4" />
-                Reset
-              </button>
-            </div>
-          </Surface>
+          <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            Admin
+          </p>
         </div>
+
+        <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-5 shadow-[var(--sb-shadow-lg)] sm:p-6">
+          {/* ── Already verified ───────────────────────────── */}
+          {isActive && stepUp ? (
+            <>
+              <Badge tone="success" dot>
+                Verified
+              </Badge>
+              <h1 className="mt-3 text-[length:var(--sb-text-xl)] font-semibold tracking-tight text-[var(--sb-text)]">
+                You are cleared to continue
+              </h1>
+              <p className="mt-1.5 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+                This lasts until {formatDateTime(stepUp.expiresAt)}, in this
+                browser only. Clear it when you have finished.
+              </p>
+
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                <Button asChild href={nextPath} className="sm:flex-1">
+                  Continue
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    clearAdminStepUp();
+                    toast.success("Verification cleared");
+                  }}
+                >
+                  Clear now
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="text-[length:var(--sb-text-xl)] font-semibold tracking-tight text-[var(--sb-text)]">
+                One more check
+              </h1>
+              <p className="mt-1.5 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+                {/* Names what you were trying to do, in the calling page's words. */}
+                <span className="text-[var(--sb-text)]">{intent}</span> needs a
+                second check. We will email you a code to confirm it is really
+                you. Verifying lasts for this browser session only.
+              </p>
+
+              {/* ── Step 1 ─────────────────────────────────── */}
+              {!hasChallenge ? (
+                <Button
+                  type="button"
+                  size="lg"
+                  className="mt-6 w-full"
+                  onClick={() => requestChallenge.mutate()}
+                  disabled={requestChallenge.isPending}
+                  isLoading={requestChallenge.isPending}
+                >
+                  {requestChallenge.isPending ? "Sending" : "Email me a code"}
+                </Button>
+              ) : (
+                /* ── Step 2 ───────────────────────────────
+                   Only rendered once a code actually exists, so there is
+                   no dead input sitting there unexplained. */
+                <div className="mt-6 space-y-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <label
+                        htmlFor="step-up-otp"
+                        className="block text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]"
+                      >
+                        Verification code
+                      </label>
+                      {challengeExpiry ? (
+                        <span className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                          Valid until {formatDateTime(challengeExpiry)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <input
+                      id="step-up-otp"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      autoFocus
+                      maxLength={OTP_LENGTH}
+                      value={otp}
+                      onChange={(event) =>
+                        setOtp(
+                          event.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, OTP_LENGTH),
+                        )
+                      }
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter" &&
+                          otp.length === OTP_LENGTH &&
+                          !verifyChallenge.isPending
+                        ) {
+                          verifyChallenge.mutate();
+                        }
+                      }}
+                      placeholder="000000"
+                      className={cn(
+                        "sb-nums w-full rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)]",
+                        "px-3.5 py-3 text-center text-[length:var(--sb-text-xl)] tracking-[0.4em] text-[var(--sb-text)]",
+                        "outline-none transition-colors duration-[var(--sb-duration-fast)]",
+                        "placeholder:text-[var(--sb-text-tertiary)]",
+                        "hover:border-[var(--sb-border-hover)]",
+                        "focus:border-[var(--sb-accent)] focus:ring-2 focus:ring-[var(--sb-accent-ring)]",
+                      )}
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => verifyChallenge.mutate()}
+                    disabled={
+                      otp.length !== OTP_LENGTH || verifyChallenge.isPending
+                    }
+                    isLoading={verifyChallenge.isPending}
+                  >
+                    {verifyChallenge.isPending ? "Verifying" : "Verify"}
+                  </Button>
+
+                  {/* The old page could only clear the challenge, never
+                      send a new one — which left an expired code as a
+                      dead end. */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => requestChallenge.mutate()}
+                    disabled={requestChallenge.isPending}
+                    isLoading={requestChallenge.isPending}
+                  >
+                    {requestChallenge.isPending
+                      ? "Sending a new code"
+                      : "Send a new code"}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <Button asChild href="/" variant="ghost" size="sm" className="w-full">
+          Back to dashboard
+        </Button>
       </div>
     </main>
   );

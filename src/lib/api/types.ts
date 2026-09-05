@@ -201,7 +201,16 @@ type RawBulkUploadResponse = JsonResponse<"/api/questions/bulk", "post", 201>;
 export type QuestionPayload = WithContract<JsonRequestBody<"/api/questions/", "post">, { year?: number | null; isFeaturedFree?: boolean }>;
 export type QuestionRecord = WithContract<RawQuestionRecord, { year?: number | null; isFeaturedFree?: boolean }>;
 export type QuestionListItem = WithContract<RawQuestionListItem, { year?: number | null; isFeaturedFree?: boolean }>;
-export type QuestionListResponse = RawQuestionListResponse;
+/**
+ * The list response has to carry the corrected item type, not the raw one.
+ * `year` and `isFeaturedFree` are returned by the backend but missing from
+ * the generated contract, and `QuestionListItem` already overlays them —
+ * it was just never wired in here, so every caller saw the raw shape and
+ * had to reach for `any` to read a year off a row.
+ */
+export type QuestionListResponse = Omit<RawQuestionListResponse, "questions"> & {
+  questions: QuestionListItem[];
+};
 export type QuestionListParams = WithContract<QueryParams<"/api/questions/", "get">, { year?: number }>;
 export type QuestionAssetKind = PathParams<
   "/api/questions/assets/upload/{kind}",

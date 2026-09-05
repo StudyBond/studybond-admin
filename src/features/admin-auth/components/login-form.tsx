@@ -1,16 +1,42 @@
 "use client";
 
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { authApi } from "@/lib/api/auth";
 import { buildBrowserDeviceFingerprint } from "@/lib/auth/device-fingerprint";
+import { cn } from "@/lib/utils/cn";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, ArrowRight, Fingerprint, KeyRound } from "lucide-react";
+import { ArrowLeft, Fingerprint, KeyRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+
+/**
+ * Admin sign-in, in two steps: credentials, then a one-time code when the
+ * backend asks for one.
+ *
+ * What changed:
+ *
+ * 1. The inputs and buttons were hand-written — their own border, radius,
+ *    focus ring and a second password-reveal toggle — while `Field` and
+ *    `Button` already do all of it. The submit button was a cyan-to-#5ab8ab
+ *    gradient, a treatment used nowhere else in the console.
+ *
+ * 2. The footer read "Role-based access · Step-up verification · Encrypted
+ *    session". That is marketing copy, on the login screen of an internal
+ *    tool, aimed at people who already work here. Removed.
+ *
+ * 3. The code step never said where the code was sent. It does now — that
+ *    is the one fact you need at that moment, especially when the login
+ *    email and your everyday address differ.
+ *
+ * 4. Verifying a code had no pending state, so a slow network looked like a
+ *    dead button and invited a second submission.
+ */
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -19,18 +45,22 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const OTP_LENGTH = 6;
+
+type OtpMode = {
+  email: string;
+  deviceId?: string;
+  deviceName?: string;
+  device?: Record<string, unknown>;
+  verificationType: "EMAIL_VERIFICATION" | "DEVICE_REGISTRATION";
+};
+
 export function LoginForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [showPassword, setShowPassword] = useState(false);
-  const [otpMode, setOtpMode] = useState<{
-    email: string;
-    deviceId?: string;
-    deviceName?: string;
-    device?: Record<string, unknown>;
-    verificationType: "EMAIL_VERIFICATION" | "DEVICE_REGISTRATION";
-  } | null>(null);
+  const [otpMode, setOtpMode] = useState<OtpMode | null>(null);
   const [otp, setOtp] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const {
     register,
@@ -40,6 +70,22 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  /**
+   * A learner account can hold valid credentials but has no business here.
+   * Sign it straight back out and send the person to the app they wanted.
+   */
+  async function rejectNonAdmin() {
+    await authApi.logout().catch(() => {});
+    toast.error("This account is not an admin", {
+      description: "Taking you to StudyBond instead.",
+      duration: 4000,
+    });
+    setTimeout(() => {
+      window.location.href =
+        process.env.NEXT_PUBLIC_WEB_URL || "https://studybond.app";
+    }, 2000);
+  }
 
   const onSubmit = async (values: LoginFormValues) => {
     try {
@@ -57,16 +103,7 @@ export function LoginForm() {
       }
 
       if (response.user.role === "USER") {
-        await authApi.logout().catch(() => {});
-        toast.error("Access denied", {
-          description:
-            "This portal is for administrators only. Redirecting you to StudyBond.",
-          duration: 4000,
-        });
-        setTimeout(() => {
-          window.location.href =
-            process.env.NEXT_PUBLIC_WEB_URL || "https://studybond.app";
-        }, 2000);
+        await rejectNonAdmin();
         return;
       }
 
@@ -75,11 +112,11 @@ export function LoginForm() {
       router.push("/");
       router.refresh();
     } catch (error) {
-      toast.error("Sign in failed", {
+      toast.error("Could not sign you in", {
         description: (
           <ApiErrorMessage
             error={error}
-            fallback="Please check your credentials."
+            fallback="Check your email and password, then try again."
           />
         ),
       });
@@ -87,7 +124,9 @@ export function LoginForm() {
   };
 
   const onVerifyOtp = async () => {
-    if (!otpMode) return;
+    if (!otpMode || isVerifying) return;
+
+    setIsVerifying(true);
     try {
       const response = await authApi.verifyOtp({
         email: otpMode.email,
@@ -99,16 +138,7 @@ export function LoginForm() {
 
       if ("user" in response && response.user) {
         if (response.user.role === "USER") {
-          await authApi.logout().catch(() => {});
-          toast.error("Access denied", {
-            description:
-              "This portal is for administrators only. Redirecting you to StudyBond.",
-            duration: 4000,
-          });
-          setTimeout(() => {
-            window.location.href =
-              process.env.NEXT_PUBLIC_WEB_URL || "https://studybond.app";
-          }, 2000);
+          await rejectNonAdmin();
           return;
         }
 
@@ -118,203 +148,167 @@ export function LoginForm() {
         router.refresh();
         return;
       }
+
       toast.success(response.message ?? "Verification complete.");
     } catch (error) {
-      toast.error("Verification failed", {
+      toast.error("That code did not work", {
         description: (
           <ApiErrorMessage
             error={error}
-            fallback="Invalid code. Please try again."
+            fallback="Check the code and try again. Codes expire after a few minutes."
           />
         ),
       });
+    } finally {
+      setIsVerifying(false);
     }
   };
 
+  const isDeviceCheck = otpMode?.verificationType === "DEVICE_REGISTRATION";
+
   return (
-    <div className="space-y-6">
-      {/* Brand mark */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[color:var(--accent-cyan)] to-[color:var(--accent-emerald)]">
-          <span className="text-sm font-bold text-[color:var(--background)]">
-            SB
-          </span>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-white">StudyBond</p>
-          <p className="text-[11px] text-[color:var(--muted-foreground)]">
-            Admin workspace
-          </p>
-        </div>
+    <div className="space-y-5">
+      {/* ── Wordmark ──────────────────────────────────────────
+          Plain type. The old mark was a cyan-to-emerald gradient tile,
+          the only gradient in the product. */}
+      <div className="flex items-baseline gap-2">
+        <p className="text-[length:var(--sb-text-lg)] font-semibold tracking-tight text-[var(--sb-text)]">
+          StudyBond
+        </p>
+        <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+          Admin
+        </p>
       </div>
 
-      {/* Main card */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[color:var(--panel)] p-8 shadow-[0_24px_64px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.03)_inset] backdrop-blur-2xl md:p-10">
+      <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-5 shadow-[var(--sb-shadow-lg)] sm:p-6">
         {!otpMode ? (
           <>
-            <h1 className="text-2xl font-semibold tracking-tight text-white">
-              Welcome back
+            <h1 className="text-[length:var(--sb-text-xl)] font-semibold tracking-tight text-[var(--sb-text)]">
+              Sign in
             </h1>
-            <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-              Sign in to access the admin panel.
+            <p className="mt-1 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+              Use your StudyBond admin account.
             </p>
 
-            <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)}>
-              {/* Email field */}
-              <div className="space-y-2">
-                <label
-                  className="text-xs font-medium text-[color:var(--muted-foreground)]"
-                  htmlFor="email"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@studybond.app"
-                  className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm text-white outline-none transition-all duration-200 placeholder:text-[color:var(--muted-foreground)]/40 focus:border-[color:var(--accent-cyan)]/30 focus:bg-white/[0.04] focus:shadow-[0_0_0_3px_rgba(110,196,184,0.08)]"
-                  {...register("email")}
-                />
-                {errors.email ? (
-                  <p className="text-xs text-[color:var(--accent-rose)]">
-                    {errors.email.message}
-                  </p>
-                ) : null}
-              </div>
+            <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
+              <Field
+                label="Email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@studybond.app"
+                size="lg"
+                error={errors.email?.message}
+                {...register("email")}
+              />
 
-              {/* Password field */}
-              <div className="space-y-2">
-                <label
-                  className="text-xs font-medium text-[color:var(--muted-foreground)]"
-                  htmlFor="password"
-                >
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    placeholder="Enter your password"
-                    className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 pr-11 text-sm text-white outline-none transition-all duration-200 placeholder:text-[color:var(--muted-foreground)]/40 focus:border-[color:var(--accent-cyan)]/30 focus:bg-white/[0.04] focus:shadow-[0_0_0_3px_rgba(110,196,184,0.08)]"
-                    {...register("password")}
-                  />
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[color:var(--muted-foreground)]/50 transition-colors hover:text-white"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                {errors.password ? (
-                  <p className="text-xs text-[color:var(--accent-rose)]">
-                    {errors.password.message}
-                  </p>
-                ) : null}
-              </div>
+              <Field
+                label="Password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Your password"
+                size="lg"
+                error={errors.password?.message}
+                {...register("password")}
+              />
 
-              {/* Submit */}
-              <button
+              <Button
                 type="submit"
+                size="lg"
+                className="w-full"
                 disabled={isSubmitting}
-                className="group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[color:var(--accent-cyan)] to-[#5ab8ab] px-4 py-3.5 text-sm font-semibold text-[color:var(--background)] shadow-[0_1px_2px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.1)_inset] transition-all duration-200 hover:shadow-[0_4px_16px_rgba(110,196,184,0.25),0_0_0_1px_rgba(255,255,255,0.15)_inset] disabled:cursor-not-allowed disabled:opacity-50"
+                isLoading={isSubmitting}
               >
-                {isSubmitting ? (
-                  "Signing in..."
-                ) : (
-                  <>
-                    Sign in
-                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                  </>
-                )}
-              </button>
+                {isSubmitting ? "Signing in" : "Sign in"}
+              </Button>
             </form>
           </>
         ) : (
           <>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--accent-cyan)]/16 bg-[color:var(--accent-cyan)]/8 text-[color:var(--accent-cyan)]">
-                {otpMode.verificationType === "DEVICE_REGISTRATION" ? (
-                  <Fingerprint className="h-5 w-5" />
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-surface-2)] text-[var(--sb-text-secondary)]">
+                {isDeviceCheck ? (
+                  <Fingerprint className="h-4 w-4" />
                 ) : (
-                  <KeyRound className="h-5 w-5" />
+                  <KeyRound className="h-4 w-4" />
                 )}
               </div>
-              <div>
-                <h1 className="text-xl font-semibold text-white">
-                  {otpMode.verificationType === "DEVICE_REGISTRATION"
-                    ? "Verify this device"
-                    : "Check your email"}
+              <div className="min-w-0">
+                <h1 className="text-[length:var(--sb-text-lg)] font-semibold tracking-tight text-[var(--sb-text)]">
+                  {isDeviceCheck ? "Approve this device" : "Enter your code"}
                 </h1>
-                <p className="mt-0.5 text-sm text-[color:var(--muted-foreground)]">
-                  {otpMode.verificationType === "DEVICE_REGISTRATION"
-                    ? "Enter the code to approve this device."
-                    : "We sent a verification code to your email."}
+                {/* Which inbox to open — the one thing you need here. */}
+                <p className="mt-1 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+                  We sent a {OTP_LENGTH}-digit code to{" "}
+                  <span className="text-[var(--sb-text)]">{otpMode.email}</span>.
                 </p>
               </div>
             </div>
 
-            <div className="mt-8 space-y-5">
-              <div className="space-y-2">
+            <div className="mt-6 space-y-4">
+              <div className="space-y-1.5">
                 <label
-                  className="text-xs font-medium text-[color:var(--muted-foreground)]"
                   htmlFor="otp"
+                  className="block text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]"
                 >
                   Verification code
                 </label>
                 <input
                   id="otp"
                   inputMode="numeric"
-                  maxLength={6}
+                  autoComplete="one-time-code"
+                  maxLength={OTP_LENGTH}
                   value={otp}
-                  onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  onChange={(event) =>
+                    setOtp(
+                      event.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH),
+                    )
                   }
+                  /* Submitting on Enter matters more here than anywhere
+                     else — the code arrives on a phone and gets typed fast. */
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && otp.length === OTP_LENGTH) {
+                      void onVerifyOtp();
+                    }
+                  }}
                   placeholder="000000"
-                  className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-center text-lg tracking-[0.5em] text-white outline-none transition-all duration-200 placeholder:tracking-[0.5em] placeholder:text-[color:var(--muted-foreground)]/25 focus:border-[color:var(--accent-cyan)]/30 focus:bg-white/[0.04] focus:shadow-[0_0_0_3px_rgba(110,196,184,0.08)]"
+                  className={cn(
+                    "sb-nums w-full rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)]",
+                    "px-3.5 py-3 text-center text-[length:var(--sb-text-xl)] tracking-[0.4em] text-[var(--sb-text)]",
+                    "outline-none transition-colors duration-[var(--sb-duration-fast)]",
+                    "placeholder:text-[var(--sb-text-tertiary)]",
+                    "hover:border-[var(--sb-border-hover)]",
+                    "focus:border-[var(--sb-accent)] focus:ring-2 focus:ring-[var(--sb-accent-ring)]",
+                  )}
                 />
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={onVerifyOtp}
-                  disabled={otp.length !== 6}
-                  className="group relative inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[color:var(--accent-cyan)] to-[#5ab8ab] px-4 py-3.5 text-sm font-semibold text-[color:var(--background)] shadow-[0_1px_2px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.1)_inset] transition-all duration-200 hover:shadow-[0_4px_16px_rgba(110,196,184,0.25)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Verify
-                  <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpMode(null);
-                    setOtp("");
-                  }}
-                  className="rounded-xl border border-white/[0.06] px-4 py-3 text-sm text-[color:var(--muted-foreground)] transition-colors hover:border-white/12 hover:text-white"
-                >
-                  Back
-                </button>
-              </div>
+              <Button
+                type="button"
+                size="lg"
+                className="w-full"
+                onClick={onVerifyOtp}
+                disabled={otp.length !== OTP_LENGTH || isVerifying}
+                isLoading={isVerifying}
+              >
+                {isVerifying ? "Verifying" : "Verify"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  setOtpMode(null);
+                  setOtp("");
+                }}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Use a different account
+              </Button>
             </div>
           </>
         )}
-      </div>
-
-      {/* Footer notes */}
-      <div className="flex items-center justify-center gap-4 text-[11px] text-[color:var(--muted-foreground)]/60">
-        <span>Role-based access</span>
-        <span className="h-0.5 w-0.5 rounded-full bg-[color:var(--muted-foreground)]/30" />
-        <span>Step-up verification</span>
-        <span className="h-0.5 w-0.5 rounded-full bg-[color:var(--muted-foreground)]/30" />
-        <span>Encrypted session</span>
       </div>
     </div>
   );

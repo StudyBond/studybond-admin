@@ -1,22 +1,34 @@
 "use client";
 
-import Link from "next/link";
-import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { MetricCard } from "@/components/ui/metric-card";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
-import { PremiumActionPanel } from "@/features/premium/components/premium-action-panel";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader, SectionTitle } from "@/components/ui/page-header";
+import { Skeleton, StatCardSkeleton } from "@/components/ui/skeleton";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
+import { PremiumActionPanel } from "@/features/premium/components/premium-action-panel";
 import { usePremiumHistory } from "@/features/premium/hooks/use-premium-history";
-import {
-  formatCurrencyNaira,
-  formatDateTime,
-  formatInteger,
-} from "@/lib/utils/format";
+import { formatDate, formatDateTime, formatInteger } from "@/lib/utils/format";
+import { ArrowLeft, Crown } from "lucide-react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Crown, Sparkles } from "lucide-react";
+
+/**
+ * One user's premium record: how they have access now, and everything that
+ * was ever granted to them by hand.
+ *
+ * Colour was the main problem. "Current access: Inactive" was drawn in
+ * danger red and "Auto-renew: Off" in danger red — but a user without
+ * premium is the ordinary case, not a fault, and most accounts on the
+ * platform are exactly that. A support admin opening a free user's page was
+ * met with a row of red. Red is reserved for revoked entitlements here.
+ *
+ * `formatCurrencyNaira` was imported and never used. The back link was
+ * labelled "User 360", which is a name for the endpoint, not for the screen
+ * a person is going back to.
+ */
 
 export default function UserPremiumPage() {
   const params = useParams<{ id: string }>();
@@ -29,133 +41,119 @@ export default function UserPremiumPage() {
 
   if (sessionQuery.isLoading) {
     return (
-      <section className="space-y-6">
-        <SectionHeading
-          eyebrow="Premium"
-          title="User premium history"
-          description="Loading premium coverage..."
-        />
-        <Surface className="p-6">
-          <p className="text-sm text-[color:var(--muted-foreground)]">Checking access rights...</p>
-        </Surface>
-      </section>
+      <div className="space-y-6">
+        <PageHeader title="Premium history" description="Checking your access…" />
+        <StatGrid>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </StatGrid>
+      </div>
     );
   }
 
   if (!isSuperadmin) {
     return (
-      <section className="space-y-6">
-        <SectionHeading
-          eyebrow="Premium"
-          title="User premium history"
-          description="Premium coverage, entitlements, and subscription lineage for a single user."
+      <div className="sb-enter space-y-6">
+        <PageHeader
+          title="Premium history"
+          description="Coverage, entitlements, and subscription records for one user."
+          action={
+            <Button asChild href={`/users/${userId}`} variant="secondary">
+              <ArrowLeft className="h-4 w-4" />
+              Back to the user
+            </Button>
+          }
         />
-        <Surface glow="amber" className="p-6">
-          <div className="flex items-start gap-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--accent-amber)]/20 bg-[color:var(--accent-amber)]/10 text-[color:var(--accent-amber)]">
-              <Crown className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-base font-semibold text-white">Superadmin access required</p>
-              <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                Per-user premium history is restricted to superadmins because it contains payment and entitlement records.
-              </p>
-            </div>
-          </div>
-        </Surface>
-      </section>
+        <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)]">
+          <EmptyState
+            icon={<Crown className="h-4 w-4" />}
+            title="Superadmin only"
+            description="This page carries payment and entitlement records, so it is limited to superadmins."
+          />
+        </div>
+      </div>
     );
   }
 
-  const metrics: Array<{
-    label: string;
-    value: string;
-    delta: string;
-    tone: "amber" | "cyan" | "emerald" | "rose";
-  }> = history
-    ? [
-        {
-          label: "Current access",
-          value: history.currentAccess.isPremium ? "Active" : "Inactive",
-          delta: history.currentAccess.effectiveEndDate
-            ? `Ends ${formatDateTime(history.currentAccess.effectiveEndDate)}`
-            : "No scheduled end date",
-          tone: history.currentAccess.isPremium ? "emerald" : "rose",
-        },
-        {
-          label: "Access sources",
-          value: formatInteger(history.currentAccess.activeSourceTypes.length),
-          delta: history.currentAccess.activeSourceTypes.join(", ") || "No active premium source",
-          tone: "cyan" as const,
-        },
-        {
-          label: "Entitlements",
-          value: formatInteger(history.entitlements.length),
-          delta: history.subscription ? history.subscription.status : "No paid subscription",
-          tone: "amber" as const,
-        },
-        {
-          label: "Auto-renew",
-          value: history.subscription?.autoRenew ? "On" : "Off",
-          delta: history.subscription?.provider ?? "Manual only",
-          tone: "rose" as const,
-        },
-      ]
-    : [];
+  const sourceCount = history?.currentAccess.activeSourceTypes.length ?? 0;
 
   return (
-    <section className="space-y-6">
-      <SectionHeading
-        eyebrow="Premium"
-        title={history ? `${history.user.fullName} premium history` : "User premium history"}
-        description="Inspect subscription status, manual grants, and the current premium coverage state for a specific user."
+    <div className="sb-enter space-y-6 pb-2">
+      <PageHeader
+        title={history ? `${history.user.fullName}'s premium` : "Premium history"}
+        description={history?.user.email}
+        meta={
+          history ? (
+            history.currentAccess.isPremium ? (
+              <Badge tone="premium">Has premium</Badge>
+            ) : (
+              <Badge tone="neutral">No premium access</Badge>
+            )
+          ) : null
+        }
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={`/users/${userId}`}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]"
-            >
+          <>
+            <Button asChild href={`/users/${userId}`} variant="secondary">
               <ArrowLeft className="h-4 w-4" />
-              User 360
-            </Link>
-            <Link
-              href="/premium"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]"
-            >
-              <Sparkles className="h-4 w-4" />
-              Premium console
-            </Link>
-          </div>
+              Back to the user
+            </Button>
+            <Button asChild href="/premium" variant="secondary">
+              All premium accounts
+            </Button>
+          </>
         }
       />
 
-      {historyQuery.isLoading ? (
-        <Surface className="p-6">
-          <p className="text-sm text-[color:var(--muted-foreground)]">Loading user premium history...</p>
-        </Surface>
-      ) : null}
-
       {historyQuery.isError ? (
-        <Surface glow="rose" className="p-6">
-          <p className="text-base font-semibold text-white">Could not load premium history.</p>
-          <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            <ApiErrorMessage error={historyQuery.error} fallback="Please try again." />
-          </p>
-        </Surface>
+        <ErrorState
+          title="Could not load premium history"
+          error={historyQuery.error}
+          onRetry={() => historyQuery.refetch()}
+        />
       ) : null}
 
-      {history ? (
+      {historyQuery.isLoading ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {metrics.map((metric: any, index: number) => (
-              <MetricCard
-                key={metric.label}
-                {...metric}
-                className="admin-enter"
-                style={{ animationDelay: `${index * 80}ms` }}
-              />
+          <StatGrid>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <StatCardSkeleton key={index} />
             ))}
-          </div>
+          </StatGrid>
+          <Skeleton className="h-64 w-full" />
+        </>
+      ) : history ? (
+        <>
+          <StatGrid>
+            <StatCard
+              label="Current access"
+              value={history.currentAccess.isPremium ? "Active" : "None"}
+              hint={
+                history.currentAccess.effectiveEndDate
+                  ? `Ends ${formatDate(history.currentAccess.effectiveEndDate)}`
+                  : "No end date recorded"
+              }
+              /* No status: not having premium is normal, not a fault. */
+            />
+            <StatCard
+              label="Access sources"
+              value={formatInteger(sourceCount)}
+              hint={
+                history.currentAccess.activeSourceTypes.join(", ") ||
+                "Nothing is granting access"
+              }
+            />
+            <StatCard
+              label="Entitlements"
+              value={formatInteger(history.entitlements.length)}
+              hint="Granted by an admin, all time"
+            />
+            <StatCard
+              label="Auto-renew"
+              value={history.subscription?.autoRenew ? "On" : "Off"}
+              hint={history.subscription?.provider ?? "No paid subscription"}
+            />
+          </StatGrid>
 
           <PremiumActionPanel
             userId={userId}
@@ -166,153 +164,142 @@ export default function UserPremiumPage() {
             stepUpRedirectUrl={`/users/${userId}/premium`}
           />
 
-          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <div className="grid gap-6">
-              <Surface glow="emerald" className="p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-emerald)]">
-                      User
-                    </p>
-                    <h2 className="mt-2 text-xl font-semibold text-white">{history.user.fullName}</h2>
-                    <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">{history.user.email}</p>
-                  </div>
-                  <StatusBadge tone={history.user.isPremium ? "emerald" : "slate"}>
-                    {history.user.isPremium ? "Premium" : "Free"}
-                  </StatusBadge>
-                </div>
-
-                <div className="mt-5 rounded-xl border border-white/8 bg-black/10 p-4">
-                  <p className="text-xs text-[color:var(--muted-foreground)]">Coverage sources</p>
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    {history.currentAccess.activeSourceTypes.join(", ") || "No active access"}
-                  </p>
-                  <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                    {history.currentAccess.effectiveEndDate
-                      ? `Effective end date ${formatDateTime(history.currentAccess.effectiveEndDate)}`
-                      : "No effective end date recorded"}
-                  </p>
-                </div>
-              </Surface>
-
-              <Surface className="p-6">
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-cyan)]">
-                    Subscription
-                  </p>
-                  <h2 className="mt-2 text-xl font-semibold text-white">Paid coverage</h2>
-                </div>
-
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            {/* ── Paid subscription ─────────────────────────── */}
+            <section className="min-w-0 space-y-3">
+              <SectionTitle
+                title="Paid subscription"
+                description="Money they have actually paid."
+              />
+              <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
                 {history.subscription ? (
-                  <div className="mt-5 space-y-3">
-                    <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                      <p className="text-xs text-[color:var(--muted-foreground)]">Plan</p>
-                      <p className="mt-2 text-sm font-semibold text-white">
-                        {history.subscription.provider} · {history.subscription.planType}
+                  <div className="space-y-2.5">
+                    <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+                      <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                        Plan
+                      </p>
+                      <p className="mt-1 text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                        {history.subscription.provider} ·{" "}
+                        {history.subscription.planType}
+                      </p>
+                      <p className="mt-0.5 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                        {history.subscription.status}
                       </p>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                        <p className="text-xs text-[color:var(--muted-foreground)]">Window</p>
-                        <p className="mt-2 text-sm font-semibold text-white">
-                          {formatDateTime(history.subscription.startDate)}
-                        </p>
-                        <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                          to {formatDateTime(history.subscription.endDate)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                        <p className="text-xs text-[color:var(--muted-foreground)]">Payment reference</p>
-                        <p className="mt-2 break-all text-sm font-semibold text-white">
-                          {history.subscription.paymentReference ?? "Unavailable"}
-                        </p>
-                      </div>
+                    <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+                      <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                        Covers
+                      </p>
+                      <p className="mt-1 text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                        {formatDate(history.subscription.startDate)} →{" "}
+                        {formatDate(history.subscription.endDate)}
+                      </p>
+                    </div>
+                    <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+                      <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                        Payment reference
+                      </p>
+                      <p className="sb-mono mt-1 break-all text-[length:var(--sb-text-xs)] text-[var(--sb-text)]">
+                        {history.subscription.paymentReference ?? "None recorded"}
+                      </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-5 rounded-xl border border-white/8 bg-black/10 p-4 text-sm text-[color:var(--muted-foreground)]">
-                    No active paid subscription was found for this user. Their access may come from admin entitlements only.
-                  </div>
-                )}
-              </Surface>
-            </div>
-
-            <Surface glow="amber" className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                    Entitlements
+                  <p className="rounded-[var(--sb-radius)] border border-dashed border-[var(--sb-border)] px-3 py-4 text-center text-[length:var(--sb-text-sm)] text-[var(--sb-text-tertiary)]">
+                    No paid subscription. Any access this user has was granted
+                    by an admin.
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold text-white">Manual history</h2>
-                </div>
-                <StatusBadge tone="amber">{history.entitlements.length}</StatusBadge>
+                )}
               </div>
+            </section>
+
+            {/* ── Entitlements ──────────────────────────────── */}
+            <section className="min-w-0 space-y-3">
+              <SectionTitle
+                title="Admin grants"
+                description="Premium given by hand, newest first."
+                action={
+                  <Badge tone="neutral">
+                    {formatInteger(history.entitlements.length)}
+                  </Badge>
+                }
+              />
 
               {history.entitlements.length ? (
-                <div className="mt-5 space-y-3">
-                  {history.entitlements.map((entry: any) => (
-                    <div key={entry.id} className="rounded-xl border border-white/8 bg-black/10 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge
+                <ul className="space-y-2.5">
+                  {history.entitlements.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge
                             tone={
                               entry.status === "ACTIVE"
-                                ? "emerald"
+                                ? "success"
                                 : entry.status === "REVOKED"
-                                  ? "rose"
-                                  : "slate"
+                                  ? "danger"
+                                  : "neutral"
                             }
                           >
                             {entry.status}
-                          </StatusBadge>
-                          <StatusBadge tone="slate">{entry.kind}</StatusBadge>
+                          </Badge>
+                          <Badge tone="neutral">{entry.kind}</Badge>
                         </div>
-                        <p className="text-xs text-[color:var(--muted-foreground)]">
+                        <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
                           {formatDateTime(entry.createdAt)}
                         </p>
                       </div>
 
-                      <p className="mt-3 text-sm text-white">{entry.note}</p>
-                      <p className="mt-2 text-xs text-[color:var(--muted-foreground)]">
-                        {formatDateTime(entry.startsAt)} to {formatDateTime(entry.endsAt)}
+                      <p className="mt-2.5 text-[length:var(--sb-text-sm)] text-[var(--sb-text)]">
+                        {entry.note}
+                      </p>
+                      <p className="mt-1 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                        Covers {formatDate(entry.startsAt)} →{" "}
+                        {formatDate(entry.endsAt)}
                       </p>
 
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-lg border border-white/8 bg-black/15 px-3 py-2">
-                          <p className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
+                      <dl className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                        <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-2.5">
+                          <dt className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
                             Granted by
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-white">
+                          </dt>
+                          <dd className="mt-0.5 truncate text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
                             {entry.grantedByAdmin.fullName}
-                          </p>
-                          <p className="text-xs text-[color:var(--muted-foreground)]">
+                          </dd>
+                          <dd className="truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
                             {entry.grantedByAdmin.email}
-                          </p>
+                          </dd>
                         </div>
-                        <div className="rounded-lg border border-white/8 bg-black/15 px-3 py-2">
-                          <p className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
+                        <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-2.5">
+                          <dt className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
                             Revoked by
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-white">
+                          </dt>
+                          <dd className="mt-0.5 truncate text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
                             {entry.revokedByAdmin?.fullName ?? "Not revoked"}
-                          </p>
-                          <p className="text-xs text-[color:var(--muted-foreground)]">
-                            {entry.revokedByAdmin?.email ?? "Still active or expired naturally"}
-                          </p>
+                          </dd>
+                          <dd className="truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                            {entry.revokedByAdmin?.email ??
+                              "Still active, or it simply expired"}
+                          </dd>
                         </div>
-                      </div>
-                    </div>
+                      </dl>
+                    </li>
                   ))}
-                </div>
+                </ul>
               ) : (
-                <div className="mt-5 rounded-xl border border-white/8 bg-black/10 p-4 text-sm text-[color:var(--muted-foreground)]">
-                  This user has no manual entitlement history.
+                <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)]">
+                  <EmptyState
+                    title="No admin grants"
+                    description="Nobody has given this user premium by hand."
+                  />
                 </div>
               )}
-            </Surface>
+            </section>
           </div>
         </>
       ) : null}
-    </section>
+    </div>
   );
 }

@@ -1,29 +1,44 @@
 "use client";
 
-import Link from "next/link";
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
-import { SectionHeading } from "@/components/ui/section-heading";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Surface } from "@/components/ui/surface";
-import { questionsApi, computeFileHash } from "@/lib/api/questions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { Field } from "@/components/ui/field";
+import { PageHeader, SectionTitle } from "@/components/ui/page-header";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { computeFileHash, questionsApi } from "@/lib/api/questions";
+import type { BulkUploadBatch, BulkUploadRowError } from "@/lib/api/types";
+import { formatDateTime, formatInteger } from "@/lib/utils/format";
 import { BULK_UPLOAD_COLUMNS } from "@/lib/utils/questions";
-import { formatInteger, formatDateTime } from "@/lib/utils/format";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  FileUp,
-  LoaderCircle,
-  UploadCloud,
-  History,
   AlertTriangle,
-  CheckCircle2,
-  XCircle,
   FileSpreadsheet,
+  History,
+  UploadCloud,
 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { BulkUploadBatch } from "@/lib/api/types";
 
-// ── Duplicate Confirmation Dialog ─────────────────────
+/**
+ * Bulk import of questions from a spreadsheet.
+ *
+ * The duplicate-file dialog was a plain `<div>` over a backdrop: no
+ * `role="dialog"`, no `aria-modal`, no Escape handler, no backdrop click,
+ * and no focus management. It blocks the whole page and asks a question
+ * whose wrong answer creates duplicate questions in the bank, so it is worth
+ * getting right. It is now a real dialog — labelled, focus moved into it on
+ * open and returned on close, dismissible with Escape or the backdrop.
+ *
+ * Everything visible also lost the off-palette white: the upload button, and
+ * the file input's `file:bg-white` chip.
+ *
+ * The result panel showed four figures where three exist. "Created" and
+ * "Created IDs" are the same number counted two ways.
+ */
+
+/* ── Duplicate confirmation ─────────────────────────── */
 
 function DuplicateDialog({
   batch,
@@ -34,83 +49,119 @@ function DuplicateDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  /* Remembers what had focus so it can be handed back on close. */
+  const openerRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    openerRef.current = document.activeElement;
+    /* Focus the dialog itself rather than a button, so the destructive
+       action is never the thing sitting under a stray Enter press. */
+    dialogRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      (openerRef.current as HTMLElement | null)?.focus?.();
+    };
+  }, [onCancel]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[color:var(--panel)] p-6 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.7)] p-4"
+      onClick={onCancel}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="duplicate-title"
+        tabIndex={-1}
+        /* Clicks inside must not reach the dismissing backdrop. */
+        onClick={(event) => event.stopPropagation()}
+        className="sb-fade w-full max-w-md rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-2)] p-5 shadow-[var(--sb-shadow-xl)] outline-none"
+      >
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
-            <AlertTriangle className="h-5 w-5" />
-          </span>
-          <div>
-            <h3 className="text-base font-semibold text-white">
-              Duplicate file detected
-            </h3>
-            <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-              A file with identical content was already uploaded:
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--sb-radius)] bg-[var(--sb-warning-soft)] text-[var(--sb-warning)]">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <h2
+              id="duplicate-title"
+              className="text-[length:var(--sb-text-lg)] font-semibold text-[var(--sb-text)]"
+            >
+              You have uploaded this file before
+            </h2>
+            <p className="mt-1 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+              A file with byte-for-byte identical contents was already
+              imported. Uploading it again will create a second copy of every
+              question in it.
             </p>
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-white/8 bg-black/20 p-4 text-sm">
-          <div className="grid grid-cols-2 gap-y-2">
-            <span className="text-[color:var(--muted-foreground)]">File</span>
-            <span className="truncate text-white">{batch.fileName}</span>
-            <span className="text-[color:var(--muted-foreground)]">
-              Uploaded
-            </span>
-            <span className="text-white">{formatDateTime(batch.createdAt)}</span>
-            <span className="text-[color:var(--muted-foreground)]">
-              Questions
-            </span>
-            <span className="text-white">
-              {formatInteger(batch.questionCount)}
-            </span>
-            <span className="text-[color:var(--muted-foreground)]">By</span>
-            <span className="text-white">{batch.uploaderName}</span>
-          </div>
-        </div>
+        <dl className="mt-4 space-y-2 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+          {[
+            ["File", batch.fileName],
+            ["Uploaded", formatDateTime(batch.createdAt)],
+            ["Questions", formatInteger(batch.questionCount)],
+            ["By", batch.uploaderName],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-3">
+              <dt className="shrink-0 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                {label}
+              </dt>
+              <dd className="min-w-0 truncate text-[length:var(--sb-text-sm)] text-[var(--sb-text)]">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
 
-        <p className="mt-4 text-sm text-[color:var(--muted-foreground)]">
-          Are you sure you want to upload this file again? This will create
-          duplicate questions.
-        </p>
-
-        <div className="mt-5 flex gap-3">
-          <button
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row-reverse">
+          <Button
             type="button"
+            variant="danger"
+            className="sm:flex-1"
+            onClick={onConfirm}
+          >
+            Upload it again anyway
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="sm:flex-1"
             onClick={onCancel}
-            className="flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/14 hover:bg-white/[0.06]"
           >
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-amber-400"
-          >
-            Upload anyway
-          </button>
+          </Button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────
+/* ── Page ───────────────────────────────────────────── */
 
 export default function BulkUploadPage() {
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [institutionCode, setInstitutionCode] = useState("");
-  const [result, setResult] = useState<Awaited<ReturnType<typeof questionsApi.bulkUpload>> | null>(null);
-  const [duplicateBatch, setDuplicateBatch] = useState<BulkUploadBatch | null>(null);
+  const [result, setResult] = useState<Awaited<
+    ReturnType<typeof questionsApi.bulkUpload>
+  > | null>(null);
+  const [duplicateBatch, setDuplicateBatch] = useState<BulkUploadBatch | null>(
+    null,
+  );
   const [pendingHash, setPendingHash] = useState<string | null>(null);
   const [isHashing, setIsHashing] = useState(false);
 
   const institutionCodeTrimmed = institutionCode.trim();
   const isInstitutionValid = institutionCodeTrimmed.length >= 2;
-
-  // ── Upload History Query ────────────────────────────
 
   const historyQuery = useQuery({
     queryKey: ["admin", "bulk-upload-history"],
@@ -118,34 +169,42 @@ export default function BulkUploadPage() {
     refetchOnWindowFocus: false,
   });
 
-  // ── Upload Mutation ─────────────────────────────────
-
   const uploadMutation = useMutation({
-    mutationFn: async (opts: { hash: string }) => {
+    mutationFn: async (options: { hash: string }) => {
       if (!file) throw new Error("Choose a CSV or Excel file first.");
-      return questionsApi.bulkUpload(file, institutionCodeTrimmed || undefined, opts.hash);
+      return questionsApi.bulkUpload(
+        file,
+        institutionCodeTrimmed || undefined,
+        options.hash,
+      );
     },
-    onSuccess: async (payload: any) => {
+    onSuccess: async (payload) => {
       setResult(payload);
       if (payload.success) {
-        toast.success(`Uploaded ${payload.successCount} questions`);
+        toast.success(`Imported ${payload.successCount} questions`);
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["admin", "questions"] }),
-          queryClient.invalidateQueries({ queryKey: ["admin", "analytics", "overview"] }),
-          queryClient.invalidateQueries({ queryKey: ["admin", "bulk-upload-history"] }),
+          queryClient.invalidateQueries({
+            queryKey: ["admin", "analytics", "overview"],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["admin", "bulk-upload-history"],
+          }),
         ]);
       } else {
-        toast.error("Bulk upload finished with validation errors");
+        toast.error("Some rows could not be imported", {
+          description: "The result panel lists every row that failed.",
+        });
       }
     },
     onError: (error) => {
-      toast.error("Bulk upload failed", {
-        description: <ApiErrorMessage error={error} fallback="Please try again." />,
+      toast.error("The upload failed", {
+        description: (
+          <ApiErrorMessage error={error} fallback="Please try again." />
+        ),
       });
     },
   });
-
-  // ── Upload Flow (hash → duplicate check → upload) ──
 
   const startUpload = useCallback(async () => {
     if (!file || !isInstitutionValid) return;
@@ -155,31 +214,28 @@ export default function BulkUploadPage() {
       const hash = await computeFileHash(file);
       setPendingHash(hash);
 
-      // Check for duplicates
       try {
         const check = await questionsApi.checkDuplicate(hash);
         if (check.isDuplicate && check.existingBatch) {
           setIsHashing(false);
           setDuplicateBatch(check.existingBatch);
-          return; // Dialog will handle the rest
+          return;
         }
       } catch {
-        // If duplicate check fails, proceed anyway
+        /* A failed duplicate check should not block a legitimate upload. */
       }
 
       setIsHashing(false);
       uploadMutation.mutate({ hash });
     } catch {
       setIsHashing(false);
-      toast.error("Failed to process file");
+      toast.error("Could not read that file");
     }
-  }, [file, isInstitutionValid, institutionCodeTrimmed, uploadMutation]);
+  }, [file, isInstitutionValid, uploadMutation]);
 
   const confirmDuplicateUpload = useCallback(() => {
     setDuplicateBatch(null);
-    if (pendingHash) {
-      uploadMutation.mutate({ hash: pendingHash });
-    }
+    if (pendingHash) uploadMutation.mutate({ hash: pendingHash });
   }, [pendingHash, uploadMutation]);
 
   const cancelDuplicateUpload = useCallback(() => {
@@ -189,73 +245,140 @@ export default function BulkUploadPage() {
 
   const isBusy = isHashing || uploadMutation.isPending;
 
+  const errorColumns: Column<BulkUploadRowError>[] = [
+    {
+      key: "row",
+      header: "Row",
+      primary: true,
+      numeric: true,
+      width: "5rem",
+      cell: (error) => error.row,
+    },
+    {
+      key: "field",
+      header: "Column",
+      width: "12rem",
+      cell: (error) => (
+        <span className="sb-mono text-[length:var(--sb-text-xs)]">
+          {error.field}
+        </span>
+      ),
+    },
+    {
+      key: "message",
+      header: "What is wrong",
+      cell: (error) => error.message,
+    },
+  ];
+
+  const historyColumns: Column<BulkUploadBatch>[] = [
+    {
+      key: "file",
+      header: "File",
+      primary: true,
+      cell: (batch) => (
+        <span className="flex min-w-0 items-center gap-2">
+          <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-[var(--sb-text-tertiary)]" />
+          <span className="truncate">{batch.fileName}</span>
+        </span>
+      ),
+    },
+    {
+      key: "institution",
+      header: "Institution",
+      width: "8rem",
+      cell: (batch) => <Badge tone="neutral">{batch.institutionCode}</Badge>,
+    },
+    {
+      key: "imported",
+      header: "Imported",
+      numeric: true,
+      width: "8rem",
+      cell: (batch) => (
+        <span>
+          {formatInteger(batch.successCount)}
+          <span className="text-[var(--sb-text-tertiary)]">
+            /{formatInteger(batch.totalRows)}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: "8rem",
+      cell: (batch) =>
+        batch.status === "COMPLETED" ? (
+          <Badge tone="success">Completed</Badge>
+        ) : (
+          <Badge tone="danger" dot>
+            Failed
+          </Badge>
+        ),
+    },
+    {
+      key: "uploader",
+      header: "Uploaded by",
+      showFrom: "lg",
+      cell: (batch) => batch.uploaderName,
+    },
+    {
+      key: "date",
+      header: "When",
+      width: "11rem",
+      showFrom: "lg",
+      cell: (batch) => formatDateTime(batch.createdAt),
+    },
+  ];
+
   return (
     <>
-      {duplicateBatch && (
+      {duplicateBatch ? (
         <DuplicateDialog
           batch={duplicateBatch}
           onConfirm={confirmDuplicateUpload}
           onCancel={cancelDuplicateUpload}
         />
-      )}
+      ) : null}
 
-      <section className="space-y-6">
-        <SectionHeading
-          eyebrow="Questions"
+      <div className="sb-enter space-y-6 pb-2">
+        <PageHeader
           title="Bulk upload"
-          description="Import many questions from CSV or Excel, track upload history, and detect duplicate files before re-importing."
+          description="Import many questions at once from a CSV or Excel file. Every row is validated before anything is saved, and identical files are caught before they create duplicates."
+          action={
+            <Button asChild href="/questions" variant="secondary">
+              Back to questions
+            </Button>
+          }
         />
 
-        <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-          {/* ── Upload Form ─────────────────────────── */}
-          <Surface glow="cyan" className="p-6">
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[color:var(--accent-cyan)]">
-                <UploadCloud className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-base font-semibold text-white">Upload file</p>
-                <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-                  Accepted formats are `.csv`, `.xlsx`, and `.xls`. The backend
-                  validates every row and rejects malformed imports with
-                  row-level errors.
-                </p>
-              </div>
-            </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          {/* ── The upload itself ───────────────────────── */}
+          <section className="min-w-0 space-y-3">
+            <SectionTitle title="Upload a file" />
+            <div className="space-y-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              <Field
+                label="Institution code"
+                hint="Required"
+                value={institutionCode}
+                onChange={(event) => setInstitutionCode(event.target.value)}
+                placeholder="UI, UNILAG, OAU…"
+                error={
+                  institutionCode.trim() && !isInstitutionValid
+                    ? "Institution codes are at least two characters."
+                    : undefined
+                }
+              />
 
-            <div className="mt-5 space-y-4">
-              {/* Institution Code — REQUIRED */}
-              <label className="block">
-                <span className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                  Institution code
-                  <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-normal text-rose-400">
-                    Required
-                  </span>
-                </span>
+              <div className="rounded-[var(--sb-radius)] border border-dashed border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-4">
+                <label
+                  htmlFor="bulk-file"
+                  className="block text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]"
+                >
+                  Spreadsheet
+                </label>
                 <input
-                  value={institutionCode}
-                  onChange={(event) => setInstitutionCode(event.target.value)}
-                  placeholder="e.g. UI, UNILAG, OAU..."
-                  className={`w-full rounded-xl border px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--muted-foreground)]/50 ${
-                    institutionCode.trim() && !isInstitutionValid
-                      ? "border-rose-400/40 bg-rose-500/5 focus:border-rose-400/60"
-                      : "border-white/8 bg-black/10 focus:border-[color:var(--accent-cyan)]/40"
-                  }`}
-                />
-                {institutionCode.trim() && !isInstitutionValid && (
-                  <p className="mt-1.5 text-xs text-rose-400">
-                    Enter a valid institution code (at least 2 characters)
-                  </p>
-                )}
-              </label>
-
-              {/* File Picker */}
-              <label className="block rounded-2xl border border-dashed border-white/10 bg-black/10 p-5">
-                <span className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-                  <FileUp className="h-4 w-4 text-[color:var(--accent-cyan)]" />
-                  Select spreadsheet
-                </span>
-                <input
+                  id="bulk-file"
                   type="file"
                   accept=".csv,.xlsx,.xls"
                   onChange={(event) => {
@@ -263,268 +386,182 @@ export default function BulkUploadPage() {
                     setResult(null);
                     setPendingHash(null);
                   }}
-                  className="block w-full text-sm text-[color:var(--muted-foreground)] file:mr-4 file:rounded-lg file:border-0 file:bg-white file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[color:var(--background)] hover:file:opacity-90"
+                  className={[
+                    "mt-2 block w-full text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]",
+                    "file:mr-3 file:rounded-[var(--sb-radius-sm)] file:border file:border-[var(--sb-border)]",
+                    "file:bg-[var(--sb-surface-2)] file:px-3 file:py-1.5",
+                    "file:text-[length:var(--sb-text-xs)] file:font-medium file:text-[var(--sb-text)]",
+                    "hover:file:bg-[var(--sb-surface-3)]",
+                  ].join(" ")}
                 />
-                <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">
-                  {file ? `${file.name} selected` : "No file selected yet"}
+                <p className="mt-2 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  {file
+                    ? file.name
+                    : "Accepts .csv, .xlsx and .xls"}
                 </p>
-              </label>
+              </div>
 
-              {/* Upload Button */}
-              <button
+              <Button
                 type="button"
+                className="w-full"
                 onClick={startUpload}
                 disabled={isBusy || !file || !isInstitutionValid}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[color:var(--background)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                isLoading={isBusy}
               >
-                {isBusy ? (
-                  <>
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                    {isHashing ? "Checking file..." : "Uploading..."}
-                  </>
-                ) : (
-                  <>
-                    <UploadCloud className="h-4 w-4" />
-                    Start bulk upload
-                  </>
-                )}
-              </button>
+                {!isBusy ? <UploadCloud className="h-4 w-4" /> : null}
+                {isHashing
+                  ? "Checking for duplicates"
+                  : uploadMutation.isPending
+                    ? "Importing"
+                    : "Start import"}
+              </Button>
 
-              {!isInstitutionValid && file && (
-                <p className="text-center text-xs text-[color:var(--muted-foreground)]">
-                  Enter the institution code above to enable upload
+              {/* Says which requirement is missing, rather than leaving a
+                  dead button to be puzzled over. */}
+              {!isBusy && (!file || !isInstitutionValid) ? (
+                <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  {!isInstitutionValid && !file
+                    ? "Enter an institution code and choose a file."
+                    : !isInstitutionValid
+                      ? "Enter the institution code these questions belong to."
+                      : "Choose a spreadsheet to import."}
                 </p>
-              )}
+              ) : null}
             </div>
-          </Surface>
 
-          {/* ── Right Column ────────────────────────── */}
-          <div className="grid gap-6">
-            {/* Schema Reference */}
-            <Surface className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                    Expected columns
-                  </p>
-                  <h2 className="mt-2 text-xl font-semibold text-white">
-                    Spreadsheet schema
-                  </h2>
-                </div>
-                <StatusBadge tone="amber">
+            <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+                  Columns the file needs
+                </h3>
+                <Badge tone="neutral">
                   {BULK_UPLOAD_COLUMNS.length} columns
-                </StatusBadge>
+                </Badge>
               </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {BULK_UPLOAD_COLUMNS.map((column: any) => (
-                  <StatusBadge key={column} tone="slate">
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {BULK_UPLOAD_COLUMNS.map((column) => (
+                  <span
+                    key={column}
+                    className="sb-mono rounded-[var(--sb-radius-sm)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] px-2 py-1 text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]"
+                  >
                     {column}
-                  </StatusBadge>
+                  </span>
                 ))}
               </div>
-            </Surface>
+            </div>
+          </section>
 
-            {/* Upload Result */}
-            <Surface glow="emerald" className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-emerald)]">
-                    Result
-                  </p>
-                  <h2 className="mt-2 text-xl font-semibold text-white">
-                    Latest import summary
-                  </h2>
-                </div>
-                <StatusBadge tone={result?.success ? "emerald" : "slate"}>
-                  {result ? (result.success ? "success" : "failed") : "idle"}
-                </StatusBadge>
-              </div>
+          {/* ── What happened ───────────────────────────── */}
+          <section className="min-w-0 space-y-3">
+            <SectionTitle
+              title="Result"
+              action={
+                result ? (
+                  <Badge tone={result.success ? "success" : "danger"} dot>
+                    {result.success ? "Imported" : "Had errors"}
+                  </Badge>
+                ) : null
+              }
+            />
 
-              {result ? (
-                <div className="mt-5 space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-4">
-                    <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                      <p className="text-xs text-[color:var(--muted-foreground)]">
-                        Rows
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-white">
-                        {formatInteger(result.totalRows)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                      <p className="text-xs text-[color:var(--muted-foreground)]">
-                        Created
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-white">
-                        {formatInteger(result.successCount)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                      <p className="text-xs text-[color:var(--muted-foreground)]">
-                        Errors
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-white">
-                        {formatInteger(result.errorCount)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-white/8 bg-black/10 p-4">
-                      <p className="text-xs text-[color:var(--muted-foreground)]">
-                        Created IDs
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-white">
-                        {formatInteger(result.createdIds.length)}
-                      </p>
-                    </div>
+            {result ? (
+              <div className="space-y-4">
+                <StatGrid className="lg:grid-cols-3">
+                  <StatCard
+                    label="Rows read"
+                    value={formatInteger(result.totalRows)}
+                  />
+                  <StatCard
+                    label="Questions created"
+                    value={formatInteger(result.successCount)}
+                    status={result.successCount ? "success" : undefined}
+                  />
+                  <StatCard
+                    label="Rows rejected"
+                    value={formatInteger(result.errorCount)}
+                    status={result.errorCount ? "danger" : undefined}
+                  />
+                </StatGrid>
+
+                {result.errors.length ? (
+                  <div className="space-y-2">
+                    <h3 className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+                      Rows that were rejected
+                    </h3>
+                    <DataTable
+                      caption="Rows rejected during import"
+                      items={result.errors}
+                      columns={errorColumns}
+                      getKey={(error) =>
+                        `${error.row}-${error.field}-${error.message}`
+                      }
+                      emptyTitle="No row errors"
+                    />
                   </div>
+                ) : null}
 
-                  {result.errors.length ? (
-                    <div className="overflow-x-auto rounded-xl border border-white/8">
-                      <table className="min-w-[560px] w-full divide-y divide-white/8 text-sm">
-                        <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                          <tr>
-                            <th className="px-4 py-3">Row</th>
-                            <th className="px-4 py-3">Field</th>
-                            <th className="px-4 py-3">Message</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/8 bg-black/10">
-                          {result.errors.map((error: any, index: number) => (
-                            <tr key={`${error.row}-${error.field}-${index}`}>
-                              <td className="px-4 py-3 text-white">
-                                {error.row}
-                              </td>
-                              <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                                {error.field}
-                              </td>
-                              <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                                {error.message}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : null}
-
-                  {result.createdIds.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {result.createdIds.slice(0, 12).map((id: any) => (
-                        <Link
+                {result.createdIds.length ? (
+                  <div className="space-y-2">
+                    <h3 className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+                      Open what was created
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.createdIds.slice(0, 12).map((id) => (
+                        <Button
                           key={id}
+                          asChild
                           href={`/questions/${id}`}
-                          className="inline-flex items-center gap-2 rounded-lg border border-white/8 bg-black/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:border-white/14 hover:bg-white/[0.04]"
+                          variant="secondary"
+                          size="sm"
                         >
                           #{id}
-                        </Link>
+                        </Button>
                       ))}
+                      {result.createdIds.length > 12 ? (
+                        <span className="self-center text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                          and {result.createdIds.length - 12} more
+                        </span>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="mt-5 text-sm text-[color:var(--muted-foreground)]">
-                  No upload has been run yet in this session.
-                </p>
-              )}
-            </Surface>
-          </div>
-        </div>
-
-        {/* ── Upload History ──────────────────────────── */}
-        <Surface className="p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[color:var(--accent-amber)]">
-                <History className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-amber)]">
-                  Upload history
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-white">
-                  Recent bulk uploads
-                </h2>
-              </div>
-            </div>
-            {historyQuery.data && (
-              <StatusBadge tone="amber">
-                {historyQuery.data.total} total
-              </StatusBadge>
-            )}
-          </div>
-
-          <div className="mt-5">
-            {historyQuery.isLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <LoaderCircle className="h-5 w-5 animate-spin text-[color:var(--muted-foreground)]" />
-              </div>
-            ) : historyQuery.data?.batches.length ? (
-              <div className="overflow-x-auto rounded-xl border border-white/8">
-                <table className="min-w-[700px] w-full divide-y divide-white/8 text-sm">
-                  <thead className="bg-black/15 text-left text-[11px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                    <tr>
-                      <th className="px-4 py-3">File</th>
-                      <th className="px-4 py-3">Institution</th>
-                      <th className="px-4 py-3">Questions</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Uploaded by</th>
-                      <th className="px-4 py-3">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/8 bg-black/10">
-                    {historyQuery.data.batches.map((batch) => (
-                      <tr
-                        key={batch.id}
-                        className="transition hover:bg-white/[0.02]"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-[color:var(--muted-foreground)]" />
-                            <span className="max-w-[200px] truncate text-white">
-                              {batch.fileName}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge tone="cyan">
-                            {batch.institutionCode}
-                          </StatusBadge>
-                        </td>
-                        <td className="px-4 py-3 text-white">
-                          {formatInteger(batch.successCount)}/{formatInteger(batch.totalRows)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {batch.status === "COMPLETED" ? (
-                            <span className="inline-flex items-center gap-1.5 text-emerald-400">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Completed
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 text-rose-400">
-                              <XCircle className="h-3.5 w-3.5" />
-                              Failed
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                          {batch.uploaderName}
-                        </td>
-                        <td className="px-4 py-3 text-[color:var(--muted-foreground)]">
-                          {formatDateTime(batch.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  </div>
+                ) : null}
               </div>
             ) : (
-              <p className="py-6 text-center text-sm text-[color:var(--muted-foreground)]">
-                No upload history yet. Your bulk uploads will appear here.
+              <p className="rounded-[var(--sb-radius-lg)] border border-dashed border-[var(--sb-border)] px-4 py-8 text-center text-[length:var(--sb-text-sm)] text-[var(--sb-text-tertiary)]">
+                Nothing imported yet in this session. The result will appear
+                here.
               </p>
             )}
-          </div>
-        </Surface>
-      </section>
+          </section>
+        </div>
+
+        {/* ── History ───────────────────────────────────── */}
+        <section className="space-y-3">
+          <SectionTitle
+            title="Recent imports"
+            description="Every bulk upload, most recent first."
+            action={
+              historyQuery.data ? (
+                <Badge tone="neutral">
+                  {formatInteger(historyQuery.data.total)} total
+                </Badge>
+              ) : null
+            }
+          />
+          <DataTable
+            caption="Bulk upload history"
+            items={historyQuery.data?.batches ?? []}
+            columns={historyColumns}
+            getKey={(batch) => batch.id}
+            isLoading={historyQuery.isLoading}
+            error={historyQuery.isError ? historyQuery.error : undefined}
+            onRetry={() => historyQuery.refetch()}
+            emptyIcon={<History className="h-4 w-4" />}
+            emptyTitle="No imports yet"
+            emptyDescription="Files you upload will be listed here with their results."
+          />
+        </section>
+      </div>
     </>
   );
 }

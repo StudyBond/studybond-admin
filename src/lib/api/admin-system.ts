@@ -87,7 +87,13 @@ export const adminSystemApi = {
     payload: { code: string; name: string; slug: string },
     headers?: SensitiveHeadersOptions
   ) {
-    return apiClient<{ success: boolean; institution: any }>("/api/admin/institutions", {
+    /* Not in the generated contract yet, so the shape is declared here
+       rather than left as `any`. Replace with a JsonResponse<> alias once
+       /api/admin/institutions appears in the backend OpenAPI output. */
+    return apiClient<{
+      success: boolean;
+      institution: { id: number; code: string; name: string; slug: string };
+    }>("/api/admin/institutions", {
       method: "POST",
       body: JSON.stringify(payload),
       headers: buildSensitiveHeaders(headers),

@@ -1,6 +1,6 @@
 # StudyBond Admin Architecture
 
-Last Updated: April 6, 2026  
+Last Updated: August 16, 2026
 Status: Implemented admin workspace architecture and current guardrails for `studybond-admin`
 
 ## 1. Purpose
@@ -191,7 +191,10 @@ src/app/
 │   │   ├── page.tsx
 │   │   ├── new/page.tsx
 │   │   ├── bulk-upload/page.tsx
-│   │   └── [id]/page.tsx
+│   │   ├── [id]/page.tsx
+│   │   └── free-exam/
+│   │       ├── page.tsx              # free-exam pool coverage view
+│   │       └── leaderboard/page.tsx  # free-exam leaderboard (cycle history, podium)
 │   ├── reports/
 │   │   ├── page.tsx
 │   │   └── [id]/page.tsx
@@ -278,6 +281,7 @@ Recommended admin domains:
 - pool selection
 - asset upload
 - preview
+- free-exam pool coverage and leaderboard (`use-free-exam-coverage.ts`, `use-free-exam-leaderboard.ts`)
 
 ### 9.9 `features/bulk-upload`
 
@@ -292,10 +296,13 @@ Recommended admin domains:
 - filters
 - actor/action/timestamp views
 
-### 9.11 `features/system-settings`
+### 9.11 `features/system`
 
-- limited ops controls
-- email toggles and future operational settings
+Note: the originally recommended path was `features/system-settings/`, which still exists on disk but is an empty placeholder (`.gitkeep` only). The actual implementation lives at `features/system/`.
+
+- limited ops controls, email toggles
+- institution management (`add-institution-panel.tsx`)
+- notification-announcement authoring (`notification-announcements-panel.tsx`)
 
 ## 10. API Layer
 
@@ -314,6 +321,7 @@ src/lib/api/
 ├── admin-premium.ts
 ├── admin-reports.ts
 ├── questions.ts
+├── admin-free-exam.ts
 ├── admin-audit.ts
 └── admin-system.ts
 ```
@@ -326,7 +334,7 @@ Rule:
 
 Current contract rule:
 
-- `types.ts` imports the generated backend `paths` type from `studybond-backend/artifacts/openapi/openapi-types.d.ts`
+- `types.ts` imports the generated backend `paths` type from a vendored local copy at `src/lib/api/generated/openapi-types.d.ts`, kept in sync with `studybond-backend/artifacts/openapi/openapi-types.d.ts` via `npm run openapi:sync`
 - request bodies, query params, path params, response envelopes, and common payload aliases should be derived from that generated contract
 - narrow local overlays are acceptable only when the backend OpenAPI response is intentionally generic, such as the current `/api/auth/me` user shape
 - after backend schema changes, run `npm run openapi:sync` in `studybond-backend` before relying on admin typecheck/build

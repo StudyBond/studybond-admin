@@ -6,6 +6,8 @@ export function useAdminAuditLogs(params?: {
   limit?: number;
   action?: string;
   targetType?: string;
+  startDate?: string;
+  endDate?: string;
 }) {
   return useQuery({
     queryKey: ["admin", "audit-logs", params],
