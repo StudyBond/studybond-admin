@@ -263,6 +263,63 @@ select:focus-visible {
   }
 }
 
+/* ── Short viewports ────────────────────────────────────────────
+   The console is normally a fixed-height shell: topbar and sidebar stay
+   put while only the content area scrolls. That is pleasant on a tall
+   screen and hostile on a short one.
+
+   A measurement from a real admin machine: display scaling and browser
+   zoom combining to about 171% left a CSS viewport 585px tall. At that
+   height the shell becomes three separate nested scroll regions — the
+   sidebar nav, the content area, and any sticky side column — and
+   overscroll-behavior: contain deliberately stops the wheel chaining
+   between them. Which one moves depends on where the pointer happens to
+   be, so the page reads as refusing to scroll to its own bottom, and
+   going full screen 'fixes' it only by handing back enough height that
+   the regions stop overflowing.
+
+   Under 760px tall the shell stops being fixed and the page scrolls as
+   one ordinary document. The sidebar stays put via sticky, so nothing is
+   lost. Everything is reachable with a single scroll, at any zoom. */
+@media (max-height: 760px) {
+  .sb-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .sb-shell-grid {
+    height: auto;
+  }
+
+  .sb-shell-col {
+    height: auto;
+    overflow: visible;
+  }
+
+  /* The content area stops being its own scroller and simply flows. */
+  .sb-shell-main {
+    overflow: visible;
+  }
+}
+
+@media (max-height: 760px) and (min-width: 1024px) {
+  /* Keep the sidebar on screen while the document scrolls past it. */
+  .sb-shell-aside {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100dvh;
+  }
+
+  /* A side column has no reason to stick when the page scrolls as a whole. */
+  .sb-sticky-col {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
 /* A sticky column whose content is taller than the area it sticks inside
    has an unreachable bottom: the top stays pinned, so the overflow never
    scrolls into view at any scroll position. Admins hit this on the question

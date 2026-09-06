@@ -143,7 +143,7 @@ export function AdminSidebar({
         id="admin-sidebar"
         aria-label="Admin navigation"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[min(84vw,300px)] flex-col",
+          "sb-shell-aside fixed inset-y-0 left-0 z-40 flex w-[min(84vw,300px)] flex-col",
           "border-r border-[var(--sb-border)] bg-[var(--sb-surface-1)]",
           "transition-transform duration-[var(--sb-duration)] ease-[var(--sb-ease)]",
           "lg:relative lg:inset-auto lg:z-0 lg:h-full lg:w-auto lg:translate-x-0",
