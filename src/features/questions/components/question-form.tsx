@@ -639,7 +639,7 @@ export function QuestionForm({
       </div>
 
       {/* ══ Classification and actions ════════════════════ */}
-      <div className="min-w-0 space-y-6 lg:sticky lg:top-4 lg:col-span-4">
+      <div className="sb-sticky-col min-w-0 space-y-6 lg:sticky lg:top-4 lg:col-span-4">
         <section className="space-y-3">
           <SectionTitle
             title="Classification"

@@ -402,7 +402,7 @@ export default function ReportsPage() {
 
         {/* ── Detail — sticky, desktop only ─────────────────── */}
         <aside className="hidden min-w-0 xl:block">
-          <div className="sticky top-0 space-y-3">
+          <div className="sb-sticky-col sticky top-0 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[length:var(--sb-text-lg)] font-semibold tracking-tight text-[var(--sb-text)]">
                 Review

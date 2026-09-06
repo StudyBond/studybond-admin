@@ -263,6 +263,21 @@ select:focus-visible {
   }
 }
 
+/* A sticky column whose content is taller than the area it sticks inside
+   has an unreachable bottom: the top stays pinned, so the overflow never
+   scrolls into view at any scroll position. Admins hit this on the question
+   form, where the classification panel plus Save and Delete ran past a
+   laptop viewport and only appeared once the window went full screen.
+   Cap it to the scrollport and let it scroll on its own. Only applies where
+   the column is actually sticky, which is desktop. */
+@media (min-width: 1024px) {
+  .sb-sticky-col {
+    max-height: calc(100dvh - var(--sb-topbar-height) - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 .sb-bottom-nav-inset {
   padding-bottom: env(safe-area-inset-bottom);
 }
