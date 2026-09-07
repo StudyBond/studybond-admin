@@ -70,41 +70,50 @@ export default function AdminLayout({
     [],
   );
 
+  /* Matches the learner app's shell. The page is one ordinary document
+     that scrolls as a whole, the sidebar is fixed to the viewport so it is
+     never taller than the screen and never stretches to page height, and a
+     margin on the content column reserves its space. */
+  const sidebarWidth =
+    desktopSidebarMode === "collapsed"
+      ? "var(--sb-sidebar-width-collapsed)"
+      : "var(--sb-sidebar-width)";
+
   return (
-    <div className="sb-shell h-dvh overflow-hidden bg-[var(--sb-bg)] text-[var(--sb-text)]">
+    <div
+      className="relative flex min-h-dvh bg-[var(--sb-bg)] text-[var(--sb-text)]"
+      style={{ "--sb-sidebar-w": sidebarWidth } as React.CSSProperties}
+    >
+      <AdminSidebar
+        desktopMode={desktopSidebarMode}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={closeMobileSidebar}
+      />
+
       <div
         className={cn(
-          "sb-shell-grid h-full transition-[grid-template-columns] duration-[var(--sb-duration)] ease-[var(--sb-ease)] lg:grid",
-          desktopSidebarMode === "collapsed"
-            ? "lg:grid-cols-[var(--sb-sidebar-width-collapsed)_minmax(0,1fr)]"
-            : "lg:grid-cols-[var(--sb-sidebar-width)_minmax(0,1fr)]",
+          "flex min-w-0 flex-1 flex-col",
+          "transition-[margin] duration-[var(--sb-duration)] ease-[var(--sb-ease)]",
+          "lg:ml-[var(--sb-sidebar-w)]",
         )}
       >
-        <AdminSidebar
-          desktopMode={desktopSidebarMode}
-          isMobileOpen={isMobileSidebarOpen}
-          onMobileClose={closeMobileSidebar}
+        <AdminTopbar
+          desktopSidebarMode={desktopSidebarMode}
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          onDesktopSidebarToggle={toggleDesktopSidebar}
+          onMobileMenuToggle={toggleMobileSidebar}
         />
 
-        <div className="sb-shell-col grid h-full min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
-          <AdminTopbar
-            desktopSidebarMode={desktopSidebarMode}
-            isMobileSidebarOpen={isMobileSidebarOpen}
-            onDesktopSidebarToggle={toggleDesktopSidebar}
-            onMobileMenuToggle={toggleMobileSidebar}
-          />
-
-          <main className="sb-shell-main sb-safe-bottom min-w-0 overflow-y-auto overscroll-contain px-4 pt-5 sm:px-5 lg:px-6 lg:pt-6">
-            {/* Content is capped so tables stay readable on ultrawide
-                displays instead of stretching to 2500px. */}
-            <div className="mx-auto w-full max-w-[var(--sb-content-max)]">
-              {children}
-            </div>
-          </main>
-
-          <AdminBottomNav />
-        </div>
+        <main className="sb-safe-bottom min-w-0 px-4 pt-5 sm:px-5 lg:px-6 lg:pt-6">
+          {/* Content is capped so tables stay readable on ultrawide
+              displays instead of stretching to 2500px. */}
+          <div className="mx-auto w-full max-w-[var(--sb-content-max)]">
+            {children}
+          </div>
+        </main>
       </div>
+
+      <AdminBottomNav />
     </div>
   );
 }

@@ -143,136 +143,132 @@ export function AdminSidebar({
         id="admin-sidebar"
         aria-label="Admin navigation"
         className={cn(
-          "sb-shell-aside fixed inset-y-0 left-0 z-40 flex w-[min(84vw,300px)] flex-col",
+          "fixed inset-y-0 left-0 z-40 flex w-[min(84vw,300px)] flex-col",
           "border-r border-[var(--sb-border)] bg-[var(--sb-surface-1)]",
-          "transition-transform duration-[var(--sb-duration)] ease-[var(--sb-ease)]",
-          "lg:relative lg:inset-auto lg:z-0 lg:h-full lg:w-auto lg:translate-x-0",
+          "transition-[transform,width] duration-[var(--sb-duration)] ease-[var(--sb-ease)]",
+          "lg:z-30 lg:w-[var(--sb-sidebar-w)] lg:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        {/* Stretches to the full column so the sidebar surface stays
-            continuous, while this inner column is what actually pins. */}
-        <div className="sb-shell-aside-inner flex min-h-0 flex-1 flex-col">
-          {/* ── Brand ─────────────────────────────────────────── */}
-          <div
+        {/* ── Brand ─────────────────────────────────────────── */}
+        <div
+          className={cn(
+            "flex h-[var(--sb-topbar-height)] shrink-0 items-center gap-2.5 border-b border-[var(--sb-border)] px-4",
+            isCollapsed && "lg:justify-center lg:px-0",
+          )}
+        >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--sb-radius-sm)] bg-[var(--sb-accent)] text-[length:var(--sb-text-xs)] font-bold text-[#0a0a0a]">
+            SB
+          </span>
+          <span
             className={cn(
-              "flex h-[var(--sb-topbar-height)] shrink-0 items-center gap-2.5 border-b border-[var(--sb-border)] px-4",
-              isCollapsed && "lg:justify-center lg:px-0",
+              "text-[length:var(--sb-text-md)] font-semibold tracking-tight text-[var(--sb-text)]",
+              isCollapsed && "lg:hidden",
             )}
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--sb-radius-sm)] bg-[var(--sb-accent)] text-[length:var(--sb-text-xs)] font-bold text-[#0a0a0a]">
-              SB
-            </span>
-            <span
-              className={cn(
-                "text-[length:var(--sb-text-md)] font-semibold tracking-tight text-[var(--sb-text)]",
-                isCollapsed && "lg:hidden",
-              )}
-            >
-              StudyBond
-            </span>
+            StudyBond
+          </span>
 
-            <button
-              type="button"
-              onClick={onMobileClose}
-              aria-label="Close navigation menu"
-              className="ml-auto flex h-8 w-8 items-center justify-center rounded-[var(--sb-radius-sm)] text-[var(--sb-text-secondary)] transition-colors hover:bg-[var(--sb-surface-2)] hover:text-[var(--sb-text)] lg:hidden"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onMobileClose}
+            aria-label="Close navigation menu"
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-[var(--sb-radius-sm)] text-[var(--sb-text-secondary)] transition-colors hover:bg-[var(--sb-surface-2)] hover:text-[var(--sb-text)] lg:hidden"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-          {/* ── Nav ───────────────────────────────────────────── */}
-          <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">
-            <div className="space-y-5">
-              {adminNavigation.map((group) => (
-                <div key={group.title}>
-                  <p
-                    className={cn(
-                      "mb-1.5 px-2.5 text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-tertiary)]",
-                      isCollapsed && "lg:hidden",
-                    )}
-                  >
-                    {group.title}
-                  </p>
-
-                  <div className="space-y-0.5">
-                    {group.items.map((item) => {
-                      const isActive = isAdminRouteActive(pathname, item.href);
-                      const isInSection = activeSection?.href === item.href;
-
-                      return (
-                        <div key={item.href} className="space-y-0.5">
-                          <NavRow
-                            item={item}
-                            isActive={isActive}
-                            isCollapsed={isCollapsed}
-                            onNavigate={onMobileClose}
-                          />
-
-                          {/* Sub-screens appear only inside their section. */}
-                          {item.children && isInSection && !isCollapsed
-                            ? item.children.map((child) => (
-                                <NavRow
-                                  key={child.href}
-                                  item={child}
-                                  isChild
-                                  isActive={isAdminRouteActive(
-                                    pathname,
-                                    child.href,
-                                  )}
-                                  isCollapsed={isCollapsed}
-                                  onNavigate={onMobileClose}
-                                />
-                              ))
-                            : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </nav>
-
-          {/* ── Signed-in admin ───────────────────────────────── */}
-          {session?.user ? (
-            <div
-              className={cn(
-                "shrink-0 border-t border-[var(--sb-border)] p-3",
-                isCollapsed && "lg:flex lg:justify-center",
-              )}
-            >
-              <div
-                className={cn(
-                  "flex items-center gap-2.5",
-                  isCollapsed && "lg:gap-0",
-                )}
-                title={isCollapsed ? displayName : undefined}
-              >
-                <span
+        {/* ── Nav ───────────────────────────────────────────── */}
+        <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">
+          <div className="space-y-5">
+            {adminNavigation.map((group) => (
+              <div key={group.title}>
+                <p
                   className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sb-radius-sm)] text-[length:var(--sb-text-xs)] font-semibold",
-                    isSuperadmin
-                      ? "bg-[var(--sb-gold-soft)] text-[var(--sb-gold)]"
-                      : "bg-[var(--sb-accent-soft)] text-[var(--sb-accent-text)]",
+                    "mb-1.5 px-2.5 text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-tertiary)]",
+                    isCollapsed && "lg:hidden",
                   )}
                 >
-                  {initials}
-                </span>
+                  {group.title}
+                </p>
 
-                <div className={cn("min-w-0", isCollapsed && "lg:hidden")}>
-                  <p className="truncate text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
-                    {displayName}
-                  </p>
-                  <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-                    {isSuperadmin ? "Superadmin" : "Admin"}
-                  </p>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const isActive = isAdminRouteActive(pathname, item.href);
+                    const isInSection = activeSection?.href === item.href;
+
+                    return (
+                      <div key={item.href} className="space-y-0.5">
+                        <NavRow
+                          item={item}
+                          isActive={isActive}
+                          isCollapsed={isCollapsed}
+                          onNavigate={onMobileClose}
+                        />
+
+                        {/* Sub-screens appear only inside their section. */}
+                        {item.children && isInSection && !isCollapsed
+                          ? item.children.map((child) => (
+                              <NavRow
+                                key={child.href}
+                                item={child}
+                                isChild
+                                isActive={isAdminRouteActive(
+                                  pathname,
+                                  child.href,
+                                )}
+                                isCollapsed={isCollapsed}
+                                onNavigate={onMobileClose}
+                              />
+                            ))
+                          : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
+            ))}
+          </div>
+        </nav>
+
+        {/* ── Signed-in admin ───────────────────────────────── */}
+        {session?.user ? (
+          <div
+            className={cn(
+              "shrink-0 border-t border-[var(--sb-border)] p-3",
+              isCollapsed && "lg:flex lg:justify-center",
+            )}
+          >
+            <div
+              className={cn(
+                "flex items-center gap-2.5",
+                isCollapsed && "lg:gap-0",
+              )}
+              title={isCollapsed ? displayName : undefined}
+            >
+              <span
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--sb-radius-sm)] text-[length:var(--sb-text-xs)] font-semibold",
+                  isSuperadmin
+                    ? "bg-[var(--sb-gold-soft)] text-[var(--sb-gold)]"
+                    : "bg-[var(--sb-accent-soft)] text-[var(--sb-accent-text)]",
+                )}
+              >
+                {initials}
+              </span>
+
+              <div className={cn("min-w-0", isCollapsed && "lg:hidden")}>
+                <p className="truncate text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                  {displayName}
+                </p>
+                <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  {isSuperadmin ? "Superadmin" : "Admin"}
+                </p>
+              </div>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </aside>
     </>
   );

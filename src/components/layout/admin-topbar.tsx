@@ -38,7 +38,7 @@ export function AdminTopbar({
   const isDesktopCollapsed = desktopSidebarMode === "collapsed";
 
   return (
-    <header className="relative z-20 flex h-[var(--sb-topbar-height)] shrink-0 items-center gap-3 border-b border-[var(--sb-border)] bg-[var(--sb-bg)] px-3 sm:px-4 lg:px-6">
+    <header className="sticky top-0 z-20 flex h-[var(--sb-topbar-height)] shrink-0 items-center gap-3 border-b border-[var(--sb-border)] bg-[var(--sb-bg)] px-3 sm:px-4 lg:px-6">
       <button
         type="button"
         aria-controls="admin-sidebar"
