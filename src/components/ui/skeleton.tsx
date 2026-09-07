@@ -4,13 +4,16 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("sb-skeleton", className)} aria-hidden="true" />;
 }
 
-/** Placeholder that matches the real StatCard box, so nothing jumps on load. */
+/**
+ * A cell inside StatGrid's panel, so it carries no border or radius of its
+ * own and matches the loaded cell's rhythm — nothing shifts on load.
+ */
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="mt-3 h-8 w-20" />
-      <Skeleton className="mt-2 h-3 w-32" />
+    <div className="bg-[var(--sb-surface-1)] p-3.5 sm:p-4">
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="mt-2 h-6 w-16" />
+      <Skeleton className="mt-2 h-3 w-24" />
     </div>
   );
 }

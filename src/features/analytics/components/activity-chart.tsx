@@ -124,11 +124,11 @@ export function ActivityChart({
         </p>
       ) : (
         <div className="mt-5">
-          <div className="flex gap-3">
+          <div className="flex gap-1.5">
             {/* Y axis — recessive, four labels, no box */}
             <div
               aria-hidden="true"
-              className="sb-nums flex h-44 w-9 shrink-0 flex-col justify-between text-right text-[10px] text-[var(--sb-text-tertiary)]"
+              className="sb-nums flex h-44 w-auto min-w-5 shrink-0 flex-col justify-between text-right text-[10px] text-[var(--sb-text-tertiary)]"
             >
               {[...gridLines].reverse().map((ratio) => (
                 <span key={ratio} className="leading-none">
