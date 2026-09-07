@@ -304,11 +304,20 @@ select:focus-visible {
 }
 
 @media (max-height: 760px) and (min-width: 1024px) {
-  /* Keep the sidebar on screen while the document scrolls past it. */
+  /* The sidebar shell stretches the whole column so its surface and right
+     border run the full height of the page. Pinning the shell itself left
+     it stopping partway down with dead space beneath it. */
   .sb-shell-aside {
+    align-self: stretch;
+    height: auto;
+    transform: none;
+  }
+
+  /* The part that actually stays on screen. */
+  .sb-shell-aside-inner {
     position: sticky;
     top: 0;
-    align-self: start;
+    flex: none;
     height: 100dvh;
   }
 
