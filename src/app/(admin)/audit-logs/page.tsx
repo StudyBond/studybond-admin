@@ -7,11 +7,12 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { Field, FieldShell } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar, FilterChips, Pagination } from "@/components/ui/toolbar";
+import { AuditLogDetailsDialog } from "@/features/audit-logs/components/audit-log-details-dialog";
 import { useAdminAuditLogs } from "@/features/audit-logs/hooks/use-admin-audit-logs";
 import type { AdminAuditLogEntry } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/utils/format";
 import { ScrollText } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 /**
  * Admin audit trail.
@@ -80,6 +81,8 @@ const ACTION_LABELS: Record<string, string> = {
   STEP_UP_CHALLENGE_REQUESTED: "Step-up requested",
   STEP_UP_CHALLENGE_VERIFIED: "Step-up verified",
   STEP_UP_CHALLENGE_FAILED: "Step-up failed",
+  QUESTION_CREATED: "Question created",
+  QUESTIONS_BULK_UPLOADED: "Questions bulk uploaded",
   QUESTION_EDITED: "Question edited",
   QUESTION_DELETED: "Question deleted",
   REPORT_REVIEWED: "Report reviewed",
@@ -118,6 +121,8 @@ const ACTION_OPTIONS = [
   { label: "Security · Step-up failed", value: "STEP_UP_CHALLENGE_FAILED" },
   { label: "Security · Unauthorized attempt", value: "UNAUTHORIZED_ACTION_ATTEMPT" },
 
+  { label: "Content · Question created", value: "QUESTION_CREATED" },
+  { label: "Content · Questions bulk uploaded", value: "QUESTIONS_BULK_UPLOADED" },
   { label: "Content · Question edited", value: "QUESTION_EDITED" },
   { label: "Content · Question deleted", value: "QUESTION_DELETED" },
   { label: "Content · Report reviewed", value: "REPORT_REVIEWED" },
@@ -157,6 +162,9 @@ export default function AuditLogsPage() {
   const [targetType, setTargetType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedLog, setSelectedLog] = useState<AdminAuditLogEntry | null>(null);
+  /* Stable so the dialog's focus effect runs once per open, not every render. */
+  const closeDetails = useCallback(() => setSelectedLog(null), []);
 
   /** Any filter change returns to page 1 — page 7 of a new result set is a dead end. */
   function applyFilter(set: (value: string) => void) {
@@ -268,13 +276,29 @@ export default function AuditLogsPage() {
           <span className="text-[var(--sb-text-tertiary)]">—</span>
         ),
     },
+    {
+      key: "details",
+      header: "Details",
+      width: "6rem",
+      cell: (log) => (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setSelectedLog(log)}
+          aria-label={`View details for ${actionLabel(log.action)} on ${formatDateTime(log.createdAt)}`}
+        >
+          View
+        </Button>
+      ),
+    },
   ];
 
   return (
     <div className="sb-enter space-y-6 pb-2">
       <PageHeader
         title="Audit logs"
-        description="Every privileged action taken in this console, newest first. Red means an attempt was blocked; amber means something privileged or destructive went through."
+        description="Every privileged action taken in this console, newest first. Red means an attempt was blocked; amber means something privileged or destructive went through. Select View on a row to see what was recorded with it."
       />
 
       <div className="space-y-3">
@@ -370,6 +394,15 @@ export default function AuditLogsPage() {
           total={meta.total}
           pageSize={meta.limit}
           onPageChange={setPage}
+        />
+      ) : null}
+
+      {selectedLog ? (
+        <AuditLogDetailsDialog
+          log={selectedLog}
+          label={actionLabel(selectedLog.action)}
+          tone={actionTone(selectedLog.action)}
+          onClose={closeDetails}
         />
       ) : null}
     </div>
