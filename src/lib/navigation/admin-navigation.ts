@@ -147,6 +147,14 @@ export const adminNavigation: AdminNavGroup[] = [
         label: "Institutions",
         icon: Building2,
         description: "Exam rules and subjects for each institution",
+        children: [
+          {
+            href: "/institutions/subjects",
+            label: "Subject catalogue",
+            icon: LibraryBig,
+            description: "Every subject any institution can offer",
+          },
+        ],
       },
       {
         href: "/audit-logs",
