@@ -300,3 +300,60 @@ export type AdminCreateNotificationAnnouncementPayload = {
   startAt: string;
   expiresAt?: string | null;
 };
+
+/* ── Institution and subject configuration ────────────────────── */
+
+export type AdminInstitutionListResponse = JsonResponse<
+  "/api/admin/institutions",
+  "get",
+  200
+>;
+export type AdminInstitutionDetailResponse = JsonResponse<
+  "/api/admin/institutions/{id}",
+  "get",
+  200
+>;
+export type AdminInstitutionConfigMutationResponse = JsonResponse<
+  "/api/admin/institutions/{id}/exam-config",
+  "patch",
+  200
+>;
+export type AdminInstitutionSubjectsMutationResponse = JsonResponse<
+  "/api/admin/institutions/{id}/subjects",
+  "put",
+  200
+>;
+export type AdminSubjectCatalogueResponse = JsonResponse<
+  "/api/admin/subjects",
+  "get",
+  200
+>;
+export type AdminSubjectMutationResponse = JsonResponse<
+  "/api/admin/subjects",
+  "post",
+  200
+>;
+
+export type AdminInstitutionExamConfigInput = JsonRequestBody<
+  "/api/admin/institutions/{id}/exam-config",
+  "patch"
+>;
+export type AdminInstitutionSubjectsInput = JsonRequestBody<
+  "/api/admin/institutions/{id}/subjects",
+  "put"
+>;
+export type AdminCreateSubjectInput = JsonRequestBody<"/api/admin/subjects", "post">;
+export type AdminUpdateSubjectInput = JsonRequestBody<
+  "/api/admin/subjects/{id}",
+  "patch"
+>;
+
+/** One row of the institution list. */
+export type AdminInstitutionListItem =
+  AdminInstitutionListResponse["institutions"][number];
+/** One subject as a single institution uses it. */
+export type AdminInstitutionSubject =
+  AdminInstitutionDetailResponse["subjects"][number];
+/** One subject in the shared catalogue. */
+export type AdminSubjectCatalogueItem =
+  AdminSubjectCatalogueResponse["subjects"][number];

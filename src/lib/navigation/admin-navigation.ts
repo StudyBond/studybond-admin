@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Building2,
   ChartNoAxesCombined,
   FileWarning,
   Gift,
@@ -142,6 +143,12 @@ export const adminNavigation: AdminNavGroup[] = [
     title: "System",
     items: [
       {
+        href: "/institutions",
+        label: "Institutions",
+        icon: Building2,
+        description: "Exam rules and subjects for each institution",
+      },
+      {
         href: "/audit-logs",
         label: "Audit logs",
         icon: ScrollText,
@@ -151,7 +158,7 @@ export const adminNavigation: AdminNavGroup[] = [
         href: "/settings",
         label: "Settings",
         icon: Settings,
-        description: "Institutions, announcements, and configuration",
+        description: "Announcements, email, and system configuration",
       },
     ],
   },

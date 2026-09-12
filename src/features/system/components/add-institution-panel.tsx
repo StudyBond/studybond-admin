@@ -32,7 +32,12 @@ import { toast } from "sonner";
  *
  * 4. `queryClient` was created and never used.
  */
-export function AddInstitutionPanel() {
+export function AddInstitutionPanel({
+  onCreated,
+}: {
+  /** Lets a list on the same page refetch itself after a new row lands. */
+  onCreated?: () => void;
+} = {}) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -69,6 +74,7 @@ export function AddInstitutionPanel() {
       toast.success(`${payload.institution.code} added`);
       resetForm();
       router.refresh();
+      onCreated?.();
     },
     onError: (error) => {
       toast.error("Could not add this institution", {

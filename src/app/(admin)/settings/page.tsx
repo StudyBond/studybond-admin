@@ -11,7 +11,6 @@ import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { useAdminSystemHealth } from "@/features/analytics/hooks/use-admin-system-health";
-import { AddInstitutionPanel } from "@/features/system/components/add-institution-panel";
 import { NotificationAnnouncementsPanel } from "@/features/system/components/notification-announcements-panel";
 import { useAdminSystemSettings } from "@/features/system/hooks/use-admin-system-settings";
 import { adminSystemApi } from "@/lib/api/admin-system";
@@ -206,7 +205,6 @@ export default function SettingsPage() {
             ) : null}
           </div>
 
-          <AddInstitutionPanel />
         </section>
 
         {/* ── Runtime ─────────────────────────────────────────── */}
