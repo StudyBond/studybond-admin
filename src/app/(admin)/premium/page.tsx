@@ -427,8 +427,8 @@ export default function PremiumPage() {
         </section>
 
         {/* ── Selected account — sticky, desktop only ─────────── */}
-        <aside className="hidden min-w-0 xl:block">
-          <div className="sb-sticky-col sticky top-0 space-y-3">
+        <aside className="sb-sticky-col hidden min-w-0 xl:block">
+          <div className="space-y-3">
             <SectionTitle title="Selected account" />
 
             {selectedUser ? (

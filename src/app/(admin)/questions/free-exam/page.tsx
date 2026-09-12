@@ -296,7 +296,7 @@ export default function FreeExamPage() {
           Sticky, so it stays reachable while working down a long
           list. Previously it scrolled away with the page. */}
       {selectedCount > 0 ? (
-        <div className="sticky top-0 z-30 flex flex-col gap-3 rounded-[var(--sb-radius-lg)] border border-[var(--sb-accent-ring)] bg-[var(--sb-surface-2)] p-3 shadow-[var(--sb-shadow)] sm:flex-row sm:items-center sm:justify-between sm:p-4">
+        <div className="sticky top-[var(--sb-topbar-height)] z-30 flex flex-col gap-3 rounded-[var(--sb-radius-lg)] border border-[var(--sb-accent-ring)] bg-[var(--sb-surface-2)] p-3 shadow-[var(--sb-shadow)] sm:flex-row sm:items-center sm:justify-between sm:p-4">
           <p className="text-[length:var(--sb-text-base)] font-medium text-[var(--sb-text)]">
             {formatInteger(selectedCount)} question
             {selectedCount === 1 ? "" : "s"} selected

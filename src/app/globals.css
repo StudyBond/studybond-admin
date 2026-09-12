@@ -263,15 +263,27 @@ select:focus-visible {
   }
 }
 
-/* A sticky column whose content is taller than the area it sticks inside
-   has an unreachable bottom: the top stays pinned, so the overflow never
-   scrolls into view at any scroll position. Admins hit this on the question
-   form, where the classification panel plus Save and Delete ran past a
-   laptop viewport and only appeared once the window went full screen.
-   Cap it to the scrollport and let it scroll on its own. Only applies where
-   the column is actually sticky, which is desktop. */
+/* A side panel sits beside a much longer column. As a grid item it would
+   stretch to that column's height, so its box ran the whole length of the
+   page instead of ending with its content — the same thing the sidebar used
+   to do. align-self: start ends the box at its content, and it has to be on
+   the grid item itself, not on an inner wrapper whose parent is a plain
+   block.
+
+   It pins below the topbar, which is sticky and one topbar tall, rather than
+   at the very top of the viewport where it would slide underneath it.
+
+   The height cap is only a fallback, for a panel taller than the space it
+   pins in. Without it the bottom of such a panel is unreachable, because the
+   top stays pinned at every scroll position. */
+.sb-sticky-col {
+  align-self: start;
+}
+
 @media (min-width: 1024px) {
   .sb-sticky-col {
+    position: sticky;
+    top: calc(var(--sb-topbar-height) + 1rem);
     max-height: calc(100dvh - var(--sb-topbar-height) - 2rem);
     overflow-y: auto;
     overscroll-behavior: contain;
