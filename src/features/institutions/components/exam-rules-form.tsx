@@ -44,7 +44,7 @@ const NUMBER_GROUPS: Array<{
     title: "Free plan",
     description: "What somebody gets before paying.",
     fields: [
-      { key: "freeRealExamCount", label: "Free subject credits" },
+      { key: "freeRealExamCount", label: "Free subject credits", hint: "One subject = one credit" },
       { key: "freeFullRealTotalAttempts", label: "Free full exam attempts" },
       { key: "freeQuestionsPerSubject", label: "Free questions per subject" },
     ],
@@ -53,7 +53,7 @@ const NUMBER_GROUPS: Array<{
     title: "Premium",
     description: "Daily limits and the gate on duels.",
     fields: [
-      { key: "premiumDailyRealExamLimit", label: "Daily subject credits" },
+      { key: "premiumDailyRealExamLimit", label: "Daily subject credits", hint: "One subject = one credit" },
       { key: "collaborationGateRealExams", label: "Real exams before duels unlock" },
     ],
   },
