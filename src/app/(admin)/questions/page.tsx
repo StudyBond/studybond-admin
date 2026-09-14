@@ -13,6 +13,7 @@ import { FilterBar, Pagination } from "@/components/ui/toolbar";
 import { useAdminOverview } from "@/features/analytics/hooks/use-admin-overview";
 import { useAdminQuestions } from "@/features/questions/hooks/use-admin-questions";
 import { useQuestionYears } from "@/features/questions/hooks/use-question-years";
+import type { QuestionSearchScope } from "@/lib/api/types";
 import { formatDate, formatInteger } from "@/lib/utils/format";
 import {
   getQuestionPoolLabel,
@@ -53,9 +54,23 @@ import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 20;
 
+/**
+ * Where a search looks. The backend compares against a flattened copy of the
+ * text, so LaTeX and markdown never have to be typed — this only narrows
+ * which fields are compared, for when a broad search gets noisy.
+ */
+const SEARCH_SCOPE_OPTIONS: Array<{ label: string; value: QuestionSearchScope }> =
+  [
+    { label: "Everywhere", value: "all" },
+    { label: "Question only", value: "question" },
+    { label: "Answer options", value: "options" },
+    { label: "Explanation", value: "explanation" },
+  ];
+
 export default function QuestionsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [searchIn, setSearchIn] = useState<QuestionSearchScope>("all");
   const [subject, setSubject] = useState("");
   const [questionPool, setQuestionPool] = useState("");
   const [questionType, setQuestionType] = useState("");
@@ -90,6 +105,7 @@ export default function QuestionsPage() {
     page,
     limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
+    searchIn: debouncedSearch ? searchIn : undefined,
     subject: debouncedSubject || undefined,
     questionPool: questionPool || undefined,
     questionType: questionType || undefined,
@@ -106,6 +122,7 @@ export default function QuestionsPage() {
 
   function clearFilters() {
     setSearch("");
+    setSearchIn("all");
     setSubject("");
     setQuestionPool("");
     setQuestionType("");
@@ -256,11 +273,27 @@ export default function QuestionsPage() {
               setSearch(event.target.value);
               setPage(1);
             }}
-            placeholder="Search question text"
-            aria-label="Search question text"
+            placeholder="Search questions, options, explanations"
+            aria-label="Search the question bank"
           />
         }
       >
+        {/* Only useful once something is being searched. */}
+        {search.trim() ? (
+          <FieldShell label="Search in">
+            <CustomSelect
+              aria-label="Choose which parts of a question to search"
+              value={searchIn}
+              onValueChange={(value) => {
+                setSearchIn(value as QuestionSearchScope);
+                setPage(1);
+              }}
+              options={SEARCH_SCOPE_OPTIONS}
+              placeholder="Everywhere"
+            />
+          </FieldShell>
+        ) : null}
+
         <FieldShell label="Subject">
           <Field
             value={subject}

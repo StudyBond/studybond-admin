@@ -1,6 +1,7 @@
 "use client";
 
 import { questionsApi } from "@/lib/api/questions";
+import type { QuestionSearchScope } from "@/lib/api/types";
 import { useQuery } from "@tanstack/react-query";
 
 export type AdminQuestionsFilters = {
@@ -10,6 +11,8 @@ export type AdminQuestionsFilters = {
   questionType?: string;
   questionPool?: string;
   search?: string;
+  /** Which parts of a question `search` looks through. Defaults to all. */
+  searchIn?: QuestionSearchScope;
   page?: number;
   limit?: number;
   hasImage?: boolean;

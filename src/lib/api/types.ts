@@ -211,7 +211,20 @@ export type QuestionListItem = WithContract<RawQuestionListItem, { year?: number
 export type QuestionListResponse = Omit<RawQuestionListResponse, "questions"> & {
   questions: QuestionListItem[];
 };
-export type QuestionListParams = WithContract<QueryParams<"/api/questions/", "get">, { year?: number }>;
+/**
+ * Which parts of a question a search looks through. Mirrors the backend's
+ * `searchIn` query parameter.
+ */
+export type QuestionSearchScope =
+  | "all"
+  | "question"
+  | "options"
+  | "explanation";
+
+export type QuestionListParams = WithContract<
+  QueryParams<"/api/questions/", "get">,
+  { year?: number; searchIn?: QuestionSearchScope }
+>;
 export type QuestionAssetKind = PathParams<
   "/api/questions/assets/upload/{kind}",
   "post"

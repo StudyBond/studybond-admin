@@ -21,6 +21,10 @@ export const questionsApi = {
     if (params?.questionType) search.set("questionType", params.questionType);
     if (params?.questionPool) search.set("questionPool", params.questionPool);
     if (params?.search) search.set("search", params.search);
+    // "all" is the backend default, so leave it off the URL.
+    if (params?.searchIn && params.searchIn !== "all") {
+      search.set("searchIn", params.searchIn);
+    }
     if (params?.page) search.set("page", String(params.page));
     if (params?.limit) search.set("limit", String(params.limit));
     if (typeof params?.hasImage === "boolean") search.set("hasImage", String(params.hasImage));
