@@ -10,7 +10,7 @@ import type {
   AdminInstitutionExamConfigInput,
 } from "@/lib/api/types";
 import { Save } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type ExamConfig = AdminInstitutionDetailResponse["examConfig"];
 
@@ -99,7 +99,7 @@ const SOURCE_FIELDS: Array<{ key: keyof ExamConfig; label: string }> = [
   { key: "defaultCollabSource", label: "Duel default" },
 ];
 
-export function ExamRulesForm({
+function ExamRulesFormFields({
   examConfig,
   canEdit,
   disabledReason,
@@ -113,12 +113,6 @@ export function ExamRulesForm({
   onSave: (changes: AdminInstitutionExamConfigInput) => void;
 }) {
   const [draft, setDraft] = useState<Record<string, string | number | boolean>>({});
-
-  /* Reset the draft whenever the saved config changes, so the form always
-     shows what is actually stored rather than a stale edit. */
-  useEffect(() => {
-    setDraft({});
-  }, [examConfig]);
 
   function valueOf(key: keyof ExamConfig) {
     return key in draft ? draft[key as string] : (examConfig[key] as string | number | boolean);
@@ -263,5 +257,23 @@ export function ExamRulesForm({
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * The form always shows what is stored, never a stale edit. When the saved
+ * rules change, it starts again with an empty draft.
+ *
+ * This used to be an effect that called setDraft({}) after each change. That
+ * drew the form twice: once with the old draft, then again empty. A key
+ * does it in one go. The key is built from the rules themselves, not the
+ * object, so a refetch that brings back the same rules leaves whatever the
+ * admin is typing alone.
+ */
+export function ExamRulesForm(
+  props: React.ComponentProps<typeof ExamRulesFormFields>,
+) {
+  return (
+    <ExamRulesFormFields key={JSON.stringify(props.examConfig)} {...props} />
   );
 }
