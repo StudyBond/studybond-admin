@@ -200,7 +200,23 @@ type RawBulkUploadResponse = JsonResponse<"/api/questions/bulk", "post", 201>;
 
 export type QuestionPayload = WithContract<JsonRequestBody<"/api/questions/", "post">, { year?: number | null; isFeaturedFree?: boolean }>;
 export type QuestionRecord = WithContract<RawQuestionRecord, { year?: number | null; isFeaturedFree?: boolean }>;
-export type QuestionListItem = WithContract<RawQuestionListItem, { year?: number | null; isFeaturedFree?: boolean }>;
+export type QuestionListItem = WithContract<
+  RawQuestionListItem,
+  {
+    year?: number | null;
+    isFeaturedFree?: boolean;
+    /**
+     * Where this question matched the search. Only sent when the match is
+     * not in the question text, which the row already shows.
+     */
+    searchMatch?: {
+      field: "option" | "explanation" | "notes";
+      label: string;
+      snippet: string;
+      term: string;
+    };
+  }
+>;
 /**
  * The list response has to carry the corrected item type, not the raw one.
  * `year` and `isFeaturedFree` are returned by the backend but missing from

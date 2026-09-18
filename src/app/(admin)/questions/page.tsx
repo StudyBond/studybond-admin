@@ -67,6 +67,37 @@ const SEARCH_SCOPE_OPTIONS: Array<{ label: string; value: QuestionSearchScope }>
     { label: "Explanation", value: "explanation" },
   ];
 
+/**
+ * Marks the matched word inside a snippet. The comparison ignores case:
+ * the snippet keeps the text as it was written, while the search word is
+ * always lowercase.
+ */
+function markTerm(snippet: string, term: string): React.ReactNode {
+  if (!term) return snippet;
+
+  const pieces: React.ReactNode[] = [];
+  const haystack = snippet.toLowerCase();
+  let from = 0;
+
+  for (;;) {
+    const at = haystack.indexOf(term, from);
+    if (at < 0) break;
+    if (at > from) pieces.push(snippet.slice(from, at));
+    pieces.push(
+      <mark
+        key={at}
+        className="rounded-[2px] bg-[var(--sb-accent-ring)] px-0.5 text-[var(--sb-text)]"
+      >
+        {snippet.slice(at, at + term.length)}
+      </mark>,
+    );
+    from = at + term.length;
+  }
+
+  pieces.push(snippet.slice(from));
+  return pieces;
+}
+
 export default function QuestionsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -138,6 +169,18 @@ export default function QuestionsPage() {
       cell: (question) => (
         <div className="min-w-0">
           <p className="line-clamp-2">{question.questionText}</p>
+
+          {/* Only sent when the search words are not in the text above, so
+              a row never repeats what it already shows. */}
+          {question.searchMatch ? (
+            <p className="mt-1 line-clamp-2 text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
+              <span className="text-[var(--sb-text-tertiary)]">
+                {question.searchMatch.label} ·{" "}
+              </span>
+              {markTerm(question.searchMatch.snippet, question.searchMatch.term)}
+            </p>
+          ) : null}
+
           <p className="sb-nums mt-1 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
             #{question.id}
           </p>
