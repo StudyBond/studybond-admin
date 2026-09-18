@@ -338,6 +338,53 @@ export default function QuestionsPage() {
         </FieldShell>
       </FilterBar>
 
+      {/* Says when the list is not a plain match for what was typed, so a
+          corrected or word-by-word result never passes for an ordinary one. */}
+      {questionsQuery.data?.searchMode === "corrected" ? (
+        <div role="status" className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] px-3 py-2 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+          <p>
+            No matches for{" "}
+            <span className="font-medium text-[var(--sb-text)]">
+              &ldquo;{debouncedSearch}&rdquo;
+            </span>
+            . Showing results for{" "}
+            <span className="font-medium text-[var(--sb-text)]">
+              &ldquo;{questionsQuery.data.correctedTerm}&rdquo;
+            </span>
+            .
+          </p>
+          {questionsQuery.data.alternativeTerms?.length ? (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                Also try:
+              </span>
+              {questionsQuery.data.alternativeTerms.map((alternative) => (
+                <Button
+                  key={alternative}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setSearch(alternative);
+                    setPage(1);
+                  }}
+                >
+                  {alternative}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : questionsQuery.data?.searchMode === "allWords" ? (
+        <p role="status" className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] px-3 py-2 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+          No exact match for the phrase{" "}
+          <span className="font-medium text-[var(--sb-text)]">
+            &ldquo;{debouncedSearch}&rdquo;
+          </span>
+          . Showing questions that contain all its main words.
+        </p>
+      ) : null}
+
       <DataTable
         caption="Question bank"
         items={questions}

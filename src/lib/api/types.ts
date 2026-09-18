@@ -210,6 +210,18 @@ export type QuestionListItem = WithContract<RawQuestionListItem, { year?: number
  */
 export type QuestionListResponse = Omit<RawQuestionListResponse, "questions"> & {
   questions: QuestionListItem[];
+  /**
+   * Only present when a search was made. Optional so an older backend that
+   * does not send them still type-checks.
+   * - exact: these match the search as typed.
+   * - allWords: the phrase found nothing, so these contain every word.
+   * - corrected: misspelled words were corrected, then every word matched.
+   */
+  searchMode?: "exact" | "allWords" | "corrected";
+  /** The search after correction, when searchMode is "corrected". */
+  correctedTerm?: string;
+  /** Other close searches to offer, when searchMode is "corrected". */
+  alternativeTerms?: string[];
 };
 /**
  * Which parts of a question a search looks through. Mirrors the backend's
