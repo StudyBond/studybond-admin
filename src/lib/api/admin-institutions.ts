@@ -12,6 +12,38 @@ import type {
   AdminUpdateSubjectInput,
 } from "@/lib/api/types";
 
+/**
+ * Whether students can see and pick a board.
+ *
+ * HIDDEN still accepts questions from the content team, so a new exam can be
+ * built in full before anyone can find it.
+ */
+export type AdminInstitutionStudentStatus = "HIDDEN" | "COMING_SOON" | "OPEN";
+
+export type AdminUpdateInstitutionInput = {
+  name?: string;
+  studentStatus?: AdminInstitutionStudentStatus;
+};
+
+/**
+ * Declared here rather than in lib/api/types.ts because another session is
+ * editing that file. It moves there once the generated contract is resynced.
+ */
+export type AdminInstitutionMutationResponse = {
+  success: boolean;
+  message: string;
+  institution: {
+    id: number;
+    code: string;
+    name: string;
+    slug: string;
+    isActive: boolean;
+    studentStatus: AdminInstitutionStudentStatus;
+    createdAt: string;
+  };
+  warnings: string[];
+};
+
 type SensitiveHeadersOptions = {
   stepUpToken?: string | null;
   idempotencyKey?: string;
@@ -39,6 +71,21 @@ export const adminInstitutionsApi = {
   get(institutionId: number) {
     return apiClient<AdminInstitutionDetailResponse>(
       `/api/admin/institutions/${institutionId}`,
+    );
+  },
+
+  update(
+    institutionId: number,
+    payload: AdminUpdateInstitutionInput,
+    headers?: SensitiveHeadersOptions,
+  ) {
+    return apiClient<AdminInstitutionMutationResponse>(
+      `/api/admin/institutions/${institutionId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+        headers: buildSensitiveHeaders(headers),
+      },
     );
   },
 

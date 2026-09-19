@@ -8,13 +8,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
+import { BoardStatusControl } from "@/features/institutions/components/board-status-control";
 import { ExamRulesForm } from "@/features/institutions/components/exam-rules-form";
 import { InstitutionSubjectsEditor } from "@/features/institutions/components/institution-subjects-editor";
 import {
   useAdminInstitution,
   useAdminSubjectCatalogue,
 } from "@/features/institutions/hooks/use-admin-institutions";
-import { adminInstitutionsApi } from "@/lib/api/admin-institutions";
+import {
+  adminInstitutionsApi,
+  type AdminInstitutionStudentStatus,
+} from "@/lib/api/admin-institutions";
 import type {
   AdminInstitutionExamConfigInput,
   AdminInstitutionSubjectsInput,
@@ -164,6 +168,20 @@ export default function InstitutionDetailPage() {
           </Button>
         </div>
       ) : null}
+
+      <BoardStatusControl
+        institutionId={institutionId}
+        /* The generated contract has not been resynced yet, so this field is
+           read defensively. It becomes a plain property once it has. */
+        currentStatus={
+          ((detail.institution as { studentStatus?: AdminInstitutionStudentStatus })
+            .studentStatus ?? "OPEN")
+        }
+        canEdit={canEdit}
+        disabledReason={disabledReason}
+        stepUpToken={stepUp?.stepUpToken ?? null}
+        onSaved={refresh}
+      />
 
       <ExamRulesForm
         examConfig={detail.examConfig}
