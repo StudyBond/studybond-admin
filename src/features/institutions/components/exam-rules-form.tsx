@@ -93,6 +93,23 @@ const SOURCE_OPTIONS = [
   { label: "Mixed", value: "MIXED" },
 ];
 
+/**
+ * Keys are plain strings, not keyof ExamConfig, because trackName is not in
+ * the generated contract yet. It is in the API response at runtime.
+ */
+const IDENTITY_FIELDS: Array<{ key: string; label: string; hint: string }> = [
+  {
+    key: "trackName",
+    label: "Exam name",
+    hint: 'What this exam is called, e.g. "Post-UTME" or "UTME"',
+  },
+  {
+    key: "trackCode",
+    label: "Exam code",
+    hint: "Machine name, saved uppercase, e.g. UTME",
+  },
+];
+
 const SOURCE_FIELDS: Array<{ key: keyof ExamConfig; label: string }> = [
   { key: "defaultFullExamSource", label: "Full exam default" },
   { key: "defaultPartialExamSource", label: "Partial exam default" },
@@ -161,6 +178,33 @@ function ExamRulesFormFields({
           {disabledReason}
         </p>
       ) : null}
+
+      <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+        <h3 className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+          What this exam is called
+        </h3>
+        <p className="mt-1 text-[length:var(--sb-text-base)] text-[var(--sb-text-secondary)]">
+          JAMB runs the UTME. A university runs its own Post-UTME. A new board
+          starts as Post-UTME, so set this or it will describe itself wrongly.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {IDENTITY_FIELDS.map((field) => (
+            <Field
+              key={field.key}
+              type="text"
+              label={field.label}
+              hint={field.hint}
+              id={`config-${field.key}`}
+              disabled={!canEdit || isSaving}
+              value={String(valueOf(field.key as keyof ExamConfig) ?? "")}
+              onChange={(event) =>
+                setValue(field.key as keyof ExamConfig, event.target.value)
+              }
+            />
+          ))}
+        </div>
+      </div>
 
       {NUMBER_GROUPS.map((group) => (
         <div

@@ -91,7 +91,12 @@ export const adminInstitutionsApi = {
 
   updateExamConfig(
     institutionId: number,
-    payload: AdminInstitutionExamConfigInput,
+    /* trackName is not in the generated contract yet, and another session is
+       mid-edit on that file, so it is widened here instead. */
+    payload: AdminInstitutionExamConfigInput & {
+      trackName?: string;
+      trackCode?: string;
+    },
     headers?: SensitiveHeadersOptions,
   ) {
     return apiClient<AdminInstitutionConfigMutationResponse>(
