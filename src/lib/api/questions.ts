@@ -20,6 +20,7 @@ export const questionsApi = {
     if (params?.topic) search.set("topic", params.topic);
     if (params?.questionType) search.set("questionType", params.questionType);
     if (params?.questionPool) search.set("questionPool", params.questionPool);
+    if (params?.reviewStatus) search.set("reviewStatus", params.reviewStatus);
     if (params?.search) search.set("search", params.search);
     // "all" is the backend default, so leave it off the URL.
     if (params?.searchIn && params.searchIn !== "all") {

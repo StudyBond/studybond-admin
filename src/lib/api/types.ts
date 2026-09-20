@@ -251,7 +251,7 @@ export type QuestionSearchScope =
 
 export type QuestionListParams = WithContract<
   QueryParams<"/api/questions/", "get">,
-  { year?: number; searchIn?: QuestionSearchScope }
+  { year?: number; searchIn?: QuestionSearchScope; reviewStatus?: string }
 >;
 export type QuestionAssetKind = PathParams<
   "/api/questions/assets/upload/{kind}",

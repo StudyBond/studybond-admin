@@ -20,6 +20,7 @@ import {
   getQuestionTypeLabel,
   QUESTION_POOL_OPTIONS,
   QUESTION_TYPE_OPTIONS,
+  REVIEW_STATUS_OPTIONS,
 } from "@/lib/utils/questions";
 import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
 import { FileUp, Library, Plus } from "lucide-react";
@@ -105,6 +106,7 @@ export default function QuestionsPage() {
   const [subject, setSubject] = useState("");
   const [questionPool, setQuestionPool] = useState("");
   const [questionType, setQuestionType] = useState("");
+  const [reviewStatus, setReviewStatus] = useState("");
   const [year, setYear] = useState("");
 
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
@@ -140,6 +142,7 @@ export default function QuestionsPage() {
     subject: debouncedSubject || undefined,
     questionPool: questionPool || undefined,
     questionType: questionType || undefined,
+    reviewStatus: reviewStatus || undefined,
     year: year ? Number(year) : undefined,
   });
 
@@ -148,7 +151,12 @@ export default function QuestionsPage() {
   const pagination = questionsQuery.data?.meta;
 
   const hasActiveFilters = Boolean(
-    debouncedSearch || debouncedSubject || questionPool || questionType || year,
+    debouncedSearch ||
+      debouncedSubject ||
+      questionPool ||
+      questionType ||
+      reviewStatus ||
+      year,
   );
 
   function clearFilters() {
@@ -157,6 +165,7 @@ export default function QuestionsPage() {
     setSubject("");
     setQuestionPool("");
     setQuestionType("");
+    setReviewStatus("");
     setYear("");
     setPage(1);
   }
@@ -222,6 +231,19 @@ export default function QuestionsPage() {
       width: "5.5rem",
       cell: (question) =>
         question.year ?? <span className="text-[var(--sb-text-tertiary)]">—</span>,
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: "7rem",
+      cell: (question) =>
+        question.reviewStatus === "PUBLISHED" ? (
+          <span className="text-[var(--sb-text-tertiary)]">Published</span>
+        ) : (
+          <Badge tone={question.reviewStatus === "DRAFT" ? "warning" : "info"}>
+            {question.reviewStatus === "DRAFT" ? "Draft" : "Verified"}
+          </Badge>
+        ),
     },
     {
       key: "media",
@@ -366,6 +388,19 @@ export default function QuestionsPage() {
             onValueChange={applyFilter(setQuestionType)}
             options={[{ label: "All types", value: "" }, ...QUESTION_TYPE_OPTIONS]}
             placeholder="All types"
+          />
+        </FieldShell>
+
+        <FieldShell label="Status">
+          <CustomSelect
+            aria-label="Filter by review status"
+            value={reviewStatus}
+            onValueChange={applyFilter(setReviewStatus)}
+            options={[
+              { label: "All statuses", value: "" },
+              ...REVIEW_STATUS_OPTIONS,
+            ]}
+            placeholder="All statuses"
           />
         </FieldShell>
 

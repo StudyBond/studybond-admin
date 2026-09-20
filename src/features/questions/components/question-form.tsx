@@ -19,6 +19,7 @@ import {
   normalizeQuestionSource,
   QUESTION_POOL_OPTIONS,
   QUESTION_TYPE_OPTIONS,
+  REVIEW_STATUS_OPTIONS,
 } from "@/lib/utils/questions";
 import { ImagePlus, Save, Trash2, UploadCloud, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -60,6 +61,14 @@ import { toast } from "sonner";
  *
  * 5. Deleting a question had no confirmation, and a "Ready to save" card
  *    took up a panel to say the backend would validate the form.
+ *
+ * 6. reviewStatus had no field at all — every question created here silently
+ *    became DRAFT, the column's database default, with no way to change it.
+ *    Now that only PUBLISHED questions are offered to students, that gap
+ *    would have made every hand-created question invisible with no visible
+ *    reason why. It defaults to PUBLISHED, matching how a question created
+ *    here has always behaved: saved and live, unless an admin deliberately
+ *    holds it back.
  */
 
 type QuestionFormMode = "create" | "edit";
@@ -99,6 +108,7 @@ type FormState = {
   difficultyLevel: string;
   questionType: string;
   questionPool: string;
+  reviewStatus: string;
   parentQuestionId: string;
   year: string;
   explanationText: string;
@@ -120,6 +130,8 @@ type Letter = (typeof LETTERS)[number];
  */
 const DEFAULT_POOL = "REAL_BANK";
 const DEFAULT_TYPE = "real_past_question";
+/** Matches how a question created here has always behaved: saved and live. */
+const DEFAULT_REVIEW_STATUS = "PUBLISHED";
 
 function createInitialState(question?: QuestionRecord | null): FormState {
   return {
@@ -149,6 +161,7 @@ function createInitialState(question?: QuestionRecord | null): FormState {
     difficultyLevel: question?.difficultyLevel ?? "",
     questionType: question?.questionType ?? DEFAULT_TYPE,
     questionPool: question?.questionPool ?? DEFAULT_POOL,
+    reviewStatus: question?.reviewStatus ?? DEFAULT_REVIEW_STATUS,
     parentQuestionId: question?.parentQuestionId
       ? String(question.parentQuestionId)
       : "",
@@ -202,6 +215,7 @@ function buildPayload(state: FormState): QuestionPayload {
     difficultyLevel: compactValue(state.difficultyLevel),
     questionType: state.questionType,
     questionPool: state.questionPool,
+    reviewStatus: state.reviewStatus,
     parentQuestionId: hasParentQuestion
       ? Number.parseInt(state.parentQuestionId, 10)
       : null,
@@ -729,6 +743,22 @@ export function QuestionForm({
                 options={[...QUESTION_POOL_OPTIONS]}
               />
             </FieldShell>
+
+            <FieldShell label="Review status">
+              <CustomSelect
+                aria-label="Review status"
+                value={form.reviewStatus}
+                onValueChange={(value) => updateField("reviewStatus", value)}
+                options={[...REVIEW_STATUS_OPTIONS]}
+              />
+            </FieldShell>
+            <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+              {form.reviewStatus === "PUBLISHED"
+                ? "Live. This question can already be showing to students."
+                : form.reviewStatus === "VERIFIED"
+                  ? "Checked, but held back. Set to Published when it should go live."
+                  : "Not checked yet. Held back from students until it is Published."}
+            </p>
 
             <Field
               label="Parent question ID"

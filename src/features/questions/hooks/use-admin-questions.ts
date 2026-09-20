@@ -10,6 +10,7 @@ export type AdminQuestionsFilters = {
   topic?: string;
   questionType?: string;
   questionPool?: string;
+  reviewStatus?: string;
   search?: string;
   /** Which parts of a question `search` looks through. Defaults to all. */
   searchIn?: QuestionSearchScope;

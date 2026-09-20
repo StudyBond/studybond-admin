@@ -10,6 +10,26 @@ export const QUESTION_POOL_OPTIONS = [
   { value: "PRACTICE", label: "Practice pool" },
 ] as const;
 
+/**
+ * DRAFT and VERIFIED are both held back from students — only PUBLISHED is
+ * ever offered in an exam. VERIFIED exists as a staging state: a second
+ * person has checked the question but it has not been scheduled live yet,
+ * so a batch can be reviewed over time and then published together.
+ */
+export const REVIEW_STATUS_OPTIONS = [
+  { value: "DRAFT", label: "Draft" },
+  { value: "VERIFIED", label: "Verified" },
+  { value: "PUBLISHED", label: "Published" },
+] as const;
+
+export function getReviewStatusLabel(value: string | null | undefined) {
+  return (
+    REVIEW_STATUS_OPTIONS.find((option) => option.value === value)?.label ??
+    value ??
+    "Unknown"
+  );
+}
+
 export const QUESTION_ASSET_KINDS = [
   "question",
   "optionA",
