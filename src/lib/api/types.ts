@@ -453,3 +453,21 @@ export type AdminCourseItem = AdminCoursesListResponse["courses"][number];
 /** One free-text aspiringCourse value that matches no course today. */
 export type AdminUnmatchedCourseValue =
   AdminUnmatchedCoursesResponse["values"][number];
+
+/**
+ * The bulk review-status endpoint is new enough that the vendored
+ * openapi-types.d.ts snapshot does not carry it yet, so these are declared
+ * directly rather than derived through WithContract — matching the backend
+ * contract in questions.types.ts by hand until the next sync.
+ */
+export type BulkReviewStatusUpdateInput = {
+  questionIds: number[];
+  reviewStatus: "DRAFT" | "VERIFIED" | "PUBLISHED";
+};
+
+export type BulkReviewStatusUpdateResponse = {
+  success: true;
+  message: string;
+  updatedCount: number;
+  questionIds: number[];
+};

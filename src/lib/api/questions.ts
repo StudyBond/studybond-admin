@@ -1,5 +1,7 @@
 import { apiClient, ApiError } from "@/lib/api/client";
 import type {
+  BulkReviewStatusUpdateInput,
+  BulkReviewStatusUpdateResponse,
   BulkUploadResponse,
   BulkUploadHistoryResponse,
   BulkUploadDuplicateCheckResponse,
@@ -62,6 +64,16 @@ export const questionsApi = {
     return apiClient<void>(`/api/questions/${questionId}`, {
       method: "DELETE",
     });
+  },
+  /** The review queue's bulk publish/verify/draft action. */
+  bulkUpdateReviewStatus(input: BulkReviewStatusUpdateInput) {
+    return apiClient<BulkReviewStatusUpdateResponse>(
+      "/api/questions/bulk/review-status",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
   },
   uploadAsset(kind: QuestionAssetKind, file: File) {
     const formData = new FormData();

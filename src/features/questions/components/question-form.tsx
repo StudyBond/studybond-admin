@@ -21,6 +21,14 @@ import {
   QUESTION_TYPE_OPTIONS,
   REVIEW_STATUS_OPTIONS,
 } from "@/lib/utils/questions";
+import {
+  buildPayload,
+  createInitialState,
+  type FormState,
+  isParentPrompt as computeIsParentPrompt,
+  LETTERS,
+  type Letter,
+} from "@/features/questions/lib/question-form-state";
 import { ImagePlus, Save, Trash2, UploadCloud, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -82,150 +90,13 @@ type QuestionFormProps = {
   onDelete?: () => Promise<unknown> | unknown;
 };
 
-type FormState = {
-  institutionCode: string;
-  questionText: string;
-  imageUrl: string;
-  imagePublicId: string;
-  optionA: string;
-  optionB: string;
-  optionC: string;
-  optionD: string;
-  optionE: string;
-  optionAImageUrl: string;
-  optionAImagePublicId: string;
-  optionBImageUrl: string;
-  optionBImagePublicId: string;
-  optionCImageUrl: string;
-  optionCImagePublicId: string;
-  optionDImageUrl: string;
-  optionDImagePublicId: string;
-  optionEImageUrl: string;
-  optionEImagePublicId: string;
-  correctAnswer: "A" | "B" | "C" | "D" | "E";
-  subject: string;
-  topic: string;
-  difficultyLevel: string;
-  questionType: string;
-  questionPool: string;
-  reviewStatus: string;
-  parentQuestionId: string;
-  year: string;
-  explanationText: string;
-  explanationImageUrl: string;
-  explanationImagePublicId: string;
-  additionalNotes: string;
-};
-
 type FormErrors = Partial<
   Record<"questionText" | "subject" | "options" | "correctAnswer", string>
 >;
 
-const LETTERS = ["A", "B", "C", "D", "E"] as const;
-type Letter = (typeof LETTERS)[number];
-
-/**
- * REAL_BANK, not REAL_UI. The old default was rejected by the backend and
- * matched no entry in the pool dropdown.
- */
-const DEFAULT_POOL = "REAL_BANK";
-const DEFAULT_TYPE = "real_past_question";
-/** Matches how a question created here has always behaved: saved and live. */
-const DEFAULT_REVIEW_STATUS = "PUBLISHED";
-
-function createInitialState(question?: QuestionRecord | null): FormState {
-  return {
-    institutionCode: question?.institutionCode ?? "ui",
-    questionText: question?.questionText ?? "",
-    imageUrl: question?.imageUrl ?? "",
-    imagePublicId: question?.imagePublicId ?? "",
-    optionA: question?.optionA ?? "",
-    optionB: question?.optionB ?? "",
-    optionC: question?.optionC ?? "",
-    optionD: question?.optionD ?? "",
-    optionE: question?.optionE ?? "",
-    optionAImageUrl: question?.optionAImageUrl ?? "",
-    optionAImagePublicId: question?.optionAImagePublicId ?? "",
-    optionBImageUrl: question?.optionBImageUrl ?? "",
-    optionBImagePublicId: question?.optionBImagePublicId ?? "",
-    optionCImageUrl: question?.optionCImageUrl ?? "",
-    optionCImagePublicId: question?.optionCImagePublicId ?? "",
-    optionDImageUrl: question?.optionDImageUrl ?? "",
-    optionDImagePublicId: question?.optionDImagePublicId ?? "",
-    optionEImageUrl: question?.optionEImageUrl ?? "",
-    optionEImagePublicId: question?.optionEImagePublicId ?? "",
-    correctAnswer:
-      (question?.correctAnswer as FormState["correctAnswer"]) ?? "A",
-    subject: question?.subject ?? "",
-    topic: question?.topic ?? "",
-    difficultyLevel: question?.difficultyLevel ?? "",
-    questionType: question?.questionType ?? DEFAULT_TYPE,
-    questionPool: question?.questionPool ?? DEFAULT_POOL,
-    reviewStatus: question?.reviewStatus ?? DEFAULT_REVIEW_STATUS,
-    parentQuestionId: question?.parentQuestionId
-      ? String(question.parentQuestionId)
-      : "",
-    year: question?.year != null ? String(question.year) : "",
-    explanationText: question?.explanation?.explanationText ?? "",
-    explanationImageUrl: question?.explanation?.explanationImageUrl ?? "",
-    explanationImagePublicId:
-      question?.explanation?.explanationImagePublicId ?? "",
-    additionalNotes: question?.explanation?.additionalNotes ?? "",
-  };
-}
-
-function compactValue(value: string) {
-  return value.trim() || null;
-}
-
-function buildPayload(state: FormState): QuestionPayload {
-  const hasOptionContent = [
-    state.optionA,
-    state.optionB,
-    state.optionC,
-    state.optionD,
-  ].some((value) => value.trim().length > 0);
-  const hasParentQuestion = Boolean(state.parentQuestionId.trim());
-
-  return {
-    institutionCode: state.institutionCode.trim() || undefined,
-    questionText: state.questionText.trim(),
-    hasImage: Boolean(state.imageUrl.trim()),
-    imageUrl: compactValue(state.imageUrl),
-    imagePublicId: compactValue(state.imagePublicId),
-    optionA: state.optionA.trim(),
-    optionB: state.optionB.trim(),
-    optionC: state.optionC.trim(),
-    optionD: state.optionD.trim(),
-    optionE: compactValue(state.optionE),
-    optionAImageUrl: compactValue(state.optionAImageUrl),
-    optionAImagePublicId: compactValue(state.optionAImagePublicId),
-    optionBImageUrl: compactValue(state.optionBImageUrl),
-    optionBImagePublicId: compactValue(state.optionBImagePublicId),
-    optionCImageUrl: compactValue(state.optionCImageUrl),
-    optionCImagePublicId: compactValue(state.optionCImagePublicId),
-    optionDImageUrl: compactValue(state.optionDImageUrl),
-    optionDImagePublicId: compactValue(state.optionDImagePublicId),
-    optionEImageUrl: compactValue(state.optionEImageUrl),
-    optionEImagePublicId: compactValue(state.optionEImagePublicId),
-    correctAnswer:
-      hasOptionContent || hasParentQuestion ? state.correctAnswer : undefined,
-    subject: state.subject.trim(),
-    topic: compactValue(state.topic),
-    difficultyLevel: compactValue(state.difficultyLevel),
-    questionType: state.questionType,
-    questionPool: state.questionPool,
-    reviewStatus: state.reviewStatus,
-    parentQuestionId: hasParentQuestion
-      ? Number.parseInt(state.parentQuestionId, 10)
-      : null,
-    explanationText: compactValue(state.explanationText),
-    explanationImageUrl: compactValue(state.explanationImageUrl),
-    explanationImagePublicId: compactValue(state.explanationImagePublicId),
-    additionalNotes: compactValue(state.additionalNotes),
-    year: state.year.trim() ? Number.parseInt(state.year, 10) : null,
-  } as QuestionPayload;
-}
+// FormState, LETTERS, the DEFAULT_* constants, createInitialState,
+// buildPayload — all shared with the review queue now. See
+// question-form-state.ts.
 
 /* ── Image attachment ───────────────────────────────── */
 
@@ -384,11 +255,7 @@ export function QuestionForm({
     [form.optionE],
   );
 
-  const isParentPrompt =
-    !form.parentQuestionId.trim() &&
-    !["optionA", "optionB", "optionC", "optionD"].some((key) =>
-      form[key as keyof FormState].toString().trim(),
-    );
+  const isParentPrompt = computeIsParentPrompt(form);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));

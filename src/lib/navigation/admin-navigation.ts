@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Building2,
   ChartNoAxesCombined,
+  ClipboardCheck,
   FileWarning,
   Gift,
   GraduationCap,
@@ -99,6 +100,12 @@ export const adminNavigation: AdminNavGroup[] = [
         icon: LibraryBig,
         description: "Search, edit, and upload the question bank",
         mobile: { primary: true, order: 3 },
+      },
+      {
+        href: "/questions/review",
+        label: "Content review",
+        icon: ClipboardCheck,
+        description: "Check and publish drafted and verified questions",
       },
       {
         href: "/questions/free-exam",
