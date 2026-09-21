@@ -398,3 +398,58 @@ export type AdminInstitutionSubject =
 /** One subject in the shared catalogue. */
 export type AdminSubjectCatalogueItem =
   AdminSubjectCatalogueResponse["subjects"][number];
+
+/* ── Aspiring-course catalogue ────────────────────────────────── */
+
+type RawCourseSuggestionsEnvelope = JsonResponse<
+  "/api/courses/suggestions",
+  "get",
+  200
+>;
+type RawAdminCoursesListEnvelope = JsonResponse<"/api/admin/courses/", "get", 200>;
+type RawAdminCourseMutationEnvelope = JsonResponse<
+  "/api/admin/courses/",
+  "post",
+  201
+>;
+type RawAdminCourseUpdateEnvelope = JsonResponse<
+  "/api/admin/courses/{courseId}",
+  "patch",
+  200
+>;
+type RawAdminUnmatchedCoursesEnvelope = JsonResponse<
+  "/api/admin/courses/unmatched",
+  "get",
+  200
+>;
+type RawAdminPromoteCourseSuggestionEnvelope = JsonResponse<
+  "/api/admin/courses/promote",
+  "post",
+  200
+>;
+
+export type CourseSuggestionsResponse = EnvelopeData<RawCourseSuggestionsEnvelope>;
+export type AdminCoursesListResponse = EnvelopeData<RawAdminCoursesListEnvelope>;
+export type AdminCourseMutationResponse =
+  EnvelopeData<RawAdminCourseMutationEnvelope>;
+export type AdminCourseUpdateResponse = EnvelopeData<RawAdminCourseUpdateEnvelope>;
+export type AdminUnmatchedCoursesResponse =
+  EnvelopeData<RawAdminUnmatchedCoursesEnvelope>;
+export type AdminPromoteCourseSuggestionResponse =
+  EnvelopeData<RawAdminPromoteCourseSuggestionEnvelope>;
+
+export type AdminCreateCourseInput = JsonRequestBody<"/api/admin/courses/", "post">;
+export type AdminUpdateCourseInput = JsonRequestBody<
+  "/api/admin/courses/{courseId}",
+  "patch"
+>;
+export type AdminPromoteCourseSuggestionInput = JsonRequestBody<
+  "/api/admin/courses/promote",
+  "post"
+>;
+
+/** One course in the catalogue. */
+export type AdminCourseItem = AdminCoursesListResponse["courses"][number];
+/** One free-text aspiringCourse value that matches no course today. */
+export type AdminUnmatchedCourseValue =
+  AdminUnmatchedCoursesResponse["values"][number];
