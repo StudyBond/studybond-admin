@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Field } from "@/components/ui/field";
 import { FormattingToolbar } from "@/features/questions/components/formatting-toolbar";
+import { PreviewSheet } from "@/features/questions/components/preview-sheet";
 import {
+  InlinePreview,
   StudentPreview,
   type PreviewField,
 } from "@/features/questions/components/student-preview";
@@ -18,31 +20,43 @@ import {
 } from "@/features/questions/lib/question-form-state";
 import type { QuestionPayload, QuestionRecord } from "@/lib/api/types";
 import { cn } from "@/lib/utils/cn";
+import { useMediaQuery } from "@/lib/utils/use-media-query";
 import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Eye,
   RotateCcw,
   Save,
   ShieldCheck,
+  SkipForward,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * One question, reviewed: the editable fields with their formatting
- * toolbars on the left, the live student-facing preview pinned on the right,
- * and an actions bar that is always on screen — sticky to the bottom of the
- * page — so a reviewer working through a long backlog never has to scroll to
- * reach Publish.
+ * One question, reviewed. The editable fields carry formatting toolbars,
+ * and an actions bar is always on screen — sticky to the bottom of the page —
+ * so a reviewer working through a long backlog never has to scroll to reach
+ * Publish.
  *
- * The first version stacked them: preview above, editors below. Editing
- * Option D meant scrolling down to type and back up to see the result, on
- * every question, all day. Side by side removes the trip, and the preview
- * follows whichever field you last clicked into (see StudentPreview), so the
- * block you are changing is the one on screen.
+ * How the result is shown depends on the room there is, because the two
+ * cases need different answers rather than one layout squeezed to fit:
  *
- * Below the `lg` breakpoint the two stack again — preview first — because
- * there is not room for both. That is the one place the old trip remains.
+ * Wide (1024px and up): editors on the left, the whole student view pinned
+ * on the right, following whichever field you last clicked into. Editing
+ * Option D never means scrolling away from Option D to see it.
+ *
+ * Narrow: one column, and each field shows its own result directly
+ * beneath it as you type — the same "no scrolling to see the effect", by
+ * putting the effect next to the thing instead of beside the page. Two
+ * columns of ~350px, on a screen whose keyboard takes half the height, would
+ * be worse than one good column. The whole card is a Preview button away,
+ * full-screen, with its own Publish button, for the check before deciding.
+ *
+ * The two are chosen in JavaScript rather than hidden with CSS: a hidden
+ * preview is still rendered, and drawing LaTeX for seven previews nobody can
+ * see, on every keystroke, is real cost on the slowest devices — which are
+ * the narrow ones.
  *
  * "Save" persists edits without touching review status — for a reviewer
  * still deciding. "Mark verified" and "Publish" are decisions: both save
@@ -83,15 +97,18 @@ function ToolbarField({
   onChange,
   onFocus,
   placeholder,
+  inlinePreview,
 }: {
   label: string;
   hint?: string;
   rows: number;
   value: string;
   onChange: (next: string) => void;
-  /** Tells the preview which block to follow. */
+  /** Tells the wide-screen preview which block to follow. */
   onFocus?: () => void;
   placeholder?: string;
+  /** Set on narrow screens: show this field's own result underneath. */
+  inlinePreview?: "question" | "option" | "explanation";
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -121,6 +138,9 @@ function ToolbarField({
         placeholder={placeholder}
         className="w-full resize-y rounded-b-[var(--sb-radius-sm)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] px-3 py-2.5 text-[length:var(--sb-text-sm)] text-[var(--sb-text)] outline-none transition-colors placeholder:text-[var(--sb-text-tertiary)] focus:border-[var(--sb-accent)]"
       />
+      {inlinePreview ? (
+        <InlinePreview content={value} variant={inlinePreview} />
+      ) : null}
     </div>
   );
 }
@@ -142,13 +162,20 @@ export function QuestionReviewer({
 }: QuestionReviewerProps) {
   /* Remounts on question change via key={question.id} at the call site, so
      this re-seeds from the new record rather than syncing through an
-     effect — the same reasoning as QuestionForm. */
+     effect — the same reasoning as QuestionForm. It also closes the preview
+     sheet, which is what should happen when Publish moves to the next. */
   const [form, setForm] = useState<FormState>(() => createInitialState(question));
 
   /* The field last clicked into. Not cleared on blur: the outline marks
      where you were working, and clearing it would make it flicker off and
-     on every time focus moves from one field to the next. */
+     on every time focus moves from one field to the next. Only the
+     wide-screen preview reads it. */
   const [activeField, setActiveField] = useState<PreviewField | null>(null);
+
+  /* 64rem is Tailwind's `lg` exactly, so this agrees with every lg: class. */
+  const isWide = useMediaQuery("(min-width: 64rem)");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const closePreview = useCallback(() => setPreviewOpen(false), []);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -241,15 +268,16 @@ export function QuestionReviewer({
       </div>
 
       {/* ── Edit on the left, the result on the right ──────
-          The preview is the sticky column. It is capped to the space
-          between the topbar and the actions bar and scrolls inside
-          itself, so a question taller than the screen still has every
-          part reachable — a sticky column taller than its viewport has an
-          unreachable bottom otherwise. `lg:self-start` is what lets it
-          stick at all: a grid item stretches to the row's height by
-          default, leaving nothing to stick within. */}
+          Wide only. The preview is the sticky column, capped to the space
+          between the topbar and the actions bar and scrolling inside itself,
+          so a question taller than the screen keeps every part reachable —
+          a sticky column taller than its viewport has an unreachable bottom
+          otherwise. `lg:self-start` is what lets it stick at all: a grid
+          item stretches to the row's height by default, leaving nothing to
+          stick within. On narrow screens this is a single column and there
+          is no second item. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-        <div className="order-2 min-w-0 space-y-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5 lg:order-1">
+        <div className="min-w-0 space-y-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
           <ToolbarField
             label="Question text"
             hint="Required"
@@ -258,6 +286,7 @@ export function QuestionReviewer({
             onChange={(value) => updateField("questionText", value)}
             onFocus={() => setActiveField("questionText")}
             placeholder="Write the full question here…"
+            inlinePreview={isWide ? undefined : "question"}
           />
 
           <div className="space-y-3">
@@ -299,6 +328,7 @@ export function QuestionReviewer({
                       onChange={(value) => updateField(key, value)}
                       onFocus={() => setActiveField(key)}
                       placeholder={`What option ${letter} says`}
+                      inlinePreview={isWide ? undefined : "option"}
                     />
                   </div>
                 </div>
@@ -314,6 +344,7 @@ export function QuestionReviewer({
             onChange={(value) => updateField("explanationText", value)}
             onFocus={() => setActiveField("explanationText")}
             placeholder="Walk through the reasoning…"
+            inlinePreview={isWide ? undefined : "explanation"}
           />
 
           <Field
@@ -326,9 +357,11 @@ export function QuestionReviewer({
           />
         </div>
 
-        <div className="order-1 min-w-0 lg:sticky lg:top-[calc(var(--sb-topbar-height)+1rem)] lg:order-2 lg:self-start">
-          <StudentPreview form={form} activeField={activeField} />
-        </div>
+        {isWide ? (
+          <div className="min-w-0 lg:sticky lg:top-[calc(var(--sb-topbar-height)+1rem)] lg:self-start">
+            <StudentPreview form={form} activeField={activeField} />
+          </div>
+        ) : null}
       </div>
 
       {/* ── Actions — always reachable ─────────────────────
@@ -336,27 +369,59 @@ export function QuestionReviewer({
           width to avoid sitting under it, which differs between its
           expanded and collapsed states. Sticky positions relative to this
           page's own place in the content column, so it lines up correctly
-          without tracking that at all — the same technique already proven
-          by .sb-sticky-col. */}
-      <div className="sticky bottom-0 z-20 -mx-4 border-t border-[var(--sb-border)] bg-[var(--sb-surface-2)] px-4 py-3 shadow-[var(--sb-shadow-xl)] sm:-mx-5 lg:-mx-6">
+          without tracking that at all.
+
+          Below lg it is lifted by the height of the fixed bottom navigation
+          (plus the phone's home-indicator inset, which that bar pads for
+          too). Without the lift the bar sits at the very bottom of the
+          screen, exactly where the navigation is, and is hidden behind it.
+
+          Labels collapse to icons under sm so the whole bar stays on one
+          row on a phone: Previous, Skip, Preview and Save are icons there;
+          Verify and Publish keep short words because they are the decisions
+          and should never be a guess. */}
+      <div className="sticky bottom-[calc(var(--sb-bottom-nav-height)+env(safe-area-inset-bottom))] z-20 -mx-4 border-t border-[var(--sb-border)] bg-[var(--sb-surface-2)] px-4 py-3 shadow-[var(--sb-shadow-xl)] sm:-mx-5 lg:bottom-0 lg:-mx-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={onPrevious}
               disabled={!hasPrevious}
+              aria-label="Previous question"
+              title="Previous question"
             >
               <ChevronLeft className="h-4 w-4" />
-              Previous
+              <span className="hidden sm:inline">Previous</span>
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={onSkip}>
-              Skip
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onSkip}
+              aria-label="Skip to the next question"
+              title="Skip to the next question"
+            >
+              <SkipForward className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Skip</span>
             </Button>
+            {!isWide ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPreviewOpen(true)}
+                aria-label="Preview the whole question"
+                title="Preview the whole question"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Preview</span>
+              </Button>
+            ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
             <Button
               type="button"
               variant="secondary"
@@ -364,9 +429,11 @@ export function QuestionReviewer({
               onClick={() => void withPayload({}, false)}
               disabled={isSaving}
               isLoading={isSaving}
+              aria-label="Save changes"
+              title="Save changes"
             >
               {!isSaving ? <Save className="h-3.5 w-3.5" /> : null}
-              Save
+              <span className="hidden sm:inline">Save</span>
             </Button>
 
             {question.reviewStatus === "VERIFIED" ? (
@@ -389,7 +456,8 @@ export function QuestionReviewer({
                 disabled={isSaving}
               >
                 <ShieldCheck className="h-3.5 w-3.5" />
-                Mark verified
+                <span className="hidden sm:inline">Mark verified</span>
+                <span className="sm:hidden">Verify</span>
               </Button>
             )}
 
@@ -399,12 +467,25 @@ export function QuestionReviewer({
               onClick={() => void withPayload({ reviewStatus: "PUBLISHED" }, true)}
               disabled={isSaving}
             >
-              Publish{hasNext ? " & next" : ""}
+              <span>
+                Publish
+                <span className="hidden sm:inline">{hasNext ? " & next" : ""}</span>
+              </span>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       </div>
+
+      {previewOpen && !isWide ? (
+        <PreviewSheet
+          form={form}
+          onClose={closePreview}
+          onPublish={() => void withPayload({ reviewStatus: "PUBLISHED" }, true)}
+          isSaving={isSaving}
+          hasNext={hasNext}
+        />
+      ) : null}
     </div>
   );
 }

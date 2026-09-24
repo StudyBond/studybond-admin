@@ -28,9 +28,12 @@ import { useEffect, useRef } from "react";
  * block, so there is always something to scroll to and outline — including
  * the moment before the first character is typed.
  *
- * On a screen too narrow for the two side by side, this stacks above the
- * editors and does not scroll on its own, which makes the follow behaviour a
- * harmless no-op there rather than something to switch off.
+ * This is the wide-screen, side-by-side form. On a screen too narrow for
+ * that, each field shows its own result directly beneath it (InlinePreview,
+ * at the bottom of this file) and the whole card is opened on demand in
+ * PreviewSheet, which renders this same component full-screen. Outside a
+ * height-capped panel it does not scroll on its own, so the follow behaviour
+ * is a harmless no-op there rather than something to switch off.
  */
 
 export type PreviewField =
@@ -258,6 +261,35 @@ export function StudentPreview({
             </div>
           </div>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One field's result, directly beneath the field, for screens too narrow to
+ * keep the whole preview beside the editors.
+ *
+ * Deliberately small and labelled: it is a check on the text just typed
+ * above it, not a second copy of the exam screen. Renders nothing for an
+ * empty field, so a form that is mostly blank does not fill with empty boxes.
+ */
+export function InlinePreview({
+  content,
+  variant,
+}: {
+  content: string;
+  variant: "question" | "option" | "explanation";
+}) {
+  if (!content.trim()) return null;
+
+  return (
+    <div className="mt-2 overflow-hidden rounded-[var(--sb-radius-sm)] border border-[var(--sb-accent-ring)]">
+      <p className="border-b border-[var(--sb-accent-ring)] bg-[var(--sb-accent-soft)] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-[var(--sb-accent)]">
+        As students see it
+      </p>
+      <div className="bg-[#050506] px-3 py-2.5 text-sm text-white/70">
+        <MathMarkdown content={content} variant={variant} />
       </div>
     </div>
   );
