@@ -3,11 +3,13 @@
 import { MathMarkdown } from "@/components/ui/math-markdown";
 import type { FormState, Letter } from "@/features/questions/lib/question-form-state";
 import { LETTERS } from "@/features/questions/lib/question-form-state";
+import { scrollTopToReveal } from "@/features/questions/lib/preview-scroll";
 import { cn } from "@/lib/utils/cn";
 import { Check, Eye } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 /**
- * What a learner actually sees, live, as the fields below are edited.
+ * What a learner actually sees, live, as the fields beside it are edited.
  *
  * Mirrors studybond-web's real exam screen — the same subject badge, the
  * same lettered option cards, the same accent treatment on the correct
@@ -15,9 +17,31 @@ import { Check, Eye } from "lucide-react";
  * "roughly what a question probably looks like." The explanation is shown
  * beneath it, labelled as such, because the real app only shows it after a
  * learner answers; a reviewer checking a question and its explanation
- * together is a admin-side convenience, not a claim that this is one exam
+ * together is an admin-side convenience, not a claim that this is one exam
  * screen.
+ *
+ * It follows the reviewer. `activeField` is whichever field they last
+ * clicked into: that block is outlined, and the panel scrolls to it if it is
+ * not already in view. A preview pinned beside the editors is only worth
+ * having if you never have to scroll it yourself to find what you just
+ * changed. An empty field that is being edited still gets a placeholder
+ * block, so there is always something to scroll to and outline — including
+ * the moment before the first character is typed.
+ *
+ * On a screen too narrow for the two side by side, this stacks above the
+ * editors and does not scroll on its own, which makes the follow behaviour a
+ * harmless no-op there rather than something to switch off.
  */
+
+export type PreviewField =
+  | "questionText"
+  | `option${Letter}`
+  | "explanationText"
+  | "additionalNotes";
+
+/** Blue, not amber: amber already means "this is the correct answer". */
+const EDITING_RING =
+  "ring-2 ring-[var(--sb-info)]/50 ring-offset-4 ring-offset-[#050506]";
 
 function optionText(form: FormState, letter: Letter): string {
   return form[`option${letter}` as `option${Letter}`];
@@ -27,14 +51,55 @@ function optionImageUrl(form: FormState, letter: Letter): string {
   return form[`option${letter}ImageUrl` as `option${Letter}ImageUrl`];
 }
 
-export function StudentPreview({ form }: { form: FormState }) {
-  const hasAnyOption = LETTERS.some(
-    (letter) => optionText(form, letter).trim() || optionImageUrl(form, letter),
-  );
+export function StudentPreview({
+  form,
+  activeField = null,
+}: {
+  form: FormState;
+  activeField?: PreviewField | null;
+}) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body || !activeField) return;
+
+    const target = body.querySelector<HTMLElement>(
+      `[data-preview="${activeField}"]`,
+    );
+    if (!target) return;
+
+    const bodyRect = body.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+
+    const next = scrollTopToReveal({
+      scrollTop: body.scrollTop,
+      viewportHeight: body.clientHeight,
+      elementTop: targetRect.top - bodyRect.top + body.scrollTop,
+      elementHeight: targetRect.height,
+    });
+    if (next === null) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    body.scrollTo({ top: next, behavior: reduceMotion ? "auto" : "smooth" });
+  }, [activeField]);
+
+  const isShown = (letter: Letter) =>
+    optionText(form, letter).trim() ||
+    optionImageUrl(form, letter) ||
+    activeField === `option${letter}`;
+  const hasAnyOption = LETTERS.some((letter) => isShown(letter));
+
+  const showExplanation =
+    form.explanationText.trim() ||
+    form.explanationImageUrl ||
+    activeField === "explanationText";
 
   return (
-    <div className="overflow-hidden rounded-[var(--sb-radius-lg)] border border-[var(--sb-accent-ring)]">
-      <div className="flex items-center gap-2 border-b border-[var(--sb-accent-ring)] bg-[var(--sb-accent-soft)] px-4 py-2">
+    <div className="flex flex-col overflow-hidden rounded-[var(--sb-radius-lg)] border border-[var(--sb-accent-ring)] lg:max-h-[calc(100dvh-var(--sb-topbar-height)-6rem)]">
+      <div className="flex shrink-0 items-center gap-2 border-b border-[var(--sb-accent-ring)] bg-[var(--sb-accent-soft)] px-4 py-2">
         <Eye className="h-3.5 w-3.5 text-[var(--sb-accent)]" />
         <span className="text-[length:var(--sb-text-xs)] font-medium uppercase tracking-wide text-[var(--sb-accent)]">
           Student view
@@ -45,15 +110,26 @@ export function StudentPreview({ form }: { form: FormState }) {
       </div>
 
       {/* The web app's actual dark surface, not the admin's — this frame
-          is meant to look like the real thing, not like more admin chrome. */}
-      <div className="space-y-5 bg-[#050506] p-5">
+          is meant to look like the real thing, not like more admin chrome.
+          `relative` is not for positioning: it makes this the reference the
+          scroll-to-field measurement is taken from. */}
+      <div
+        ref={bodyRef}
+        className="relative min-h-0 flex-1 space-y-5 bg-[#050506] p-5 lg:overflow-y-auto"
+      >
         {form.subject.trim() ? (
           <span className="inline-flex items-center rounded-lg border border-white/[0.06] bg-white/[0.04] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/30">
             {form.subject}
           </span>
         ) : null}
 
-        <div>
+        <div
+          data-preview="questionText"
+          className={cn(
+            "rounded-xl transition-shadow duration-200",
+            activeField === "questionText" && EDITING_RING,
+          )}
+        >
           {form.questionText.trim() ? (
             <h2 className="text-base font-medium leading-relaxed text-white/90 md:text-lg">
               <MathMarkdown content={form.questionText} variant="question" />
@@ -77,20 +153,23 @@ export function StudentPreview({ form }: { form: FormState }) {
         {hasAnyOption ? (
           <div className="space-y-2.5">
             {LETTERS.map((letter) => {
+              if (!isShown(letter)) return null;
+
               const text = optionText(form, letter);
               const imageUrl = optionImageUrl(form, letter);
-              if (!text.trim() && !imageUrl) return null;
-
               const isCorrect = form.correctAnswer === letter;
+              const isEditing = activeField === `option${letter}`;
 
               return (
                 <div
                   key={letter}
+                  data-preview={`option${letter}`}
                   className={cn(
-                    "flex items-start gap-3.5 rounded-2xl border p-4 transition-colors",
+                    "flex items-start gap-3.5 rounded-2xl border p-4 transition-[box-shadow,background-color,border-color] duration-200",
                     isCorrect
                       ? "border-[var(--sb-accent)]/40 bg-[var(--sb-accent)]/[0.08]"
                       : "border-white/[0.06] bg-white/[0.02]",
+                    isEditing && EDITING_RING,
                   )}
                 >
                   <span
@@ -114,6 +193,10 @@ export function StudentPreview({ form }: { form: FormState }) {
                       >
                         <MathMarkdown content={text} variant="option" />
                       </div>
+                    ) : !imageUrl ? (
+                      <p className="text-sm italic text-white/25">
+                        Option {letter} will appear here.
+                      </p>
                     ) : null}
                     {imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -140,24 +223,39 @@ export function StudentPreview({ form }: { form: FormState }) {
           </p>
         )}
 
-        {form.explanationText.trim() || form.explanationImageUrl ? (
+        {showExplanation ? (
           <div className="border-t border-white/[0.06] pt-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/20">
-              Explanation — shown after the learner answers
-            </p>
-            {form.explanationText.trim() ? (
-              <div className="text-sm leading-relaxed text-white/80">
-                <MathMarkdown content={form.explanationText} variant="explanation" />
-              </div>
-            ) : null}
-            {form.explanationImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={form.explanationImageUrl}
-                alt="Explanation illustration"
-                className="mt-2 max-h-64 rounded-xl border border-white/[0.06] object-contain"
-              />
-            ) : null}
+            <div
+              data-preview="explanationText"
+              className={cn(
+                "rounded-xl transition-shadow duration-200",
+                activeField === "explanationText" && EDITING_RING,
+              )}
+            >
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/20">
+                Explanation — shown after the learner answers
+              </p>
+              {form.explanationText.trim() ? (
+                <div className="text-sm leading-relaxed text-white/80">
+                  <MathMarkdown
+                    content={form.explanationText}
+                    variant="explanation"
+                  />
+                </div>
+              ) : !form.explanationImageUrl ? (
+                <p className="text-sm italic text-white/25">
+                  The explanation will appear here.
+                </p>
+              ) : null}
+              {form.explanationImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={form.explanationImageUrl}
+                  alt="Explanation illustration"
+                  className="mt-2 max-h-64 rounded-xl border border-white/[0.06] object-contain"
+                />
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

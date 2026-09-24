@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Field } from "@/components/ui/field";
 import { FormattingToolbar } from "@/features/questions/components/formatting-toolbar";
-import { StudentPreview } from "@/features/questions/components/student-preview";
+import {
+  StudentPreview,
+  type PreviewField,
+} from "@/features/questions/components/student-preview";
 import {
   buildPayload,
   createInitialState,
@@ -26,11 +29,20 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 /**
- * One question, reviewed: the live student-facing preview on top, the
- * editable fields with their formatting toolbars below, and an actions bar
- * that is always on screen — sticky to the bottom of the page — so a
- * reviewer working through a long backlog never has to scroll to reach
- * Publish.
+ * One question, reviewed: the editable fields with their formatting
+ * toolbars on the left, the live student-facing preview pinned on the right,
+ * and an actions bar that is always on screen — sticky to the bottom of the
+ * page — so a reviewer working through a long backlog never has to scroll to
+ * reach Publish.
+ *
+ * The first version stacked them: preview above, editors below. Editing
+ * Option D meant scrolling down to type and back up to see the result, on
+ * every question, all day. Side by side removes the trip, and the preview
+ * follows whichever field you last clicked into (see StudentPreview), so the
+ * block you are changing is the one on screen.
+ *
+ * Below the `lg` breakpoint the two stack again — preview first — because
+ * there is not room for both. That is the one place the old trip remains.
  *
  * "Save" persists edits without touching review status — for a reviewer
  * still deciding. "Mark verified" and "Publish" are decisions: both save
@@ -62,7 +74,6 @@ type QuestionReviewerProps = {
   onJump: (id: number) => void;
 };
 
-
 /** One labelled textarea with its own formatting toolbar above it. */
 function ToolbarField({
   label,
@@ -70,6 +81,7 @@ function ToolbarField({
   rows,
   value,
   onChange,
+  onFocus,
   placeholder,
 }: {
   label: string;
@@ -77,6 +89,8 @@ function ToolbarField({
   rows: number;
   value: string;
   onChange: (next: string) => void;
+  /** Tells the preview which block to follow. */
+  onFocus?: () => void;
   placeholder?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -103,6 +117,7 @@ function ToolbarField({
         rows={rows}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onFocus={onFocus}
         placeholder={placeholder}
         className="w-full resize-y rounded-b-[var(--sb-radius-sm)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] px-3 py-2.5 text-[length:var(--sb-text-sm)] text-[var(--sb-text)] outline-none transition-colors placeholder:text-[var(--sb-text-tertiary)] focus:border-[var(--sb-accent)]"
       />
@@ -129,6 +144,11 @@ export function QuestionReviewer({
      this re-seeds from the new record rather than syncing through an
      effect — the same reasoning as QuestionForm. */
   const [form, setForm] = useState<FormState>(() => createInitialState(question));
+
+  /* The field last clicked into. Not cleared on blur: the outline marks
+     where you were working, and clearing it would make it flicker off and
+     on every time focus moves from one field to the next. */
+  const [activeField, setActiveField] = useState<PreviewField | null>(null);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -220,78 +240,95 @@ export function QuestionReviewer({
         ) : null}
       </div>
 
-      {/* ── Live preview ─────────────────────────────────── */}
-      <StudentPreview form={form} />
+      {/* ── Edit on the left, the result on the right ──────
+          The preview is the sticky column. It is capped to the space
+          between the topbar and the actions bar and scrolls inside
+          itself, so a question taller than the screen still has every
+          part reachable — a sticky column taller than its viewport has an
+          unreachable bottom otherwise. `lg:self-start` is what lets it
+          stick at all: a grid item stretches to the row's height by
+          default, leaving nothing to stick within. */}
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="order-2 min-w-0 space-y-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5 lg:order-1">
+          <ToolbarField
+            label="Question text"
+            hint="Required"
+            rows={5}
+            value={form.questionText}
+            onChange={(value) => updateField("questionText", value)}
+            onFocus={() => setActiveField("questionText")}
+            placeholder="Write the full question here…"
+          />
 
-      {/* ── Editable fields ──────────────────────────────── */}
-      <div className="space-y-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
-        <ToolbarField
-          label="Question text"
-          hint="Required"
-          rows={5}
-          value={form.questionText}
-          onChange={(value) => updateField("questionText", value)}
-          placeholder="Write the full question here…"
-        />
-
-        <div className="space-y-3">
-          <p className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]">
-            {parentPrompt
-              ? "Answer choices — all blank, this saves as a parent prompt"
-              : "Answer choices"}
-          </p>
-          {LETTERS.map((letter) => {
-            const key = `option${letter}` as const;
-            const isCorrect = form.correctAnswer === letter;
-            return (
-              <div key={letter} className="flex items-start gap-2.5">
-                <button
-                  type="button"
-                  title={
-                    isCorrect
-                      ? `Option ${letter} is marked correct`
-                      : `Mark option ${letter} correct`
-                  }
-                  onClick={() => updateField("correctAnswer", letter)}
-                  className={cn(
-                    "mt-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[length:var(--sb-text-xs)] font-semibold transition-colors",
-                    isCorrect
-                      ? "border-[var(--sb-success-ring)] bg-[var(--sb-success-soft)] text-[var(--sb-success)]"
-                      : "border-[var(--sb-border)] text-[var(--sb-text-tertiary)] hover:border-[var(--sb-text-secondary)]",
-                  )}
-                >
-                  {isCorrect ? <Check className="h-3.5 w-3.5" /> : letter}
-                </button>
-                <div className="min-w-0 flex-1">
-                  <ToolbarField
-                    label={`Option ${letter}${letter === "E" ? " (optional)" : ""}`}
-                    rows={2}
-                    value={form[key]}
-                    onChange={(value) => updateField(key, value)}
-                    placeholder={`What option ${letter} says`}
-                  />
+          <div className="space-y-3">
+            <p className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]">
+              {parentPrompt
+                ? "Answer choices — all blank, this saves as a parent prompt"
+                : "Answer choices"}
+            </p>
+            {LETTERS.map((letter) => {
+              const key = `option${letter}` as const;
+              const isCorrect = form.correctAnswer === letter;
+              return (
+                <div key={letter} className="flex items-start gap-2.5">
+                  <button
+                    type="button"
+                    title={
+                      isCorrect
+                        ? `Option ${letter} is marked correct`
+                        : `Mark option ${letter} correct`
+                    }
+                    onClick={() => {
+                      updateField("correctAnswer", letter);
+                      setActiveField(key);
+                    }}
+                    className={cn(
+                      "mt-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[length:var(--sb-text-xs)] font-semibold transition-colors",
+                      isCorrect
+                        ? "border-[var(--sb-success-ring)] bg-[var(--sb-success-soft)] text-[var(--sb-success)]"
+                        : "border-[var(--sb-border)] text-[var(--sb-text-tertiary)] hover:border-[var(--sb-text-secondary)]",
+                    )}
+                  >
+                    {isCorrect ? <Check className="h-3.5 w-3.5" /> : letter}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <ToolbarField
+                      label={`Option ${letter}${letter === "E" ? " (optional)" : ""}`}
+                      rows={2}
+                      value={form[key]}
+                      onChange={(value) => updateField(key, value)}
+                      onFocus={() => setActiveField(key)}
+                      placeholder={`What option ${letter} says`}
+                    />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          <ToolbarField
+            label="Explanation"
+            hint="Shown after the learner answers"
+            rows={4}
+            value={form.explanationText}
+            onChange={(value) => updateField("explanationText", value)}
+            onFocus={() => setActiveField("explanationText")}
+            placeholder="Walk through the reasoning…"
+          />
+
+          <Field
+            label="Notes"
+            hint="Not shown to learners"
+            value={form.additionalNotes}
+            onChange={(event) => updateField("additionalNotes", event.target.value)}
+            onFocus={() => setActiveField("additionalNotes")}
+            placeholder="Context for whoever looks at this next"
+          />
         </div>
 
-        <ToolbarField
-          label="Explanation"
-          hint="Shown after the learner answers"
-          rows={4}
-          value={form.explanationText}
-          onChange={(value) => updateField("explanationText", value)}
-          placeholder="Walk through the reasoning…"
-        />
-
-        <Field
-          label="Notes"
-          hint="Not shown to learners"
-          value={form.additionalNotes}
-          onChange={(event) => updateField("additionalNotes", event.target.value)}
-          placeholder="Context for whoever looks at this next"
-        />
+        <div className="order-1 min-w-0 lg:sticky lg:top-[calc(var(--sb-topbar-height)+1rem)] lg:order-2 lg:self-start">
+          <StudentPreview form={form} activeField={activeField} />
+        </div>
       </div>
 
       {/* ── Actions — always reachable ─────────────────────
