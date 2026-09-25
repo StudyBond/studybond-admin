@@ -27,12 +27,14 @@ import { createPortal } from "react-dom";
  */
 export function PreviewSheet({
   form,
+  parent = null,
   onClose,
   onPublish,
   isSaving,
   hasNext,
 }: {
   form: FormState;
+  parent?: { questionText: string; imageUrl: string | null } | null;
   onClose: () => void;
   onPublish: () => void;
   isSaving: boolean;
@@ -77,7 +79,7 @@ export function PreviewSheet({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <StudentPreview form={form} />
+        <StudentPreview form={form} parent={parent} />
       </div>
 
       {/* Clears the home-indicator area on phones that have one. */}

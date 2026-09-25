@@ -263,7 +263,11 @@ export type QuestionAssetUploadResponse = JsonResponse<
   201
 >;
 export type BulkUploadRowError = RawBulkUploadResponse["errors"][number];
-export type BulkUploadResponse = RawBulkUploadResponse;
+/* warnings is newer than the generated contract. It is optional so an older
+   backend that does not send it still type-checks. */
+export type BulkUploadResponse = RawBulkUploadResponse & {
+  warnings?: BulkUploadRowError[];
+};
 
 // ── Bulk Upload Batch Tracking ────────────────────────
 

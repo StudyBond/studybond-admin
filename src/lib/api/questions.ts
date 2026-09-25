@@ -35,6 +35,10 @@ export const questionsApi = {
       search.set("isAiGenerated", String(params.isAiGenerated));
     }
     if (params?.year != null) search.set("year", String(params.year));
+    if (params?.kind) search.set("kind", params.kind);
+    if (params?.parentQuestionId != null) {
+      search.set("parentQuestionId", String(params.parentQuestionId));
+    }
 
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return apiClient<QuestionListResponse>(`/api/questions${suffix}`);

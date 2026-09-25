@@ -21,16 +21,22 @@ import {
   QUESTION_TYPE_OPTIONS,
   REVIEW_STATUS_OPTIONS,
 } from "@/lib/utils/questions";
+import { GroupChildrenPanel } from "@/features/questions/components/group-children-panel";
+import {
+  ParentPicker,
+  type ParentSummary,
+} from "@/features/questions/components/parent-picker";
 import {
   buildPayload,
   createInitialState,
+  type FormErrors,
   type FormState,
-  isParentPrompt as computeIsParentPrompt,
   LETTERS,
-  type Letter,
+  type QuestionKind,
+  validateForm,
 } from "@/features/questions/lib/question-form-state";
 import { ImagePlus, Save, Trash2, UploadCloud, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
@@ -84,15 +90,38 @@ type QuestionFormMode = "create" | "edit";
 type QuestionFormProps = {
   mode: QuestionFormMode;
   initialQuestion?: QuestionRecord | null;
+  /** Starting values for a new question, such as the ones a group shares. */
+  initialValues?: Partial<FormState>;
+  /** The shared diagram a new question starts attached to. */
+  initialParent?: ParentSummary | null;
   isSubmitting?: boolean;
   isDeleting?: boolean;
   onSubmit: (payload: QuestionPayload) => Promise<unknown> | unknown;
   onDelete?: () => Promise<unknown> | unknown;
 };
 
-type FormErrors = Partial<
-  Record<"questionText" | "subject" | "options" | "correctAnswer", string>
->;
+const KIND_CHOICES: Array<{
+  value: QuestionKind;
+  title: string;
+  description: string;
+}> = [
+  {
+    value: "standalone",
+    title: "Ordinary question",
+    description: "One question with its own options.",
+  },
+  {
+    value: "parent",
+    title: "Shared diagram or passage",
+    description:
+      "A picture or text that several questions use. It has no options of its own.",
+  },
+  {
+    value: "child",
+    title: "Uses a shared diagram",
+    description: "A question that belongs to a shared diagram you pick.",
+  },
+];
 
 // FormState, LETTERS, the DEFAULT_* constants, createInitialState,
 // buildPayload — all shared with the review queue now. See
@@ -234,6 +263,8 @@ function AssetField({
 export function QuestionForm({
   mode,
   initialQuestion,
+  initialValues,
+  initialParent = null,
   isSubmitting = false,
   isDeleting = false,
   onSubmit,
@@ -246,19 +277,55 @@ export function QuestionForm({
    * meant a background refetch could overwrite edits mid-typing.
    */
   const [form, setForm] = useState<FormState>(() =>
-    createInitialState(initialQuestion),
+    createInitialState(initialQuestion, initialValues),
   );
   const [errors, setErrors] = useState<FormErrors>({});
-
-  const availableLetters = useMemo<Letter[]>(
-    () => (form.optionE.trim() ? [...LETTERS] : ["A", "B", "C", "D"]),
-    [form.optionE],
+  const [parent, setParent] = useState<ParentSummary | null>(
+    () => initialParent ?? initialQuestion?.parentQuestion ?? null,
   );
 
-  const isParentPrompt = computeIsParentPrompt(form);
+  const isParent = form.kind === "parent";
+  const isChild = form.kind === "child";
+  const attachedCount = initialQuestion?.childCount ?? 0;
+  /* A shared row with questions attached has to stay one, so the choice is
+     locked rather than left to fail on save. */
+  const kindLocked = attachedCount > 0;
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function chooseKind(kind: QuestionKind) {
+    if (kindLocked) return;
+    setErrors({});
+    setForm((current) => ({
+      ...current,
+      kind,
+      // A shared diagram is never served on its own, so it has no free pool.
+      questionPool:
+        kind === "parent" && current.questionPool === "FREE_EXAM"
+          ? "REAL_BANK"
+          : current.questionPool,
+      parentQuestionId: kind === "child" ? current.parentQuestionId : "",
+    }));
+    if (kind !== "child") setParent(null);
+  }
+
+  function pickParent(next: ParentSummary) {
+    setParent(next);
+    setErrors((current) => ({ ...current, parent: undefined }));
+    setForm((current) => ({
+      ...current,
+      parentQuestionId: String(next.id),
+      // The two have to be in the same subject, so it follows the diagram.
+      subject: next.subject?.trim() ? next.subject : current.subject,
+      year: current.year || (next.year != null ? String(next.year) : ""),
+    }));
+  }
+
+  function clearParent() {
+    setParent(null);
+    updateField("parentQuestionId", "");
   }
 
   function updateSource(
@@ -277,43 +344,10 @@ export function QuestionForm({
     });
   }
 
-  function validate(payload: QuestionPayload): FormErrors {
-    const next: FormErrors = {};
-
-    if (!payload.questionText) {
-      next.questionText = "Write the question before saving.";
-    }
-    if (!payload.subject) {
-      next.subject = "Every question needs a subject.";
-    }
-
-    const requiresAnswers = !isParentPrompt;
-    if (
-      requiresAnswers &&
-      (!payload.optionA ||
-        !payload.optionB ||
-        !payload.optionC ||
-        !payload.optionD)
-    ) {
-      next.options =
-        "Options A to D all need text. Leave every option blank to save this as a parent prompt instead.";
-    }
-
-    if (
-      requiresAnswers &&
-      !availableLetters.includes(form.correctAnswer as Letter)
-    ) {
-      next.correctAnswer = `Option ${form.correctAnswer} has no text, so it cannot be the correct answer.`;
-    }
-
-    return next;
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const payload = buildPayload(form);
-    const nextErrors = validate(payload);
+    const nextErrors = validateForm(form);
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
@@ -324,7 +358,7 @@ export function QuestionForm({
     }
 
     try {
-      await onSubmit(payload);
+      await onSubmit(buildPayload(form));
     } catch {
       /* The calling page surfaces the error toast. */
     }
@@ -337,26 +371,114 @@ export function QuestionForm({
     >
       {/* ══ The question itself ═══════════════════════════ */}
       <div className="min-w-0 space-y-6 lg:col-span-8">
+        {/* ── What is being added ─────────────────────── */}
         <section className="space-y-3">
           <SectionTitle
-            title="The question"
-            description="What the learner reads first."
+            title="What is this?"
+            description={
+              kindLocked
+                ? `${attachedCount} question${attachedCount === 1 ? " uses" : "s use"} this shared diagram, so it stays one.`
+                : "Questions that share a diagram are added one by one and attached to it."
+            }
+          />
+          <div
+            role="radiogroup"
+            aria-label="What kind of row this is"
+            className="grid gap-3 sm:grid-cols-3"
+          >
+            {KIND_CHOICES.map((choice) => {
+              const isSelected = form.kind === choice.value;
+              return (
+                <label
+                  key={choice.value}
+                  className={cn(
+                    "flex cursor-pointer flex-col gap-1 rounded-[var(--sb-radius-lg)] border p-3.5 transition-colors duration-[var(--sb-duration-fast)]",
+                    isSelected
+                      ? "border-[var(--sb-accent)] bg-[var(--sb-accent-soft)]"
+                      : "border-[var(--sb-border)] bg-[var(--sb-surface-1)] hover:border-[var(--sb-border-hover)]",
+                    kindLocked && !isSelected && "cursor-not-allowed opacity-50",
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="questionKind"
+                      value={choice.value}
+                      checked={isSelected}
+                      disabled={kindLocked}
+                      onChange={() => chooseKind(choice.value)}
+                      className="h-4 w-4 accent-[var(--sb-accent)]"
+                    />
+                    <span className="text-[length:var(--sb-text-base)] font-medium text-[var(--sb-text)]">
+                      {choice.title}
+                    </span>
+                  </span>
+                  <span className="pl-6 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                    {choice.description}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </section>
+
+        {isChild ? (
+          <section className="space-y-3">
+            <SectionTitle
+              title="Shared diagram"
+              description="Students see this above the question."
+            />
+            <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              <ParentPicker
+                selected={parent}
+                onSelect={pickParent}
+                onClear={clearParent}
+                subject={form.subject}
+                institutionCode={form.institutionCode}
+                error={errors.parent}
+              />
+            </div>
+          </section>
+        ) : null}
+
+        <section className="space-y-3">
+          <SectionTitle
+            title={isParent ? "The shared diagram or passage" : "The question"}
+            description={
+              isParent
+                ? "Shown above every question that uses it. It is never a question on its own."
+                : "What the learner reads first."
+            }
           />
           <div className="grid gap-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-            <TextArea
-              label="Question text"
-              hint="Required"
-              rows={9}
-              value={form.questionText}
-              onChange={(event) =>
-                updateField("questionText", event.target.value)
-              }
-              placeholder="Write the full question here…"
-              error={errors.questionText}
-            />
+            <div className="space-y-2">
+              <TextArea
+                label={isParent ? "What students read with it" : "Question text"}
+                hint="Required"
+                rows={isParent ? 6 : 9}
+                value={form.questionText}
+                onChange={(event) =>
+                  updateField("questionText", event.target.value)
+                }
+                placeholder={
+                  isParent
+                    ? "Use the diagram below to answer {{QUESTIONS}}."
+                    : "Write the full question here…"
+                }
+                error={errors.questionText}
+              />
+              {isParent ? (
+                <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  Write <span className="sb-mono">{"{{QUESTIONS}}"}</span> where
+                  the question numbers should go. Students see the real
+                  numbers, like &ldquo;questions 21 to 23&rdquo;, and it stays
+                  correct however the questions are ordered.
+                </p>
+              ) : null}
+            </div>
 
             <AssetField
-              label="Question image"
+              label={isParent ? "Diagram or picture" : "Question image"}
               kind="question"
               url={form.imageUrl}
               publicId={form.imagePublicId}
@@ -364,20 +486,31 @@ export function QuestionForm({
                 updateField("imageUrl", nextUrl);
                 updateField("imagePublicId", nextPublicId);
               }}
-              helper="A diagram or scan, when the question depends on one."
+              helper={
+                isParent
+                  ? "The picture every question in the group refers to."
+                  : "A diagram or scan, when the question depends on one."
+              }
             />
           </div>
         </section>
 
+        {isParent ? (
+          <p className="rounded-[var(--sb-radius)] border border-dashed border-[var(--sb-border)] px-3 py-2.5 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+            A shared diagram has no options, answer or explanation of its own.
+            Those belong to each question that uses it.
+            {mode === "edit"
+              ? " Use the panel below to add more questions to it."
+              : " Save it first, then add the questions that use it."}
+          </p>
+        ) : null}
+
         {/* ── Answers ─────────────────────────────────── */}
+        {!isParent ? (
         <section className="space-y-3">
           <SectionTitle
             title="Answer choices"
-            description={
-              isParentPrompt
-                ? "All blank, so this saves as a parent prompt with no options of its own."
-                : "Fill A to D, then mark which one is correct."
-            }
+            description="Fill A to D, then mark which one is correct."
           />
 
           {errors.options ? (
@@ -474,8 +607,10 @@ export function QuestionForm({
             })}
           </fieldset>
         </section>
+        ) : null}
 
         {/* ── Explanation ─────────────────────────────── */}
+        {!isParent ? (
         <section className="space-y-3">
           <SectionTitle
             title="Explanation"
@@ -493,14 +628,14 @@ export function QuestionForm({
                 placeholder="Walk through the reasoning…"
               />
               <TextArea
-                label="Notes"
-                hint="Not shown to learners"
+                label="Notes for learners"
+                hint="Shown under the explanation"
                 rows={3}
                 value={form.additionalNotes}
                 onChange={(event) =>
                   updateField("additionalNotes", event.target.value)
                 }
-                placeholder="Context for whoever edits this next"
+                placeholder="Source: JAMB UTME 2019."
               />
             </div>
 
@@ -517,6 +652,31 @@ export function QuestionForm({
             />
           </div>
         </section>
+        ) : null}
+
+        {/* ── Team notes ──────────────────────────────── */}
+        <section className="space-y-3">
+          <SectionTitle
+            title="Team notes"
+            description="For whoever edits this next. Never sent to students."
+          />
+          <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+            <TextArea
+              label="Notes for the team"
+              hint="Never shown to students"
+              rows={3}
+              value={form.internalNotes}
+              onChange={(event) =>
+                updateField("internalNotes", event.target.value)
+              }
+              placeholder="An answer key to double-check, an option that was written to fill a gap, a diagram that could not be read."
+            />
+          </div>
+        </section>
+
+        {mode === "edit" && isParent && initialQuestion ? (
+          <GroupChildrenPanel parent={initialQuestion} />
+        ) : null}
       </div>
 
       {/* ══ Classification and actions ════════════════════ */}
@@ -607,7 +767,12 @@ export function QuestionForm({
                 aria-label="Question pool"
                 value={form.questionPool}
                 onValueChange={(value) => updateSource({ questionPool: value })}
-                options={[...QUESTION_POOL_OPTIONS]}
+                /* A shared diagram is never served on its own, so the free
+                   pool is not offered for it. Each question that uses it
+                   picks its own pool. */
+                options={QUESTION_POOL_OPTIONS.filter(
+                  (option) => !isParent || option.value !== "FREE_EXAM",
+                )}
               />
             </FieldShell>
 
@@ -625,24 +790,6 @@ export function QuestionForm({
                 : form.reviewStatus === "VERIFIED"
                   ? "Checked, but held back. Set to Published when it should go live."
                   : "Not checked yet. Held back from students until it is Published."}
-            </p>
-
-            <Field
-              label="Parent question ID"
-              hint="Optional"
-              value={form.parentQuestionId}
-              onChange={(event) =>
-                updateField(
-                  "parentQuestionId",
-                  event.target.value.replace(/[^\d]/g, ""),
-                )
-              }
-              placeholder="e.g. 1284"
-              inputMode="numeric"
-            />
-            <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-              Set this only for a follow-up question that hangs off an existing
-              prompt.
             </p>
 
             {/* Was a permanently disabled text input. It is a fact about the
@@ -674,7 +821,13 @@ export function QuestionForm({
                 : "Save changes"}
           </Button>
 
-          {mode === "edit" && onDelete ? (
+          {mode === "edit" && attachedCount > 0 ? (
+            <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+              This shared diagram cannot be deleted while {attachedCount}{" "}
+              question{attachedCount === 1 ? " uses" : "s use"} it. Delete or
+              detach {attachedCount === 1 ? "it" : "them"} first.
+            </p>
+          ) : mode === "edit" && onDelete ? (
             <ConfirmButton
               variant="danger"
               className="w-full"

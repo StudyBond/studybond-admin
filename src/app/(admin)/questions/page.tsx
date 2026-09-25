@@ -11,7 +11,11 @@ import { StatCardSkeleton } from "@/components/ui/skeleton";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { FilterBar, Pagination } from "@/components/ui/toolbar";
 import { useAdminOverview } from "@/features/analytics/hooks/use-admin-overview";
-import { useAdminQuestions } from "@/features/questions/hooks/use-admin-questions";
+import { GroupBadge } from "@/features/questions/components/group-badge";
+import {
+  useAdminQuestions,
+  type QuestionKindFilter,
+} from "@/features/questions/hooks/use-admin-questions";
 import { useQuestionYears } from "@/features/questions/hooks/use-question-years";
 import type { QuestionSearchScope } from "@/lib/api/types";
 import { formatDate, formatInteger } from "@/lib/utils/format";
@@ -54,6 +58,13 @@ import { useMemo, useState } from "react";
  */
 
 const PAGE_SIZE = 20;
+
+const KIND_FILTER_OPTIONS: Array<{ label: string; value: "" | QuestionKindFilter }> = [
+  { label: "All rows", value: "" },
+  { label: "Ordinary questions", value: "standalone" },
+  { label: "Shared diagrams", value: "parent" },
+  { label: "Use a shared diagram", value: "child" },
+];
 
 /**
  * Where a search looks. The backend compares against a flattened copy of the
@@ -108,6 +119,7 @@ export default function QuestionsPage() {
   const [questionType, setQuestionType] = useState("");
   const [reviewStatus, setReviewStatus] = useState("");
   const [year, setYear] = useState("");
+  const [kind, setKind] = useState<"" | QuestionKindFilter>("");
 
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const debouncedSubject = useDebouncedValue(subject.trim(), 350);
@@ -144,6 +156,7 @@ export default function QuestionsPage() {
     questionType: questionType || undefined,
     reviewStatus: reviewStatus || undefined,
     year: year ? Number(year) : undefined,
+    kind: kind || undefined,
   });
 
   const content = overviewQuery.data?.content;
@@ -156,7 +169,8 @@ export default function QuestionsPage() {
       questionPool ||
       questionType ||
       reviewStatus ||
-      year,
+      year ||
+      kind,
   );
 
   function clearFilters() {
@@ -167,6 +181,7 @@ export default function QuestionsPage() {
     setQuestionType("");
     setReviewStatus("");
     setYear("");
+    setKind("");
     setPage(1);
   }
 
@@ -190,9 +205,12 @@ export default function QuestionsPage() {
             </p>
           ) : null}
 
-          <p className="sb-nums mt-1 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-            #{question.id}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="sb-nums text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+              #{question.id}
+            </span>
+            <GroupBadge question={question} />
+          </div>
         </div>
       ),
     },
@@ -401,6 +419,19 @@ export default function QuestionsPage() {
               ...REVIEW_STATUS_OPTIONS,
             ]}
             placeholder="All statuses"
+          />
+        </FieldShell>
+
+        <FieldShell label="Kind">
+          <CustomSelect
+            aria-label="Filter by kind of row"
+            value={kind}
+            onValueChange={(value) => {
+              setKind(value as "" | QuestionKindFilter);
+              setPage(1);
+            }}
+            options={KIND_FILTER_OPTIONS}
+            placeholder="All rows"
           />
         </FieldShell>
 

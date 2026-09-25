@@ -14,7 +14,6 @@ import {
 import {
   buildPayload,
   createInitialState,
-  isParentPrompt,
   LETTERS,
   type FormState,
 } from "@/features/questions/lib/question-form-state";
@@ -181,7 +180,8 @@ export function QuestionReviewer({
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  const parentPrompt = isParentPrompt(form);
+  const isSharedRow = form.kind === "parent";
+  const sharedDiagram = question.parentQuestion ?? null;
   const progressPercent = total > 0 ? Math.round((position / total) * 100) : 0;
 
   async function withPayload(
@@ -278,8 +278,15 @@ export function QuestionReviewer({
           is no second item. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0 space-y-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+          {form.kind === "child" && sharedDiagram ? (
+            <p className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] px-3 py-2 text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
+              Uses shared diagram #{sharedDiagram.id}. Students see it above
+              this question; the preview shows it.
+            </p>
+          ) : null}
+
           <ToolbarField
-            label="Question text"
+            label={isSharedRow ? "Shared diagram or passage text" : "Question text"}
             hint="Required"
             rows={5}
             value={form.questionText}
@@ -289,11 +296,19 @@ export function QuestionReviewer({
             inlinePreview={isWide ? undefined : "question"}
           />
 
+          {isSharedRow ? (
+            <p className="rounded-[var(--sb-radius)] border border-dashed border-[var(--sb-border)] px-3 py-2.5 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+              This is a shared diagram. It has no options, answer or
+              explanation of its own; those belong to the questions that use
+              it. To change its picture or add questions, open it from the
+              question bank.
+            </p>
+          ) : null}
+
+          {!isSharedRow ? (
           <div className="space-y-3">
             <p className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]">
-              {parentPrompt
-                ? "Answer choices — all blank, this saves as a parent prompt"
-                : "Answer choices"}
+              Answer choices
             </p>
             {LETTERS.map((letter) => {
               const key = `option${letter}` as const;
@@ -335,31 +350,44 @@ export function QuestionReviewer({
               );
             })}
           </div>
+          ) : null}
 
-          <ToolbarField
-            label="Explanation"
-            hint="Shown after the learner answers"
-            rows={4}
-            value={form.explanationText}
-            onChange={(value) => updateField("explanationText", value)}
-            onFocus={() => setActiveField("explanationText")}
-            placeholder="Walk through the reasoning…"
-            inlinePreview={isWide ? undefined : "explanation"}
-          />
+          {!isSharedRow ? (
+            <>
+              <ToolbarField
+                label="Explanation"
+                hint="Shown after the learner answers"
+                rows={4}
+                value={form.explanationText}
+                onChange={(value) => updateField("explanationText", value)}
+                onFocus={() => setActiveField("explanationText")}
+                placeholder="Walk through the reasoning…"
+                inlinePreview={isWide ? undefined : "explanation"}
+              />
+
+              <Field
+                label="Notes for learners"
+                hint="Shown under the explanation"
+                value={form.additionalNotes}
+                onChange={(event) => updateField("additionalNotes", event.target.value)}
+                onFocus={() => setActiveField("additionalNotes")}
+                placeholder="Source: JAMB UTME 2019."
+              />
+            </>
+          ) : null}
 
           <Field
-            label="Notes"
-            hint="Not shown to learners"
-            value={form.additionalNotes}
-            onChange={(event) => updateField("additionalNotes", event.target.value)}
-            onFocus={() => setActiveField("additionalNotes")}
-            placeholder="Context for whoever looks at this next"
+            label="Team notes"
+            hint="Never shown to students"
+            value={form.internalNotes}
+            onChange={(event) => updateField("internalNotes", event.target.value)}
+            placeholder="An answer key to double-check, a gap you had to fill…"
           />
         </div>
 
         {isWide ? (
           <div className="min-w-0 lg:sticky lg:top-[calc(var(--sb-topbar-height)+1rem)] lg:self-start">
-            <StudentPreview form={form} activeField={activeField} />
+            <StudentPreview form={form} activeField={activeField} parent={sharedDiagram} />
           </div>
         ) : null}
       </div>
@@ -480,6 +508,7 @@ export function QuestionReviewer({
       {previewOpen && !isWide ? (
         <PreviewSheet
           form={form}
+          parent={sharedDiagram}
           onClose={closePreview}
           onPublish={() => void withPayload({ reviewStatus: "PUBLISHED" }, true)}
           isSaving={isSaving}

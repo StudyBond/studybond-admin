@@ -181,7 +181,12 @@ export default function BulkUploadPage() {
     onSuccess: async (payload) => {
       setResult(payload);
       if (payload.success) {
-        toast.success(`Imported ${payload.successCount} questions`);
+        const warningCount = payload.warnings?.length ?? 0;
+        toast.success(`Imported ${payload.successCount} questions`, {
+          description: warningCount
+            ? `${warningCount} ${warningCount === 1 ? "thing needs" : "things need"} a second look. See the result panel.`
+            : undefined,
+        });
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["admin", "questions"] }),
           queryClient.invalidateQueries({
@@ -270,6 +275,11 @@ export default function BulkUploadPage() {
       cell: (error) => error.message,
     },
   ];
+
+  const warningColumns: Column<BulkUploadRowError>[] = errorColumns.map(
+    (column) =>
+      column.key === "message" ? { ...column, header: "What to check" } : column,
+  );
 
   const historyColumns: Column<BulkUploadBatch>[] = [
     {
@@ -448,6 +458,25 @@ export default function BulkUploadPage() {
                   </span>
                 ))}
               </div>
+              <p className="mt-3 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                In explanations, write an option letter as{" "}
+                <span className="sb-mono">{"{{C}}"}</span>, not a plain C.
+                Options can be shuffled for students, and the marker always
+                shows the right letter.
+              </p>
+              <p className="mt-2 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                <span className="sb-mono">groupKey</span> joins questions that
+                share one diagram. Add one extra row for the diagram with
+                every option and the answer left blank, and give it and each
+                question that uses it the same groupKey. Use a different
+                groupKey for each diagram in the file. In the diagram row&apos;s
+                questionText, write{" "}
+                <span className="sb-mono">{"{{QUESTIONS}}"}</span> where the
+                question numbers go, such as &ldquo;Use the diagram below to
+                answer {"{{QUESTIONS}}"}.&rdquo; Students see the real numbers.{" "}
+                <span className="sb-mono">internalNotes</span> is for the
+                team and is never shown to students.
+              </p>
             </div>
           </section>
 
@@ -496,6 +525,28 @@ export default function BulkUploadPage() {
                         `${error.row}-${error.field}-${error.message}`
                       }
                       emptyTitle="No row errors"
+                    />
+                  </div>
+                ) : null}
+
+                {result.warnings?.length ? (
+                  <div className="space-y-2">
+                    <h3 className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+                      Worth a second look
+                    </h3>
+                    <p className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                      {result.success
+                        ? "These rows were imported. Each one looks like a typing mistake, or may show the wrong letter once options are shuffled."
+                        : "Nothing was imported because of the errors above. Fix these too while you correct the file."}
+                    </p>
+                    <DataTable
+                      caption="Rows worth a second look"
+                      items={result.warnings}
+                      columns={warningColumns}
+                      getKey={(warning) =>
+                        `warning-${warning.row}-${warning.field}-${warning.message}`
+                      }
+                      emptyTitle="Nothing to check"
                     />
                   </div>
                 ) : null}

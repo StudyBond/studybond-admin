@@ -6342,6 +6342,7 @@ export interface paths {
                     topic?: string;
                     questionType?: string;
                     questionPool?: string;
+                    reviewStatus?: string;
                     search?: string;
                     searchIn?: "all" | "question" | "options" | "explanation";
                     page?: number;
@@ -6349,6 +6350,8 @@ export interface paths {
                     hasImage?: boolean;
                     isAiGenerated?: boolean;
                     year?: number;
+                    kind?: "standalone" | "parent" | "child";
+                    parentQuestionId?: number;
                 };
                 header?: never;
                 path?: never;
@@ -6407,6 +6410,8 @@ export interface paths {
                                     questionText: string;
                                     imageUrl: string | null;
                                 } | null;
+                                childCount?: number;
+                                internalNotes?: string | null;
                                 explanation?: {
                                     explanationText: string;
                                     explanationImageUrl: string | null;
@@ -6744,6 +6749,7 @@ export interface paths {
                         explanationImageUrl?: string | null;
                         explanationImagePublicId?: string | null;
                         additionalNotes?: string | null;
+                        internalNotes?: string | null;
                     };
                 };
             };
@@ -6798,6 +6804,8 @@ export interface paths {
                                 questionText: string;
                                 imageUrl: string | null;
                             } | null;
+                            childCount?: number;
+                            internalNotes?: string | null;
                             explanation?: {
                                 explanationText: string;
                                 explanationImageUrl: string | null;
@@ -7716,6 +7724,8 @@ export interface paths {
                                 questionText: string;
                                 imageUrl: string | null;
                             } | null;
+                            childCount?: number;
+                            internalNotes?: string | null;
                             explanation?: {
                                 explanationText: string;
                                 explanationImageUrl: string | null;
@@ -8040,6 +8050,7 @@ export interface paths {
                         explanationImageUrl?: string | null;
                         explanationImagePublicId?: string | null;
                         additionalNotes?: string | null;
+                        internalNotes?: string | null;
                     };
                 };
             };
@@ -8094,6 +8105,8 @@ export interface paths {
                                 questionText: string;
                                 imageUrl: string | null;
                             } | null;
+                            childCount?: number;
+                            internalNotes?: string | null;
                             explanation?: {
                                 explanationText: string;
                                 explanationImageUrl: string | null;
@@ -8625,6 +8638,299 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/questions/bulk/review-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk update review status
+         * @description Publish, verify, or draft many questions in one call, for the content review queue.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        questionIds: number[];
+                        /** @enum {string} */
+                        reviewStatus: "DRAFT" | "VERIFIED" | "PUBLISHED";
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            message: string;
+                            updatedCount: number;
+                            questionIds: number[];
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -15937,6 +16243,8 @@ export interface paths {
                                 name: string;
                                 slug: string;
                                 isActive: boolean;
+                                /** @enum {string} */
+                                studentStatus: "HIDDEN" | "COMING_SOON" | "OPEN";
                                 hasExamConfig: boolean;
                                 subjectCount: number;
                                 questionCount: number;
@@ -17321,6 +17629,8 @@ export interface paths {
                                 name: string;
                                 slug: string;
                                 isActive: boolean;
+                                /** @enum {string} */
+                                studentStatus: "HIDDEN" | "COMING_SOON" | "OPEN";
                                 /** Format: date-time */
                                 createdAt: string;
                             } & {
@@ -17328,6 +17638,8 @@ export interface paths {
                             };
                             examConfig: {
                                 trackCode: string;
+                                trackName: string;
+                                targetScoreMax: number;
                                 maxSubjects: number;
                                 questionsPerSubject: number;
                                 fullExamQuestions: number;
@@ -17623,7 +17935,302 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename a board, or change who can see it
+         * @description Hidden boards still accept questions but are invisible to students, so a new exam can be prepared in full before it opens. Sensitive superadmin action.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                    "x-admin-step-up-token"?: string;
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        /** @enum {string} */
+                        studentStatus?: "HIDDEN" | "COMING_SOON" | "OPEN";
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
+                            institution: {
+                                id: number;
+                                code: string;
+                                name: string;
+                                slug: string;
+                                isActive: boolean;
+                                /** @enum {string} */
+                                studentStatus: "HIDDEN" | "COMING_SOON" | "OPEN";
+                                /** Format: date-time */
+                                createdAt: string;
+                            } & {
+                                [key: string]: unknown;
+                            };
+                            warnings: string[];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/admin/institutions/{id}/exam-config": {
@@ -17682,6 +18289,9 @@ export interface paths {
                         allowPracticeCollaboration?: boolean;
                         allowMixedCollaboration?: boolean;
                         studyModeEnabled?: boolean;
+                        trackName?: string;
+                        trackCode?: string;
+                        targetScoreMax?: number;
                     };
                 };
             };
@@ -17697,6 +18307,8 @@ export interface paths {
                             message: string;
                             examConfig: {
                                 trackCode: string;
+                                trackName: string;
+                                targetScoreMax: number;
                                 maxSubjects: number;
                                 questionsPerSubject: number;
                                 fullExamQuestions: number;
@@ -22912,6 +23524,8 @@ export interface paths {
                                         questionPool: string;
                                         hasImage: boolean;
                                         imageUrl: string | null;
+                                        parentQuestionText: string | null;
+                                        parentQuestionImageUrl: string | null;
                                     };
                                 }[];
                                 pagination: {
@@ -23220,6 +23834,8 @@ export interface paths {
                                     questionPool: string;
                                     hasImage: boolean;
                                     imageUrl: string | null;
+                                    parentQuestionText: string | null;
+                                    parentQuestionImageUrl: string | null;
                                 };
                             };
                         };
@@ -23526,6 +24142,8 @@ export interface paths {
                                     questionPool: string;
                                     hasImage: boolean;
                                     imageUrl: string | null;
+                                    parentQuestionText: string | null;
+                                    parentQuestionImageUrl: string | null;
                                 };
                             };
                         };
@@ -24116,6 +24734,8 @@ export interface paths {
                                         questionPool: string;
                                         hasImage: boolean;
                                         imageUrl: string | null;
+                                        parentQuestionText: string | null;
+                                        parentQuestionImageUrl: string | null;
                                     };
                                     reviewedByAdmin: {
                                         id: number;
@@ -24454,6 +25074,8 @@ export interface paths {
                                     questionPool: string;
                                     hasImage: boolean;
                                     imageUrl: string | null;
+                                    parentQuestionText: string | null;
+                                    parentQuestionImageUrl: string | null;
                                 };
                                 reviewedByAdmin: {
                                     id: number;
@@ -24793,6 +25415,8 @@ export interface paths {
                                     questionPool: string;
                                     hasImage: boolean;
                                     imageUrl: string | null;
+                                    parentQuestionText: string | null;
+                                    parentQuestionImageUrl: string | null;
                                 };
                                 reviewedByAdmin: {
                                     id: number;
@@ -36609,6 +37233,297 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/institutions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Boards a student can choose from
+         * @description Open boards can be chosen; coming-soon boards are shown but cannot be. Hidden boards are left out entirely, so a board being prepared cannot be found before it opens.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                boards: {
+                                    code: string;
+                                    name: string;
+                                    slug: string;
+                                    /** @enum {string} */
+                                    status: "OPEN" | "COMING_SOON";
+                                }[];
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/institutions/exam-profile": {
         parameters: {
             query?: never;
@@ -36653,6 +37568,8 @@ export interface paths {
                                 allowMixedPartialExams: boolean;
                                 allowMixedFullExams: boolean;
                                 studyModeEnabled: boolean;
+                                trackName: string;
+                                targetScoreMax: number;
                                 subjects: {
                                     name: string;
                                     code: string;
@@ -36912,6 +37829,302 @@ export interface paths {
             };
         };
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/institutions/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch the board the student is on
+         * @description Questions, exams, stats, leaderboards and free credits all follow the board, so this one change moves the whole account across. Only boards that are open to students can be chosen.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        institutionCode: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                institution: {
+                                    code: string;
+                                    name: string;
+                                    slug: string;
+                                };
+                                changed: boolean;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;

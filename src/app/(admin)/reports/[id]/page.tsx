@@ -227,6 +227,30 @@ export default function ReportDetailPage() {
               }
             />
             <div className="space-y-3 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              {/* A question that uses a shared diagram is shown with it to
+                  the learner, so the report has to be read with it too. */}
+              {report.question.parentQuestionText ||
+              report.question.parentQuestionImageUrl ? (
+                <div className="space-y-2 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+                  <p className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-tertiary)]">
+                    Shared diagram shown above this question
+                  </p>
+                  {report.question.parentQuestionText ? (
+                    <p className="text-[length:var(--sb-text-sm)] leading-relaxed text-[var(--sb-text-secondary)]">
+                      {report.question.parentQuestionText}
+                    </p>
+                  ) : null}
+                  {report.question.parentQuestionImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={report.question.parentQuestionImageUrl}
+                      alt="Shared diagram"
+                      className="mx-auto max-h-[24rem] w-auto max-w-full object-contain"
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+
               <p className="text-[length:var(--sb-text-md)] leading-relaxed text-[var(--sb-text)]">
                 {report.question.questionText}
               </p>

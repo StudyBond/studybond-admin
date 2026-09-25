@@ -4,6 +4,12 @@ import { MathMarkdown } from "@/components/ui/math-markdown";
 import type { FormState, Letter } from "@/features/questions/lib/question-form-state";
 import { LETTERS } from "@/features/questions/lib/question-form-state";
 import { scrollTopToReveal } from "@/features/questions/lib/preview-scroll";
+import {
+  fillQuestionsToken,
+  hasQuestionsToken,
+  SAMPLE_QUESTIONS_PHRASE,
+  SINGLE_QUESTION_PHRASE,
+} from "@/features/questions/lib/stimulus-preview";
 import { cn } from "@/lib/utils/cn";
 import { Check, Eye } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -54,14 +60,60 @@ function optionImageUrl(form: FormState, letter: Letter): string {
   return form[`option${letter}ImageUrl` as `option${Letter}ImageUrl`];
 }
 
+/**
+ * The shared diagram or passage, drawn like the box the student app puts
+ * above each question that uses it.
+ */
+function SharedBox({
+  text,
+  imageUrl,
+  isEditing = false,
+}: {
+  text: string;
+  imageUrl: string | null;
+  isEditing?: boolean;
+}) {
+  if (!text.trim() && !imageUrl) return null;
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-shadow duration-200",
+        isEditing && EDITING_RING,
+      )}
+    >
+      {text.trim() ? (
+        <div className="text-sm leading-[1.8] text-white/70">
+          <MathMarkdown content={text} />
+        </div>
+      ) : null}
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt="Diagram"
+          className={cn(
+            "max-h-64 rounded-xl border border-white/[0.06] object-contain",
+            text.trim() ? "mt-4" : "",
+          )}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 export function StudentPreview({
   form,
   activeField = null,
+  parent = null,
 }: {
   form: FormState;
   activeField?: PreviewField | null;
+  /** The shared diagram a question uses, when it has one. */
+  parent?: { questionText: string; imageUrl: string | null } | null;
 }) {
   const bodyRef = useRef<HTMLDivElement>(null);
+  const isParent = form.kind === "parent";
 
   useEffect(() => {
     const body = bodyRef.current;
@@ -126,6 +178,36 @@ export function StudentPreview({
           </span>
         ) : null}
 
+        {isParent ? (
+          <div data-preview="questionText" className="space-y-3">
+            <SharedBox
+              text={fillQuestionsToken(form.questionText, SAMPLE_QUESTIONS_PHRASE)}
+              imageUrl={form.imageUrl || null}
+              isEditing={activeField === "questionText"}
+            />
+            {!form.questionText.trim() && !form.imageUrl ? (
+              <p className="text-base italic text-white/25">
+                The shared diagram or passage will appear here.
+              </p>
+            ) : null}
+            <p className="text-xs italic text-white/25">
+              Each question that uses it appears under this, one at a time.
+              {hasQuestionsToken(form.questionText)
+                ? ` The numbers above are an example: students see the real ones.`
+                : ""}
+            </p>
+          </div>
+        ) : null}
+
+        {!isParent && form.kind === "child" && parent ? (
+          <SharedBox
+            text={fillQuestionsToken(parent.questionText, SINGLE_QUESTION_PHRASE)}
+            imageUrl={parent.imageUrl}
+          />
+        ) : null}
+
+        {!isParent ? (
+        <>
         <div
           data-preview="questionText"
           className={cn(
@@ -222,7 +304,7 @@ export function StudentPreview({
           </div>
         ) : (
           <p className="text-sm italic text-white/25">
-            No answer choices yet — this will save as a parent prompt.
+            No answer choices yet.
           </p>
         )}
 
@@ -260,6 +342,25 @@ export function StudentPreview({
               ) : null}
             </div>
           </div>
+        ) : null}
+
+        {form.additionalNotes.trim() ? (
+          <div
+            data-preview="additionalNotes"
+            className={cn(
+              "rounded-xl transition-shadow duration-200",
+              activeField === "additionalNotes" && EDITING_RING,
+            )}
+          >
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/20">
+              Notes — shown under the explanation
+            </p>
+            <div className="text-sm leading-relaxed text-white/60">
+              <MathMarkdown content={form.additionalNotes} variant="explanation" />
+            </div>
+          </div>
+        ) : null}
+        </>
         ) : null}
       </div>
     </div>

@@ -50,7 +50,11 @@ export const BULK_UPLOAD_COLUMNS = [
   "correctAnswer",
   "subject",
   "topic",
+  "subTopic",
+  "branch",
   "difficultyLevel",
+  "cognitiveLevel",
+  "reviewStatus",
   "questionType",
   "questionPool",
   "imageUrl",
@@ -64,6 +68,8 @@ export const BULK_UPLOAD_COLUMNS = [
   "additionalNotes",
   "parentQuestionId",
   "year",
+  "groupKey",
+  "internalNotes",
 ] as const;
 
 export function getQuestionTypeLabel(value: string | null | undefined) {

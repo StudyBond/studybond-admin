@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { MathMarkdown } from "@/components/ui/math-markdown";
+import { GroupBadge } from "@/features/questions/components/group-badge";
 import type { QuestionListItem } from "@/lib/api/types";
 import { formatDate } from "@/lib/utils/format";
 import { Eye, Library, ShieldCheck } from "lucide-react";
@@ -81,9 +82,12 @@ export function ReviewList({
                 className="text-[var(--sb-text)] [&_.katex]:!text-[var(--sb-text)]"
               />
             </div>
-            <p className="sb-nums mt-1 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-              #{question.id}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="sb-nums text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                #{question.id}
+              </span>
+              <GroupBadge question={question} />
+            </div>
           </div>
         ),
       },

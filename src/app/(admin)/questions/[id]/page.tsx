@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QuestionForm } from "@/features/questions/components/question-form";
 import { useAdminQuestion } from "@/features/questions/hooks/use-admin-question";
+import { kindOfQuestion } from "@/features/questions/lib/question-form-state";
 import { questionsApi } from "@/lib/api/questions";
 import type { QuestionPayload } from "@/lib/api/types";
 import { getQuestionPoolLabel } from "@/lib/utils/questions";
@@ -101,10 +102,16 @@ export default function EditQuestionPage() {
     );
   }
 
+  const kind = kindOfQuestion(question);
+
   return (
     <div className="sb-enter space-y-6 pb-2">
       <PageHeader
-        title={`Question #${question.id}`}
+        title={
+          kind === "parent"
+            ? `Shared diagram #${question.id}`
+            : `Question #${question.id}`
+        }
         description={question.subject}
         /* Which pool a question sits in decides who is served it, so it is
            worth seeing before you start editing rather than after you
@@ -118,6 +125,17 @@ export default function EditQuestionPage() {
               <Badge tone="neutral">{question.year}</Badge>
             ) : null}
             {question.hasImage ? <Badge tone="info">Has image</Badge> : null}
+            {kind === "parent" ? (
+              <Badge tone="info">
+                Shared diagram · {question.childCount ?? 0} question
+                {(question.childCount ?? 0) === 1 ? "" : "s"}
+              </Badge>
+            ) : null}
+            {question.parentQuestionId ? (
+              <Badge tone="info">
+                Uses shared diagram #{question.parentQuestionId}
+              </Badge>
+            ) : null}
           </>
         }
         action={

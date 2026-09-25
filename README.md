@@ -39,8 +39,11 @@ npm install
 npm run dev
 npm run lint
 npm run typecheck
+npm run test
 npm run build
 ```
+
+`npm run test` runs Vitest over `src/**/*.test.ts`. These are pure-logic tests with no browser and no network; today they cover the question form's state, validation and payload building (`src/features/questions/lib`). Put a test next to the file it covers.
 
 Latest local verification after the reports/OpenAPI type alignment:
 
