@@ -12,6 +12,7 @@ import {
   type QueueRailItem,
 } from "@/features/questions/components/question-reviewer";
 import { ReviewList } from "@/features/questions/components/review-list";
+import { useAdminInstitutions } from "@/features/institutions/hooks/use-admin-institutions";
 import { useAdminQuestions } from "@/features/questions/hooks/use-admin-questions";
 import { questionsApi } from "@/lib/api/questions";
 import type { QuestionListItem, QuestionPayload } from "@/lib/api/types";
@@ -49,12 +50,20 @@ export default function ReviewQueuePage() {
   const [mode, setMode] = useState<"queue" | "list">("queue");
   const [subject, setSubject] = useState("");
   const [questionPool, setQuestionPool] = useState("");
+  const [institutionCode, setInstitutionCode] = useState("UI");
   const [statusScope, setStatusScope] = useState(STATUS_SCOPES[0].value);
   const [currentId, setCurrentId] = useState<number | null>(null);
 
   const debouncedSubject = useDebouncedValue(subject.trim(), 350);
 
+  const institutionsQuery = useAdminInstitutions();
+  const institutionOptions = (institutionsQuery.data?.institutions ?? []).map((item) => ({
+    label: `${item.code} - ${item.name}`,
+    value: item.code,
+  }));
+
   const questionsQuery = useAdminQuestions({
+    institutionCode,
     reviewStatus: statusScope,
     subject: debouncedSubject || undefined,
     questionPool: questionPool || undefined,
@@ -130,6 +139,21 @@ export default function ReviewQueuePage() {
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-3">
+          <FieldShell label="Institution">
+            <CustomSelect
+              aria-label="Which institution's questions to show"
+              value={institutionCode}
+              onValueChange={(value) => {
+                setInstitutionCode(value);
+                setCurrentId(null);
+              }}
+              options={
+                institutionOptions.length > 0
+                  ? institutionOptions
+                  : [{ label: "UI", value: "UI" }, { label: "JAMB", value: "JAMB" }]
+              }
+            />
+          </FieldShell>
           <FieldShell label="Status">
             <CustomSelect
               aria-label="Which review statuses to show"
