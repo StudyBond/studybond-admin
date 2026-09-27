@@ -175,7 +175,11 @@ export function ParentPicker({
           <li className="rounded-[var(--sb-radius)] border border-dashed border-[var(--sb-border)] p-3 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
             No shared diagram found.{" "}
             <Link
-              href="/questions/new?kind=parent"
+              href={
+                institutionCode?.trim()
+                  ? `/questions/new?kind=parent&institution=${encodeURIComponent(institutionCode.trim())}`
+                  : "/questions/new?kind=parent"
+              }
               className="inline-flex items-center gap-1 font-medium text-[var(--sb-accent)] hover:underline"
             >
               <Plus className="h-3 w-3" />

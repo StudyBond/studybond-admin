@@ -3,10 +3,11 @@
 import { adminAnalyticsApi } from "@/lib/api/admin-analytics";
 import { useQuery } from "@tanstack/react-query";
 
-export function useAdminOverview(institutionCode?: string) {
+export function useAdminOverview(institutionCode?: string, enabled = true) {
   return useQuery({
     queryKey: ["admin", "analytics", "overview", institutionCode ?? "default"],
     queryFn: () => adminAnalyticsApi.getOverview(institutionCode),
     staleTime: 60_000,
+    enabled,
   });
 }

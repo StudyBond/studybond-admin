@@ -23,6 +23,10 @@ import { toast } from "sonner";
  *                  taking its subject, year and pool, so a group of questions
  *                  is entered one after another without picking it each time.
  *   ?kind=parent   starts a shared diagram.
+ *
+ * ?institution=JAMB sets which institution the new row joins, so a question
+ * added while the bank shows JAMB does not quietly land in UI. A parent's
+ * own institution still wins over it.
  */
 function NewQuestionContent() {
   const router = useRouter();
@@ -32,6 +36,10 @@ function NewQuestionContent() {
   const parentIdParam = Number.parseInt(searchParams.get("parentId") ?? "", 10);
   const parentId = Number.isFinite(parentIdParam) ? parentIdParam : undefined;
   const startsAsParent = searchParams.get("kind") === "parent";
+  const institutionParam = searchParams.get("institution")?.trim().toUpperCase();
+  const institutionOverride: Partial<FormState> = institutionParam
+    ? { institutionCode: institutionParam }
+    : {};
 
   const parentQuery = useAdminQuestion(parentId);
   const parentRecord = parentQuery.data;
@@ -87,8 +95,8 @@ function NewQuestionContent() {
         reviewStatus: parentRecord.reviewStatus,
       }
     : startsAsParent
-      ? { kind: "parent" }
-      : undefined;
+      ? { kind: "parent", ...institutionOverride }
+      : institutionOverride;
 
   return (
     <div className="sb-enter space-y-6 pb-2">

@@ -12,10 +12,12 @@ import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { FilterBar, Pagination } from "@/components/ui/toolbar";
 import { useAdminOverview } from "@/features/analytics/hooks/use-admin-overview";
 import { GroupBadge } from "@/features/questions/components/group-badge";
+import { InstitutionSelect } from "@/features/questions/components/institution-select";
 import {
   useAdminQuestions,
   type QuestionKindFilter,
 } from "@/features/questions/hooks/use-admin-questions";
+import { useQuestionInstitution } from "@/features/questions/hooks/use-question-institution";
 import { useQuestionYears } from "@/features/questions/hooks/use-question-years";
 import type { QuestionSearchScope } from "@/lib/api/types";
 import { formatDate, formatInteger } from "@/lib/utils/format";
@@ -120,6 +122,8 @@ export default function QuestionsPage() {
   const [reviewStatus, setReviewStatus] = useState("");
   const [year, setYear] = useState("");
   const [kind, setKind] = useState<"" | QuestionKindFilter>("");
+  const { institutionCode, setInstitutionCode, institutions, isReady } =
+    useQuestionInstitution();
 
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const debouncedSubject = useDebouncedValue(subject.trim(), 350);
@@ -132,8 +136,21 @@ export default function QuestionsPage() {
     };
   }
 
-  const overviewQuery = useAdminOverview();
-  const yearsQuery = useQuestionYears();
+  /**
+   * Not cleared with the other filters: it decides which bank is on screen
+   * rather than narrowing it. The year goes back to All, since each
+   * institution has its own years and a stale one would match nothing.
+   */
+  function changeInstitution(code: string) {
+    setInstitutionCode(code);
+    setYear("");
+    setPage(1);
+  }
+
+  // Scoped like the list, so the counts describe the questions below them.
+  // Unscoped, they would add up every institution while the list shows one.
+  const overviewQuery = useAdminOverview(institutionCode, isReady);
+  const yearsQuery = useQuestionYears(institutionCode, isReady);
 
   const yearOptions = useMemo(
     () => [
@@ -146,18 +163,25 @@ export default function QuestionsPage() {
     [yearsQuery.data],
   );
 
-  const questionsQuery = useAdminQuestions({
-    page,
-    limit: PAGE_SIZE,
-    search: debouncedSearch || undefined,
-    searchIn: debouncedSearch ? searchIn : undefined,
-    subject: debouncedSubject || undefined,
-    questionPool: questionPool || undefined,
-    questionType: questionType || undefined,
-    reviewStatus: reviewStatus || undefined,
-    year: year ? Number(year) : undefined,
-    kind: kind || undefined,
-  });
+  const questionsQuery = useAdminQuestions(
+    {
+      institutionCode,
+      page,
+      limit: PAGE_SIZE,
+      search: debouncedSearch || undefined,
+      searchIn: debouncedSearch ? searchIn : undefined,
+      subject: debouncedSubject || undefined,
+      questionPool: questionPool || undefined,
+      questionType: questionType || undefined,
+      reviewStatus: reviewStatus || undefined,
+      year: year ? Number(year) : undefined,
+      kind: kind || undefined,
+    },
+    { enabled: isReady },
+  );
+
+  // A question added from here joins the bank on screen, not always UI.
+  const addQuestionHref = `/questions/new?institution=${encodeURIComponent(institutionCode)}`;
 
   const content = overviewQuery.data?.content;
   const questions = questionsQuery.data?.questions ?? [];
@@ -292,7 +316,7 @@ export default function QuestionsPage() {
         description="Every question learners can be served. Filter to find one, or add to the bank."
         action={
           <>
-            <Button asChild href="/questions/new" variant="secondary">
+            <Button asChild href={addQuestionHref} variant="secondary">
               <Plus className="h-4 w-4" />
               Add question
             </Button>
@@ -308,7 +332,7 @@ export default function QuestionsPage() {
           These four counts come from the analytics overview, not from
           the filtered list below. If that request fails, say so rather
           than filling the boxes with words. */}
-      {overviewQuery.isLoading ? (
+      {!isReady || overviewQuery.isLoading ? (
         <StatGrid>
           {Array.from({ length: 4 }).map((_, index) => (
             <StatCardSkeleton key={index} />
@@ -319,7 +343,7 @@ export default function QuestionsPage() {
           <StatCard
             label="Total questions"
             value={formatInteger(content.totalQuestions)}
-            hint="Across every pool"
+            hint={`${institutionCode} only, across every pool`}
           />
           <StatCard
             label="Free exam pool"
@@ -361,6 +385,12 @@ export default function QuestionsPage() {
           />
         }
       >
+        <InstitutionSelect
+          value={institutionCode}
+          onValueChange={changeInstitution}
+          institutions={institutions}
+        />
+
         {/* Only useful once something is being searched. */}
         {search.trim() ? (
           <FieldShell label="Search in">
@@ -442,7 +472,7 @@ export default function QuestionsPage() {
             onValueChange={applyFilter(setYear)}
             options={yearOptions}
             placeholder="All years"
-            disabled={yearsQuery.isLoading}
+            disabled={!isReady || yearsQuery.isLoading}
           />
         </FieldShell>
       </FilterBar>
@@ -500,19 +530,19 @@ export default function QuestionsPage() {
         columns={columns}
         getKey={(question) => question.id}
         href={(question) => `/questions/${question.id}`}
-        isLoading={questionsQuery.isLoading}
+        isLoading={!isReady || questionsQuery.isLoading}
         error={questionsQuery.isError ? questionsQuery.error : undefined}
         onRetry={() => questionsQuery.refetch()}
         emptyIcon={<Library className="h-4 w-4" />}
         emptyTitle={
           hasActiveFilters
             ? "No questions match these filters"
-            : "The question bank is empty"
+            : `No ${institutionCode} questions yet`
         }
         emptyDescription={
           hasActiveFilters
             ? "Try a broader subject, or set the pool and year back to All."
-            : "Add a question, or import a batch with bulk upload."
+            : "Add a question, or import a batch with bulk upload. Questions uploaded under another institution show when you pick it above."
         }
         emptyAction={
           hasActiveFilters ? (
@@ -525,7 +555,7 @@ export default function QuestionsPage() {
               Clear filters
             </Button>
           ) : (
-            <Button asChild href="/questions/new" size="sm">
+            <Button asChild href={addQuestionHref} size="sm">
               <Plus className="h-3.5 w-3.5" />
               Add question
             </Button>
