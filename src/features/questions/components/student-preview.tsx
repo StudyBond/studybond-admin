@@ -3,6 +3,7 @@
 import { MathMarkdown } from "@/components/ui/math-markdown";
 import type { FormState, Letter } from "@/features/questions/lib/question-form-state";
 import { LETTERS } from "@/features/questions/lib/question-form-state";
+import { resolveOptionMarkers } from "@/features/questions/lib/option-markers";
 import { scrollTopToReveal } from "@/features/questions/lib/preview-scroll";
 import {
   fillQuestionsToken,
@@ -323,7 +324,7 @@ export function StudentPreview({
               {form.explanationText.trim() ? (
                 <div className="text-sm leading-relaxed text-white/80">
                   <MathMarkdown
-                    content={form.explanationText}
+                    content={resolveOptionMarkers(form.explanationText)}
                     variant="explanation"
                   />
                 </div>
@@ -356,7 +357,10 @@ export function StudentPreview({
               Notes — shown under the explanation
             </p>
             <div className="text-sm leading-relaxed text-white/60">
-              <MathMarkdown content={form.additionalNotes} variant="explanation" />
+              <MathMarkdown
+                content={resolveOptionMarkers(form.additionalNotes)}
+                variant="explanation"
+              />
             </div>
           </div>
         ) : null}
@@ -390,7 +394,7 @@ export function InlinePreview({
         As students see it
       </p>
       <div className="bg-[#050506] px-3 py-2.5 text-sm text-white/70">
-        <MathMarkdown content={content} variant={variant} />
+        <MathMarkdown content={resolveOptionMarkers(content)} variant={variant} />
       </div>
     </div>
   );
