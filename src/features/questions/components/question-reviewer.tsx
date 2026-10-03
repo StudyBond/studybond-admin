@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { Field, FieldShell } from "@/components/ui/field";
+import { AssetField } from "@/features/questions/components/asset-field";
 import { FormattingToolbar } from "@/features/questions/components/formatting-toolbar";
 import { PreviewSheet } from "@/features/questions/components/preview-sheet";
 import {
@@ -178,6 +179,10 @@ export function QuestionReviewer({
      wide-screen preview reads it. */
   const [activeField, setActiveField] = useState<PreviewField | null>(null);
 
+  /* Images are collapsed by default: most questions have none, and the
+     count on the toggle says so. Opening it is one click when one is needed. */
+  const [imagesOpen, setImagesOpen] = useState(false);
+
   /* 64rem is Tailwind's `lg` exactly, so this agrees with every lg: class. */
   const isWide = useMediaQuery("(min-width: 64rem)");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -188,6 +193,15 @@ export function QuestionReviewer({
   }
 
   const isSharedRow = form.kind === "parent";
+  const attachedImageCount = [
+    form.imageUrl,
+    form.optionAImageUrl,
+    form.optionBImageUrl,
+    form.optionCImageUrl,
+    form.optionDImageUrl,
+    form.optionEImageUrl,
+    form.explanationImageUrl,
+  ].filter((url) => url.trim() !== "").length;
   const sharedDiagram = question.parentQuestion ?? null;
   const progressPercent = total > 0 ? Math.round((position / total) * 100) : 0;
 
@@ -383,6 +397,72 @@ export function QuestionReviewer({
             </>
           ) : null}
 
+          {/* ── Images ───────────────────────────────────────
+              Every image slot a question has, behind one toggle that shows
+              how many are attached. Upload and paste work exactly as they do
+              on the edit page; the preview already draws whatever is set. */}
+          <div className="space-y-3 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+            <button
+              type="button"
+              aria-expanded={imagesOpen}
+              onClick={() => setImagesOpen((open) => !open)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <span className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]">
+                Images
+              </span>
+              <span className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                {attachedImageCount === 0
+                  ? "None attached"
+                  : `${attachedImageCount} attached`}
+                {" · "}
+                {imagesOpen ? "Hide" : "Show"}
+              </span>
+            </button>
+
+            {imagesOpen ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <AssetField
+                  label="Question image"
+                  kind="question"
+                  url={form.imageUrl}
+                  publicId={form.imagePublicId}
+                  onChange={(nextUrl, nextPublicId) => {
+                    updateField("imageUrl", nextUrl);
+                    updateField("imagePublicId", nextPublicId);
+                  }}
+                />
+                {!isSharedRow
+                  ? LETTERS.map((letter) => (
+                      <AssetField
+                        key={letter}
+                        label={`Option ${letter} image`}
+                        kind={`option${letter}`}
+                        url={form[`option${letter}ImageUrl`]}
+                        publicId={form[`option${letter}ImagePublicId`]}
+                        onChange={(nextUrl, nextPublicId) => {
+                          updateField(`option${letter}ImageUrl`, nextUrl);
+                          updateField(`option${letter}ImagePublicId`, nextPublicId);
+                        }}
+                      />
+                    ))
+                  : null}
+                {!isSharedRow ? (
+                  <AssetField
+                    label="Explanation image"
+                    kind="explanation"
+                    url={form.explanationImageUrl}
+                    publicId={form.explanationImagePublicId}
+                    onChange={(nextUrl, nextPublicId) => {
+                      updateField("explanationImageUrl", nextUrl);
+                      updateField("explanationImagePublicId", nextPublicId);
+                    }}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
           {/* Classification, corrected in the same pass as the content. A
               wrong subject or year is found while reading the question, and
               sending a reviewer to another page to fix it is how errors get
@@ -459,7 +539,7 @@ export function QuestionReviewer({
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--sb-border)] pt-3">
               <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-                Parent, images for a field, or anything else not here:
+                Parent question, or anything else not here:
               </p>
               <Button asChild href={`/questions/${question.id}`} variant="secondary" size="sm">
                 Open full editor
