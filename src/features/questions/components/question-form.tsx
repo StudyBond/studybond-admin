@@ -20,6 +20,8 @@ import {
   QUESTION_POOL_OPTIONS,
   QUESTION_TYPE_OPTIONS,
   REVIEW_STATUS_OPTIONS,
+  DIFFICULTY_SUGGESTIONS,
+  SUBJECT_SUGGESTIONS,
 } from "@/lib/utils/questions";
 import { GroupChildrenPanel } from "@/features/questions/components/group-children-panel";
 import {
@@ -701,18 +703,7 @@ export function QuestionForm({
               error={errors.subject}
             />
             <datalist id="subject-options">
-              {[
-                "Physics",
-                "Chemistry",
-                "Mathematics",
-                "Biology",
-                "English",
-                "Commerce",
-                "Economics",
-                "Accounting",
-                "Government",
-                "Literature",
-              ].map((subject) => (
+              {SUBJECT_SUGGESTIONS.map((subject) => (
                 <option key={subject} value={subject} />
               ))}
             </datalist>
@@ -734,7 +725,7 @@ export function QuestionForm({
                 list="difficulty-options"
               />
               <datalist id="difficulty-options">
-                {["Beginner", "Intermediate", "Advanced"].map((level) => (
+                {DIFFICULTY_SUGGESTIONS.map((level) => (
                   <option key={level} value={level} />
                 ))}
               </datalist>

@@ -4,6 +4,22 @@ export const QUESTION_TYPE_OPTIONS = [
   { value: "ai_generated", label: "AI generated" },
 ] as const;
 
+/** Suggestions for the subject field. A free-text field, so these only help. */
+export const SUBJECT_SUGGESTIONS = [
+  "Physics",
+  "Chemistry",
+  "Mathematics",
+  "Biology",
+  "English",
+  "Commerce",
+  "Economics",
+  "Accounting",
+  "Government",
+  "Literature",
+] as const;
+
+export const DIFFICULTY_SUGGESTIONS = ["Beginner", "Intermediate", "Advanced"] as const;
+
 export const QUESTION_POOL_OPTIONS = [
   { value: "FREE_EXAM", label: "Free exam pool" },
   { value: "REAL_BANK", label: "Real past questions" },

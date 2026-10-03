@@ -3,7 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
-import { Field } from "@/components/ui/field";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { Field, FieldShell } from "@/components/ui/field";
 import { FormattingToolbar } from "@/features/questions/components/formatting-toolbar";
 import { PreviewSheet } from "@/features/questions/components/preview-sheet";
 import {
@@ -18,6 +19,12 @@ import {
   type FormState,
 } from "@/features/questions/lib/question-form-state";
 import type { QuestionPayload, QuestionRecord } from "@/lib/api/types";
+import {
+  DIFFICULTY_SUGGESTIONS,
+  QUESTION_POOL_OPTIONS,
+  QUESTION_TYPE_OPTIONS,
+  SUBJECT_SUGGESTIONS,
+} from "@/lib/utils/questions";
 import { cn } from "@/lib/utils/cn";
 import { useMediaQuery } from "@/lib/utils/use-media-query";
 import {
@@ -375,6 +382,90 @@ export function QuestionReviewer({
               />
             </>
           ) : null}
+
+          {/* Classification, corrected in the same pass as the content. A
+              wrong subject or year is found while reading the question, and
+              sending a reviewer to another page to fix it is how errors get
+              left in place. A shared diagram cannot sit in the free pool, so
+              that option is not offered for one. */}
+          <div className="space-y-3 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+            <p className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]">
+              Classification
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field
+                label="Subject"
+                hint="Required"
+                value={form.subject}
+                onChange={(event) => updateField("subject", event.target.value)}
+                onFocus={() => setActiveField(null)}
+                list="review-subject-options"
+                placeholder="Physics"
+              />
+              <Field
+                label="Topic"
+                value={form.topic}
+                onChange={(event) => updateField("topic", event.target.value)}
+                placeholder="Waves and motion"
+              />
+              <Field
+                label="Year"
+                hint={isSharedRow ? undefined : "Past questions only"}
+                value={form.year}
+                onChange={(event) =>
+                  updateField("year", event.target.value.replace(/[^\d]/g, ""))
+                }
+                inputMode="numeric"
+                placeholder="2022"
+              />
+              <Field
+                label="Difficulty"
+                value={form.difficultyLevel}
+                onChange={(event) =>
+                  updateField("difficultyLevel", event.target.value)
+                }
+                list="review-difficulty-options"
+                placeholder="Intermediate"
+              />
+              <FieldShell label="Pool">
+                <CustomSelect
+                  aria-label="Question pool"
+                  value={form.questionPool}
+                  onValueChange={(value) => updateField("questionPool", value)}
+                  options={[...QUESTION_POOL_OPTIONS].filter(
+                    (option) => !(isSharedRow && option.value === "FREE_EXAM"),
+                  )}
+                />
+              </FieldShell>
+              <FieldShell label="Source type">
+                <CustomSelect
+                  aria-label="Source type"
+                  value={form.questionType}
+                  onValueChange={(value) => updateField("questionType", value)}
+                  options={[...QUESTION_TYPE_OPTIONS]}
+                />
+              </FieldShell>
+            </div>
+            <datalist id="review-subject-options">
+              {SUBJECT_SUGGESTIONS.map((subject) => (
+                <option key={subject} value={subject} />
+              ))}
+            </datalist>
+            <datalist id="review-difficulty-options">
+              {DIFFICULTY_SUGGESTIONS.map((level) => (
+                <option key={level} value={level} />
+              ))}
+            </datalist>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--sb-border)] pt-3">
+              <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                Parent, images for a field, or anything else not here:
+              </p>
+              <Button asChild href={`/questions/${question.id}`} variant="secondary" size="sm">
+                Open full editor
+              </Button>
+            </div>
+          </div>
 
           <Field
             label="Team notes"
