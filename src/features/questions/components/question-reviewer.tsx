@@ -7,7 +7,7 @@ import { Field } from "@/components/ui/field";
 import { AssetField } from "@/features/questions/components/asset-field";
 import { FormattingToolbar } from "@/features/questions/components/formatting-toolbar";
 import { PreviewSheet } from "@/features/questions/components/preview-sheet";
-import { UnsavedChangesDialog } from "@/features/questions/components/unsaved-changes-dialog";
+import type { UnsavedDraft } from "@/features/questions/hooks/use-leave-guard";
 import {
   InlinePreview,
   StudentPreview,
@@ -32,8 +32,7 @@ import {
   ShieldCheck,
   SkipForward,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * One question, reviewed. The editable fields carry formatting toolbars,
@@ -80,6 +79,10 @@ type QuestionReviewerProps = {
   isSaving: boolean;
   /** Opens the question at this position in the whole queue. */
   onGoTo: (position: number) => void;
+  /** Lets the page check for unsaved changes here, and save them. */
+  draftRef: RefObject<UnsavedDraft | null>;
+  /** True while the page is asking about unsaved changes. */
+  shortcutsPaused: boolean;
 };
 
 /* "Question [37] of 412". Type a number, then press Enter or click away, to
@@ -215,6 +218,8 @@ export function QuestionReviewer({
   onSubmit,
   isSaving,
   onGoTo,
+  draftRef,
+  shortcutsPaused,
 }: QuestionReviewerProps) {
   /* Remounts on question change via key={question.id} at the call site, so
      this re-seeds from the new record rather than syncing through an
@@ -241,17 +246,23 @@ export function QuestionReviewer({
   const isWide = useMediaQuery("(min-width: 64rem)");
   const [previewOpen, setPreviewOpen] = useState(false);
   const closePreview = useCallback(() => setPreviewOpen(false), []);
-  const router = useRouter();
+  /* What was last saved, as a string to compare the form against. A ref, so a
+     save can update it at once, before the next render. */
+  const savedRef = useRef(JSON.stringify(form));
 
-  /* The form as last saved. Anything that differs from it is an unsaved
-     change. It starts as the form the reviewer opened with, which matches
-     the record it was made from. */
-  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(form));
-  const isDirty = JSON.stringify(form) !== savedSnapshot;
-
-  /* A move or a jump away from this question, held until the dialog is
-     answered. Null while nothing is waiting. */
-  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  /* Tells the page how to check for and save unsaved changes here. Set after
+     every render, so the page always gets the current form. */
+  useEffect(() => {
+    draftRef.current = {
+      isDirty: () => JSON.stringify(form) !== savedRef.current,
+      save: () => withPayload({}, false),
+    };
+  });
+  useEffect(() => {
+    return () => {
+      draftRef.current = null;
+    };
+  }, [draftRef]);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -279,39 +290,8 @@ export function QuestionReviewer({
     const sent = JSON.stringify(form);
     const payload = buildPayload({ ...form, ...override });
     await onSubmit(payload);
-    setSavedSnapshot(sent);
+    savedRef.current = sent;
     if (thenAdvance) onNext();
-  }
-
-  /* Runs a move away from this question, or asks first when there are
-     unsaved changes. */
-  function leaveAfter(action: () => void) {
-    if (isDirty) setPendingLeave(() => action);
-    else action();
-  }
-
-  const goPrevious = () => leaveAfter(onPrevious);
-  const goSkip = () => leaveAfter(onSkip);
-  const goNext = () => leaveAfter(onNext);
-  const goTo = (target: number) => leaveAfter(() => onGoTo(target));
-
-  function leaveWithoutSaving() {
-    const action = pendingLeave;
-    setPendingLeave(null);
-    action?.();
-  }
-
-  /* The same save as the Save button. If it fails, the dialog stays open and
-     the error toast says why, so the reviewer is still here to fix it. */
-  async function saveAndLeave() {
-    const action = pendingLeave;
-    try {
-      await withPayload({}, false);
-    } catch {
-      return;
-    }
-    setPendingLeave(null);
-    action?.();
   }
 
   /* Ctrl/Cmd+Enter publishes even while typing — the conventional "submit
@@ -324,9 +304,9 @@ export function QuestionReviewer({
     }
 
     function onKeyDown(event: KeyboardEvent) {
-      /* While the unsaved-changes dialog is up, the page's shortcuts wait
-         for its answer. Otherwise Ctrl+Enter would publish behind it. */
-      if (pendingLeave) return;
+      /* While the page is asking about unsaved changes, its shortcuts wait for
+         an answer. Otherwise Ctrl+Enter would publish behind the dialog. */
+      if (shortcutsPaused) return;
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
         void withPayload({ reviewStatus: "PUBLISHED" }, true);
@@ -338,34 +318,21 @@ export function QuestionReviewer({
         return;
       }
       if (isTypingTarget(event.target)) return;
-      if (event.key === "ArrowRight" && hasNext) goNext();
-      if (event.key === "ArrowLeft" && hasPrevious) goPrevious();
+      if (event.key === "ArrowRight" && hasNext) onNext();
+      if (event.key === "ArrowLeft" && hasPrevious) onPrevious();
     }
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, hasNext, hasPrevious, isDirty, pendingLeave, onNext, onPrevious]);
-
-  /* Closing the tab or reloading would lose the changes with no warning, so
-     the browser's own "leave this site?" prompt is shown while anything is
-     unsaved. The browser words that prompt, not us. */
-  useEffect(() => {
-    if (!isDirty) return;
-    function onBeforeUnload(event: BeforeUnloadEvent) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [isDirty]);
+  }, [form, hasNext, hasPrevious, shortcutsPaused, onNext, onPrevious]);
 
   return (
     <div className="space-y-4">
       {/* ── Progress + position ──────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <PositionField position={position} total={total} onGoTo={goTo} />
+          <PositionField position={position} total={total} onGoTo={onGoTo} />
           <Badge tone={question.reviewStatus === "DRAFT" ? "warning" : "info"}>
             {question.reviewStatus === "DRAFT" ? "Draft" : "Verified"}
           </Badge>
@@ -577,20 +544,7 @@ export function QuestionReviewer({
             <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
               Subject, topic, year, difficulty and pool are set in the full editor.
             </p>
-            {/* Still a link, so middle-click and "open in new tab" work as
-                usual. Only a plain click is held when there are unsaved
-                changes. */}
-            <Button
-              asChild
-              href={`/questions/${question.id}`}
-              variant="secondary"
-              size="sm"
-              onClick={(event) => {
-                if (!isDirty) return;
-                event.preventDefault();
-                setPendingLeave(() => () => router.push(`/questions/${question.id}`));
-              }}
-            >
+            <Button asChild href={`/questions/${question.id}`} variant="secondary" size="sm">
               Open full editor
             </Button>
           </div>
@@ -639,7 +593,7 @@ export function QuestionReviewer({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={goPrevious}
+              onClick={onPrevious}
               disabled={!hasPrevious}
               aria-label="Previous question"
               title="Previous question"
@@ -651,7 +605,7 @@ export function QuestionReviewer({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={goSkip}
+              onClick={onSkip}
               aria-label="Skip to the next question"
               title="Skip to the next question"
             >
@@ -739,14 +693,6 @@ export function QuestionReviewer({
           hasNext={hasNext}
         />
       ) : null}
-
-      <UnsavedChangesDialog
-        open={pendingLeave !== null}
-        isSaving={isSaving}
-        onSave={() => void saveAndLeave()}
-        onLeave={leaveWithoutSaving}
-        onStay={() => setPendingLeave(null)}
-      />
     </div>
   );
 }

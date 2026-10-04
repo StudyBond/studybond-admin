@@ -11,6 +11,10 @@ import { QuestionReviewer } from "@/features/questions/components/question-revie
 import { ReviewList } from "@/features/questions/components/review-list";
 import { InstitutionSelect } from "@/features/questions/components/institution-select";
 import { useReviewQueue } from "@/features/questions/hooks/use-admin-questions";
+import {
+  useLeaveGuard,
+  type UnsavedDraft,
+} from "@/features/questions/hooks/use-leave-guard";
 import { useQuestionInstitution } from "@/features/questions/hooks/use-question-institution";
 import {
   flatten,
@@ -24,7 +28,7 @@ import { QUESTION_POOL_OPTIONS } from "@/lib/utils/questions";
 import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LayoutGrid, List, PartyPopper } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
@@ -58,7 +62,13 @@ const PREFETCH_AHEAD = 10;
 export default function ReviewQueuePage() {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<"queue" | "list">("queue");
+  /* The open question's unsaved edits, reported by the reviewer. Every change
+     that could replace the open question goes through guard, which asks first
+     when there are any. */
+  const draftRef = useRef<UnsavedDraft | null>(null);
+  const { guard, isOpen: guardOpen, dialog } = useLeaveGuard(draftRef);
   const [subject, setSubject] = useState("");
+  const [appliedSubject, setAppliedSubject] = useState("");
   const [questionPool, setQuestionPool] = useState("");
   const [statusScope, setStatusScope] = useState(STATUS_SCOPES[0].value);
   const [order, setOrder] = useState<QueueOrder>("oldest");
@@ -68,11 +78,22 @@ export default function ReviewQueuePage() {
 
   const debouncedSubject = useDebouncedValue(subject.trim(), 350);
 
+  /* The subject filter applies after a short pause in typing. It is a change
+     like any other, so it asks first when there are unsaved edits. Keep
+     editing puts the typed text back to the filter still in use. */
+  useEffect(() => {
+    if (debouncedSubject === appliedSubject) return;
+    guard(
+      () => setAppliedSubject(debouncedSubject),
+      () => setSubject(appliedSubject),
+    );
+  }, [debouncedSubject, appliedSubject, guard]);
+
   const queueQuery = useReviewQueue(
     {
       institutionCode,
       reviewStatus: statusScope,
-      subject: debouncedSubject || undefined,
+      subject: appliedSubject || undefined,
       questionPool: questionPool || undefined,
       order,
     },
@@ -189,20 +210,24 @@ export default function ReviewQueuePage() {
         <div className="flex flex-wrap items-end gap-3">
           <InstitutionSelect
             value={institutionCode}
-            onValueChange={(code) => {
-              setInstitutionCode(code);
-              setCurrentId(null);
-            }}
+            onValueChange={(code) =>
+              guard(() => {
+                setInstitutionCode(code);
+                setCurrentId(null);
+              })
+            }
             institutions={institutions}
           />
           <FieldShell label="Status">
             <CustomSelect
               aria-label="Which review statuses to show"
               value={statusScope}
-              onValueChange={(value) => {
-                setStatusScope(value);
-                setCurrentId(null);
-              }}
+              onValueChange={(value) =>
+                guard(() => {
+                  setStatusScope(value);
+                  setCurrentId(null);
+                })
+              }
               options={STATUS_SCOPES}
             />
           </FieldShell>
@@ -218,10 +243,12 @@ export default function ReviewQueuePage() {
             <CustomSelect
               aria-label="Filter by pool"
               value={questionPool}
-              onValueChange={(value) => {
-                setQuestionPool(value);
-                setCurrentId(null);
-              }}
+              onValueChange={(value) =>
+                guard(() => {
+                  setQuestionPool(value);
+                  setCurrentId(null);
+                })
+              }
               options={[{ label: "All pools", value: "" }, ...QUESTION_POOL_OPTIONS]}
               placeholder="All pools"
             />
@@ -230,10 +257,12 @@ export default function ReviewQueuePage() {
             <CustomSelect
               aria-label="Which end of the queue comes first"
               value={order}
-              onValueChange={(value) => {
-                setOrder(value === "newest" ? "newest" : "oldest");
-                setCurrentId(null);
-              }}
+              onValueChange={(value) =>
+                guard(() => {
+                  setOrder(value === "newest" ? "newest" : "oldest");
+                  setCurrentId(null);
+                })
+              }
               options={ORDER_OPTIONS}
             />
           </FieldShell>
@@ -244,7 +273,7 @@ export default function ReviewQueuePage() {
             type="button"
             variant={mode === "queue" ? "secondary" : "ghost"}
             size="sm"
-            onClick={() => setMode("queue")}
+            onClick={() => guard(() => setMode("queue"))}
           >
             <LayoutGrid className="h-3.5 w-3.5" />
             Queue
@@ -253,7 +282,7 @@ export default function ReviewQueuePage() {
             type="button"
             variant={mode === "list" ? "secondary" : "ghost"}
             size="sm"
-            onClick={() => setMode("list")}
+            onClick={() => guard(() => setMode("list"))}
           >
             <List className="h-3.5 w-3.5" />
             List
@@ -291,12 +320,14 @@ export default function ReviewQueuePage() {
           total={total}
           hasPrevious={currentIndex > 0}
           hasNext={currentIndex < questions.length - 1 || hasNextPage}
-          onPrevious={() => void step(currentQuestion, -1)}
-          onNext={() => void step(currentQuestion, 1)}
-          onSkip={() => void step(currentQuestion, 1)}
+          onPrevious={() => guard(() => void step(currentQuestion, -1))}
+          onNext={() => guard(() => void step(currentQuestion, 1))}
+          onSkip={() => guard(() => void step(currentQuestion, 1))}
           onSubmit={(payload) => saveMutation.mutateAsync(payload)}
           isSaving={saveMutation.isPending}
-          onGoTo={(position) => void goToPosition(position)}
+          onGoTo={(position) => guard(() => void goToPosition(position))}
+          draftRef={draftRef}
+          shortcutsPaused={guardOpen}
         />
       ) : (
         <ReviewList
@@ -320,6 +351,8 @@ export default function ReviewQueuePage() {
           isBulkUpdating={bulkMutation.isPending}
         />
       )}
+
+      {dialog}
     </div>
   );
 }

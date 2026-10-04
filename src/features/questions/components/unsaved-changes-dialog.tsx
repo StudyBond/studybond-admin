@@ -6,7 +6,8 @@ import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
 /**
- * Asked before the reviewer leaves a question that has changes nobody saved.
+ * Asked before the page moves on from a question that has changes nobody saved,
+ * or changes a filter while it does.
  *
  * Three ways out. Save and continue is the primary action, so Enter keeps the
  * work. Leaving without saving sits beside it as a plain button, never the
@@ -104,7 +105,7 @@ export function UnsavedChangesDialog({
             id={descriptionId}
             className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]"
           >
-            You changed this question and have not saved it. If you leave now,
+            You changed this question and have not saved it. If you carry on,
             those changes are lost.
           </p>
         </div>
