@@ -251,7 +251,15 @@ export type QuestionSearchScope =
 
 export type QuestionListParams = WithContract<
   QueryParams<"/api/questions/", "get">,
-  { year?: number; searchIn?: QuestionSearchScope; reviewStatus?: string }
+  {
+    year?: number;
+    searchIn?: QuestionSearchScope;
+    reviewStatus?: string;
+    /** Which end of the id order the list starts from. Newest is the backend default. */
+    order?: "oldest" | "newest";
+    /** Cursor: the last id already loaded. The review queue pages with it. */
+    afterId?: number;
+  }
 >;
 export type QuestionAssetKind = PathParams<
   "/api/questions/assets/upload/{kind}",

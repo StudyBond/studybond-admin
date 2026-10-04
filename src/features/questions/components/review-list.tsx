@@ -28,6 +28,11 @@ type ReviewListProps = {
   onBulkPublish: (ids: number[]) => Promise<unknown>;
   onBulkVerify: (ids: number[]) => Promise<unknown>;
   isBulkUpdating: boolean;
+  /** How many the queue holds in all, not just the batches loaded so far. */
+  total: number;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
 };
 
 export function ReviewList({
@@ -39,6 +44,10 @@ export function ReviewList({
   onBulkPublish,
   onBulkVerify,
   isBulkUpdating,
+  total,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }: ReviewListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(
     new Set(),
@@ -204,6 +213,24 @@ export function ReviewList({
         emptyTitle="Nothing waiting on review"
         emptyDescription="Every question in this scope is already published."
       />
+
+      {hasMore ? (
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            Showing {questions.length} of {total}
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            isLoading={isLoadingMore}
+          >
+            Load more questions
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

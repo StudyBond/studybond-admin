@@ -72,13 +72,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * exactly the point where there is nothing left to look at here.
  */
 
-export type QueueRailItem = {
-  id: number;
-  subject: string;
-  questionText: string;
-  reviewStatus: string;
-};
-
 type QuestionReviewerProps = {
   question: QuestionRecord;
   position: number;
@@ -90,10 +83,53 @@ type QuestionReviewerProps = {
   onSkip: () => void;
   onSubmit: (payload: QuestionPayload) => Promise<unknown>;
   isSaving: boolean;
-  railItems: QueueRailItem[];
-  currentId: number;
-  onJump: (id: number) => void;
+  /** Opens the question at this position in the whole queue. */
+  onGoTo: (position: number) => void;
 };
+
+/* "Question [37] of 412". Type a number, then press Enter or click away, to
+   go to it. The box is keyed on the position so it shows the new number after
+   any move. A number outside the queue snaps back without moving. */
+function PositionField({
+  position,
+  total,
+  onGoTo,
+}: {
+  position: number;
+  total: number;
+  onGoTo: (position: number) => void;
+}) {
+  function commit(input: HTMLInputElement) {
+    const next = Number(input.value);
+    if (Number.isInteger(next) && next >= 1 && next <= total && next !== position) {
+      onGoTo(next);
+    } else {
+      input.value = String(position);
+    }
+  }
+
+  return (
+    <p className="flex items-center gap-2 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+      Question
+      <input
+        key={position}
+        type="number"
+        min={1}
+        max={total}
+        defaultValue={position}
+        aria-label="Go to question number"
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          commit(event.currentTarget);
+        }}
+        onBlur={(event) => commit(event.currentTarget)}
+        className="sb-nums h-8 w-16 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] px-2 text-center text-[length:var(--sb-text-sm)] text-[var(--sb-text)] outline-none transition-colors hover:border-[var(--sb-border-hover)] focus:border-[var(--sb-accent)] focus:ring-2 focus:ring-[var(--sb-accent-ring)]"
+      />
+      of <span className="sb-nums text-[var(--sb-text)]">{total}</span>
+    </p>
+  );
+}
 
 /** One labelled textarea with its own formatting toolbar above it. */
 function ToolbarField({
@@ -183,9 +219,7 @@ export function QuestionReviewer({
   onSkip,
   onSubmit,
   isSaving,
-  railItems,
-  currentId,
-  onJump,
+  onGoTo,
 }: QuestionReviewerProps) {
   /* Remounts on question change via key={question.id} at the call site, so
      this re-seeds from the new record rather than syncing through an
@@ -271,13 +305,10 @@ export function QuestionReviewer({
 
   return (
     <div className="space-y-4">
-      {/* ── Progress + jump rail ─────────────────────────── */}
+      {/* ── Progress + position ──────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
-            Question <span className="sb-nums text-[var(--sb-text)]">{position}</span>{" "}
-            of <span className="sb-nums text-[var(--sb-text)]">{total}</span>
-          </p>
+          <PositionField position={position} total={total} onGoTo={onGoTo} />
           <Badge tone={question.reviewStatus === "DRAFT" ? "warning" : "info"}>
             {question.reviewStatus === "DRAFT" ? "Draft" : "Verified"}
           </Badge>
@@ -288,29 +319,6 @@ export function QuestionReviewer({
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-
-        {railItems.length > 1 ? (
-          <div className="sb-scroll-x flex gap-1.5 pb-1">
-            {railItems.map((item, index) => (
-              <button
-                key={item.id}
-                type="button"
-                title={`${index + 1}. ${item.questionText.slice(0, 60)}`}
-                onClick={() => onJump(item.id)}
-                className={cn(
-                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--sb-radius-sm)] text-[length:var(--sb-text-xs)] font-medium transition-colors",
-                  item.id === currentId
-                    ? "bg-[var(--sb-accent)] text-[#0a0a0a]"
-                    : item.reviewStatus === "DRAFT"
-                      ? "bg-[var(--sb-warning-soft)] text-[var(--sb-warning)] hover:bg-[var(--sb-surface-3)]"
-                      : "bg-[var(--sb-info-soft)] text-[var(--sb-info)] hover:bg-[var(--sb-surface-3)]",
-                )}
-              >
-                {index + 1}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       {/* ── Edit on the left, the result on the right ──────

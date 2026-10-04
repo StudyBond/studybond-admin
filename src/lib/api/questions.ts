@@ -30,6 +30,8 @@ export const questionsApi = {
     }
     if (params?.page) search.set("page", String(params.page));
     if (params?.limit) search.set("limit", String(params.limit));
+    if (params?.order) search.set("order", params.order);
+    if (params?.afterId != null) search.set("afterId", String(params.afterId));
     if (typeof params?.hasImage === "boolean") search.set("hasImage", String(params.hasImage));
     if (typeof params?.isAiGenerated === "boolean") {
       search.set("isAiGenerated", String(params.isAiGenerated));
