@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
+import { Save, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -94,31 +94,46 @@ export function UnsavedChangesDialog({
         aria-describedby={descriptionId}
         className="w-full max-w-md space-y-5 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-2)] p-5 shadow-[var(--sb-shadow)]"
       >
-        <div className="space-y-1.5">
-          <h2
-            id={titleId}
-            className="text-[length:var(--sb-text-md)] font-semibold text-[var(--sb-text)]"
-          >
-            Save your changes first?
-          </h2>
-          <p
-            id={descriptionId}
-            className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]"
-          >
-            You changed this question and have not saved it. If you carry on,
-            those changes are lost.
-          </p>
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sb-warning-soft)] text-[var(--sb-warning)]">
+            <TriangleAlert className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 space-y-1.5">
+            <h2
+              id={titleId}
+              className="text-[length:var(--sb-text-md)] font-semibold text-[var(--sb-text)]"
+            >
+              Save your changes first?
+            </h2>
+            <p
+              id={descriptionId}
+              className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]"
+            >
+              You changed this question and have not saved it. If you carry on,
+              those changes are lost.
+            </p>
+          </div>
         </div>
 
-        {/* On a phone the primary action is on top. On wider screens it is
-            the right-hand button, where the eye lands last. */}
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onStay} disabled={isSaving}>
-            Keep editing
+        {/* Full width and stacked, so the three choices fit a narrow card and a
+            phone alike. The primary action comes first, where Enter and the
+            eye land. */}
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            data-primary
+            className="w-full"
+            onClick={onSave}
+            disabled={isSaving}
+            isLoading={isSaving}
+          >
+            {!isSaving ? <Save className="h-3.5 w-3.5" /> : null}
+            Save and continue
           </Button>
           <Button
             type="button"
             variant="secondary"
+            className="w-full"
             onClick={onLeave}
             disabled={isSaving}
           >
@@ -126,13 +141,12 @@ export function UnsavedChangesDialog({
           </Button>
           <Button
             type="button"
-            data-primary
-            onClick={onSave}
+            variant="ghost"
+            className="w-full"
+            onClick={onStay}
             disabled={isSaving}
-            isLoading={isSaving}
           >
-            {!isSaving ? <Save className="h-3.5 w-3.5" /> : null}
-            Save and continue
+            Keep editing
           </Button>
         </div>
       </div>
