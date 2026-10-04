@@ -105,6 +105,7 @@ function ToolbarField({
   onFocus,
   placeholder,
   inlinePreview,
+  onCaret,
 }: {
   label: string;
   hint?: string;
@@ -116,8 +117,18 @@ function ToolbarField({
   placeholder?: string;
   /** Set on narrow screens: show this field's own result underneath. */
   inlinePreview?: "question" | "option" | "explanation";
+  /** Reports where the cursor is, as a fraction of the text, as it moves. */
+  onCaret?: (fraction: number) => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /* The cursor as a fraction of the raw text, so the preview can keep the
+     line being typed in on screen. */
+  function reportCaret(el: HTMLTextAreaElement) {
+    if (!onCaret) return;
+    const length = el.value.length;
+    onCaret(length === 0 ? 0 : el.selectionStart / length);
+  }
 
   return (
     <div>
@@ -140,8 +151,17 @@ function ToolbarField({
         ref={textareaRef}
         rows={rows}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onFocus={onFocus}
+        onChange={(event) => {
+          onChange(event.target.value);
+          reportCaret(event.target);
+        }}
+        onFocus={(event) => {
+          onFocus?.();
+          reportCaret(event.currentTarget);
+        }}
+        onSelect={(event) => reportCaret(event.currentTarget)}
+        onKeyUp={(event) => reportCaret(event.currentTarget)}
+        onClick={(event) => reportCaret(event.currentTarget)}
         placeholder={placeholder}
         className="w-full resize-y rounded-b-[var(--sb-radius-sm)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] px-3 py-2.5 text-[length:var(--sb-text-sm)] text-[var(--sb-text)] outline-none transition-colors placeholder:text-[var(--sb-text-tertiary)] focus:border-[var(--sb-accent)]"
       />
@@ -178,6 +198,11 @@ export function QuestionReviewer({
      on every time focus moves from one field to the next. Only the
      wide-screen preview reads it. */
   const [activeField, setActiveField] = useState<PreviewField | null>(null);
+
+  /* Where the cursor is, tagged with its field. A position reported in one
+     field must never be applied to another, so the preview reads it only
+     while that field is the active one. */
+  const [caret, setCaret] = useState<{ field: PreviewField; fraction: number } | null>(null);
 
   /* Images are collapsed by default: most questions have none, and the
      count on the toggle says so. Opening it is one click when one is needed. */
@@ -313,6 +338,7 @@ export function QuestionReviewer({
             value={form.questionText}
             onChange={(value) => updateField("questionText", value)}
             onFocus={() => setActiveField("questionText")}
+            onCaret={(fraction) => setCaret({ field: "questionText", fraction })}
             placeholder="Write the full question here…"
             inlinePreview={isWide ? undefined : "question"}
           />
@@ -363,6 +389,7 @@ export function QuestionReviewer({
                       value={form[key]}
                       onChange={(value) => updateField(key, value)}
                       onFocus={() => setActiveField(key)}
+                      onCaret={(fraction) => setCaret({ field: key, fraction })}
                       placeholder={`What option ${letter} says`}
                       inlinePreview={isWide ? undefined : "option"}
                     />
@@ -382,6 +409,7 @@ export function QuestionReviewer({
                 value={form.explanationText}
                 onChange={(value) => updateField("explanationText", value)}
                 onFocus={() => setActiveField("explanationText")}
+                onCaret={(fraction) => setCaret({ field: "explanationText", fraction })}
                 placeholder="Walk through the reasoning…"
                 inlinePreview={isWide ? undefined : "explanation"}
               />
@@ -558,7 +586,12 @@ export function QuestionReviewer({
 
         {isWide ? (
           <div className="min-w-0 lg:sticky lg:top-[calc(var(--sb-topbar-height)+1rem)] lg:self-start">
-            <StudentPreview form={form} activeField={activeField} parent={sharedDiagram} />
+            <StudentPreview
+              form={form}
+              activeField={activeField}
+              caretFraction={caret && caret.field === activeField ? caret.fraction : null}
+              parent={sharedDiagram}
+            />
           </div>
         ) : null}
       </div>

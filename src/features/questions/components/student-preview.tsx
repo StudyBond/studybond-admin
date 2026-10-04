@@ -4,7 +4,7 @@ import { MathMarkdown } from "@/components/ui/math-markdown";
 import type { FormState, Letter } from "@/features/questions/lib/question-form-state";
 import { LETTERS } from "@/features/questions/lib/question-form-state";
 import { resolveOptionMarkers } from "@/features/questions/lib/option-markers";
-import { scrollTopToReveal } from "@/features/questions/lib/preview-scroll";
+import { scrollTopToFollow } from "@/features/questions/lib/preview-scroll";
 import {
   fillQuestionsToken,
   hasQuestionsToken,
@@ -106,14 +106,21 @@ function SharedBox({
 export function StudentPreview({
   form,
   activeField = null,
+  caretFraction = null,
   parent = null,
 }: {
   form: FormState;
   activeField?: PreviewField | null;
+  /** Where the cursor is in the active field's raw text, 0 to 1. */
+  caretFraction?: number | null;
   /** The shared diagram a question uses, when it has one. */
   parent?: { questionText: string; imageUrl: string | null } | null;
 }) {
   const bodyRef = useRef<HTMLDivElement>(null);
+  /* Whether the last change was a jump to a new field. A jump may scroll
+     smoothly; a caret moving within the same field should not, or the panel
+     lags behind every keystroke. */
+  const lastFieldRef = useRef<PreviewField | null>(null);
   const isParent = form.kind === "parent";
 
   useEffect(() => {
@@ -128,19 +135,25 @@ export function StudentPreview({
     const bodyRect = body.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
 
-    const next = scrollTopToReveal({
+    const next = scrollTopToFollow({
       scrollTop: body.scrollTop,
       viewportHeight: body.clientHeight,
       elementTop: targetRect.top - bodyRect.top + body.scrollTop,
       elementHeight: targetRect.height,
+      caretFraction,
     });
     if (next === null) return;
 
+    const jumped = lastFieldRef.current !== activeField;
+    lastFieldRef.current = activeField;
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    body.scrollTo({ top: next, behavior: reduceMotion ? "auto" : "smooth" });
-  }, [activeField]);
+    body.scrollTo({
+      top: next,
+      behavior: jumped && !reduceMotion ? "smooth" : "auto",
+    });
+  }, [activeField, caretFraction]);
 
   const isShown = (letter: Letter) =>
     optionText(form, letter).trim() ||
