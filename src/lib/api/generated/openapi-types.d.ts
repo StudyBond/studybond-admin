@@ -6347,6 +6347,8 @@ export interface paths {
                     searchIn?: "all" | "question" | "options" | "explanation";
                     page?: number;
                     limit?: number;
+                    order?: "newest" | "oldest";
+                    afterId?: number;
                     hasImage?: boolean;
                     isAiGenerated?: boolean;
                     year?: number;
