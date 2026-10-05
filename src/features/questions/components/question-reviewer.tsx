@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils/cn";
 import { useMediaQuery } from "@/lib/utils/use-media-query";
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -471,32 +472,38 @@ export function QuestionReviewer({
             </>
           ) : null}
 
-          {/* ── Images ───────────────────────────────────────
-              Every image slot a question has, behind one toggle that shows
-              how many are attached. Upload and paste work exactly as they do
-              on the edit page; the preview already draws whatever is set. */}
-          <div className="space-y-3 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+          {/* ── Images ──────────────────────────────────────────
+              One heading for every image slot a question has. Closed by
+              default, since most questions have none. The heading is the
+              control, so it reads as a button rather than a caption. */}
+          <section className="space-y-3">
             <button
               type="button"
               aria-expanded={imagesOpen}
               onClick={() => setImagesOpen((open) => !open)}
-              className="flex w-full items-center justify-between gap-3 text-left"
+              className="flex w-full items-center justify-between gap-3 rounded-[var(--sb-radius)] px-1 py-1.5 text-left transition-colors hover:bg-[var(--sb-surface-3)]"
             >
-              <span className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]">
+              <span className="flex items-center gap-2 text-[length:var(--sb-text-sm)] font-semibold text-[var(--sb-text)]">
+                {imagesOpen ? (
+                  <ChevronDown className="h-4 w-4 text-[var(--sb-text-secondary)]" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-[var(--sb-text-secondary)]" />
+                )}
                 Images
               </span>
-              <span className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-                {attachedImageCount === 0
-                  ? "None attached"
-                  : `${attachedImageCount} attached`}
-                {" · "}
-                {imagesOpen ? "Hide" : "Show"}
-              </span>
+              {attachedImageCount === 0 ? (
+                <span className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                  None attached
+                </span>
+              ) : (
+                <Badge tone="info">{attachedImageCount} attached</Badge>
+              )}
             </button>
 
             {imagesOpen ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                 <AssetField
+                  flat
                   label="Question image"
                   kind="question"
                   url={form.imageUrl}
@@ -510,6 +517,7 @@ export function QuestionReviewer({
                   ? LETTERS.map((letter) => (
                       <AssetField
                         key={letter}
+                        flat
                         label={`Option ${letter} image`}
                         kind={`option${letter}`}
                         url={form[`option${letter}ImageUrl`]}
@@ -523,6 +531,7 @@ export function QuestionReviewer({
                   : null}
                 {!isSharedRow ? (
                   <AssetField
+                    flat
                     label="Explanation image"
                     kind="explanation"
                     url={form.explanationImageUrl}
@@ -535,7 +544,7 @@ export function QuestionReviewer({
                 ) : null}
               </div>
             ) : null}
-          </div>
+          </section>
 
           {/* Subject, topic, year, difficulty and pool are set in the full
               editor. Checking the wording does not need them, so they stay

@@ -15,6 +15,11 @@ import { toast } from "sonner";
  *
  * Shared by the single-question form and the review queue, so an image can
  * be attached in either place with the same behaviour.
+ *
+ * `flat` drops the box around the slot. The review queue already sits inside
+ * a section, so a box per slot would be a third layer of frames. The empty
+ * placeholder is left out too in flat mode: the URL box and Upload say the
+ * same thing without it.
  */
 /* ── Image attachment ───────────────────────────────── */
 
@@ -25,6 +30,7 @@ export function AssetField({
   publicId,
   onChange,
   helper,
+  flat = false,
 }: {
   label: string;
   kind: QuestionAssetKind;
@@ -32,6 +38,7 @@ export function AssetField({
   publicId: string;
   onChange: (url: string, publicId: string) => void;
   helper?: string;
+  flat?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -54,7 +61,13 @@ export function AssetField({
   }
 
   return (
-    <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+    <div
+      className={
+        flat
+          ? "space-y-2"
+          : "rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3"
+      }
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)]">
           {label}
@@ -130,7 +143,7 @@ export function AssetField({
               className="mx-auto max-h-48 w-auto max-w-full object-contain"
             />
           </div>
-        ) : (
+        ) : flat ? null : (
           <div className="flex h-24 items-center justify-center gap-2 rounded-[var(--sb-radius-sm)] border border-dashed border-[var(--sb-border)] text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
             <ImagePlus className="h-4 w-4" />
             No image
