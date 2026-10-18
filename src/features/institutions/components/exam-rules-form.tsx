@@ -37,7 +37,9 @@ const NUMBER_GROUPS: Array<{
       { key: "singleSubjectDurationSeconds", label: "One subject", seconds: true },
       { key: "twoSubjectDurationSeconds", label: "Two subjects", seconds: true },
       { key: "threeSubjectDurationSeconds", label: "Three subjects", seconds: true },
-      { key: "collaborationDurationSeconds", label: "Duel", seconds: true },
+      // No "Duel" field: a duel now runs on the normal time for its
+      // subjects, which the host can adjust. The stored value only still
+      // times duels that were already running when that changed.
     ],
   },
   {
