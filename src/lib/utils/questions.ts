@@ -57,6 +57,7 @@ export const QUESTION_ASSET_KINDS = [
 ] as const;
 
 export const BULK_UPLOAD_COLUMNS = [
+  "institutionCode",
   "questionText",
   "optionA",
   "optionB",

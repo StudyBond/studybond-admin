@@ -88,6 +88,10 @@ const FIELD_LABELS: Record<string, string> = {
   fileHash: "File fingerprint",
   totalRows: "Rows in file",
   createdCount: "Questions created",
+  batchId: "Upload",
+  fromInstitutionCode: "Moved from",
+  toInstitutionCode: "Moved to",
+  movedCount: "Questions moved",
 };
 
 const TARGET_NAMES: Record<string, string> = {
@@ -121,6 +125,7 @@ function fieldLabel(key: string) {
 function describeTarget(log: AdminAuditLogEntry) {
   const action: string = log.action;
   if (action === "QUESTIONS_BULK_UPLOADED") return "Bulk question upload";
+  if (action === "QUESTIONS_BATCH_MOVED") return "Upload moved to another board";
   const name = TARGET_NAMES[log.targetType] ?? log.targetType;
   return log.targetId ? `${name} #${log.targetId}` : name;
 }
@@ -255,12 +260,6 @@ function QuestionCopy({ metadata }: { metadata: Metadata }) {
 }
 
 function BulkUpload({ metadata }: { metadata: Metadata }) {
-  const rawIds = metadata.questionIds;
-  const ids = Array.isArray(rawIds)
-    ? rawIds.filter((id): id is number => typeof id === "number")
-    : [];
-  const listed = ids.slice(0, MAX_LISTED_IDS);
-
   return (
     <>
       <FieldList
@@ -271,6 +270,37 @@ function BulkUpload({ metadata }: { metadata: Metadata }) {
           ["createdCount", metadata.createdCount],
         ]}
       />
+      <QuestionIdList metadata={metadata} />
+    </>
+  );
+}
+
+function BatchMove({ metadata }: { metadata: Metadata }) {
+  return (
+    <>
+      <FieldList
+        entries={[
+          ["fileName", metadata.fileName],
+          ["batchId", typeof metadata.batchId === "number" ? `#${metadata.batchId}` : metadata.batchId],
+          ["fromInstitutionCode", metadata.fromInstitutionCode],
+          ["toInstitutionCode", metadata.toInstitutionCode],
+          ["movedCount", metadata.movedCount],
+        ]}
+      />
+      <QuestionIdList metadata={metadata} />
+    </>
+  );
+}
+
+function QuestionIdList({ metadata }: { metadata: Metadata }) {
+  const rawIds = metadata.questionIds;
+  const ids = Array.isArray(rawIds)
+    ? rawIds.filter((id): id is number => typeof id === "number")
+    : [];
+  const listed = ids.slice(0, MAX_LISTED_IDS);
+
+  return (
+    <>
       {ids.length ? (
         <Section title="Question IDs">
           <p className="sb-mono break-words text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
@@ -357,6 +387,8 @@ export function AuditLogDetailsDialog({
     );
   } else if (action === "QUESTIONS_BULK_UPLOADED") {
     details = <BulkUpload metadata={metadata} />;
+  } else if (action === "QUESTIONS_BATCH_MOVED") {
+    details = <BatchMove metadata={metadata} />;
   } else {
     details = <OtherDetails metadata={metadata} />;
   }

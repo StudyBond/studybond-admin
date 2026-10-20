@@ -5,6 +5,7 @@ import type {
   BulkUploadResponse,
   BulkUploadHistoryResponse,
   BulkUploadDuplicateCheckResponse,
+  BulkUploadBatchMoveResponse,
   QuestionAssetKind,
   QuestionAssetUploadResponse,
   QuestionListParams,
@@ -131,6 +132,19 @@ export const questionsApi = {
   checkDuplicate(fileHash: string) {
     return apiClient<BulkUploadDuplicateCheckResponse>(
       `/api/questions/bulk/check-duplicate?fileHash=${encodeURIComponent(fileHash)}`
+    );
+  },
+
+  // ── Move an upload to another board ────────────────
+
+  /** With dryRun the backend only reports what would move and saves nothing. */
+  moveBatch(batchId: number, institutionCode: string, dryRun: boolean) {
+    return apiClient<BulkUploadBatchMoveResponse>(
+      `/api/questions/bulk/batches/${batchId}/move`,
+      {
+        method: "POST",
+        body: JSON.stringify({ institutionCode, dryRun }),
+      },
     );
   },
 };

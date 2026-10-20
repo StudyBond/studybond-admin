@@ -83,6 +83,7 @@ const ACTION_LABELS: Record<string, string> = {
   STEP_UP_CHALLENGE_FAILED: "Step-up failed",
   QUESTION_CREATED: "Question created",
   QUESTIONS_BULK_UPLOADED: "Questions bulk uploaded",
+  QUESTIONS_BATCH_MOVED: "Upload moved to another board",
   QUESTION_EDITED: "Question edited",
   QUESTION_DELETED: "Question deleted",
   REPORT_REVIEWED: "Report reviewed",
@@ -123,6 +124,7 @@ const ACTION_OPTIONS = [
 
   { label: "Content · Question created", value: "QUESTION_CREATED" },
   { label: "Content · Questions bulk uploaded", value: "QUESTIONS_BULK_UPLOADED" },
+  { label: "Content · Upload moved to another board", value: "QUESTIONS_BATCH_MOVED" },
   { label: "Content · Question edited", value: "QUESTION_EDITED" },
   { label: "Content · Question deleted", value: "QUESTION_DELETED" },
   { label: "Content · Report reviewed", value: "REPORT_REVIEWED" },

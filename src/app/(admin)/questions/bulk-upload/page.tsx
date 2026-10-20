@@ -4,9 +4,10 @@ import { ApiErrorMessage } from "@/components/ui/api-error-message";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/ui/data-table";
-import { Field } from "@/components/ui/field";
 import { PageHeader, SectionTitle } from "@/components/ui/page-header";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { ChooseBoardPanel } from "@/features/questions/components/choose-board-panel";
+import { MoveBatchDialog } from "@/features/questions/components/move-batch-dialog";
 import { computeFileHash, questionsApi } from "@/lib/api/questions";
 import type { BulkUploadBatch, BulkUploadRowError } from "@/lib/api/types";
 import { formatDateTime, formatInteger } from "@/lib/utils/format";
@@ -150,7 +151,6 @@ function DuplicateDialog({
 export default function BulkUploadPage() {
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
-  const [institutionCode, setInstitutionCode] = useState("");
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof questionsApi.bulkUpload>
   > | null>(null);
@@ -158,10 +158,9 @@ export default function BulkUploadPage() {
     null,
   );
   const [pendingHash, setPendingHash] = useState<string | null>(null);
+  /* The upload whose board is being changed, while that dialog is open. */
+  const [movingBatch, setMovingBatch] = useState<BulkUploadBatch | null>(null);
   const [isHashing, setIsHashing] = useState(false);
-
-  const institutionCodeTrimmed = institutionCode.trim();
-  const isInstitutionValid = institutionCodeTrimmed.length >= 2;
 
   const historyQuery = useQuery({
     queryKey: ["admin", "bulk-upload-history"],
@@ -170,23 +169,30 @@ export default function BulkUploadPage() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (options: { hash: string }) => {
+    mutationFn: async (options: { hash: string; institutionCode?: string }) => {
       if (!file) throw new Error("Choose a CSV or Excel file first.");
-      return questionsApi.bulkUpload(
-        file,
-        institutionCodeTrimmed || undefined,
-        options.hash,
-      );
+      /* The file names its own board, in its institutionCode column. A board
+         is sent only when the file names none and the admin chose one in the
+         panel below. A file that names one always wins on the server. */
+      return questionsApi.bulkUpload(file, options.institutionCode, options.hash);
     },
     onSuccess: async (payload) => {
       setResult(payload);
+      if (payload.institutionCodeMissing) {
+        /* Nothing was saved. The panel asks which board, then sends the file
+           again, so this is a question rather than a failure. */
+        return;
+      }
       if (payload.success) {
         const warningCount = payload.warnings?.length ?? 0;
-        toast.success(`Imported ${payload.successCount} questions`, {
-          description: warningCount
-            ? `${warningCount} ${warningCount === 1 ? "thing needs" : "things need"} a second look. See the result panel.`
-            : undefined,
-        });
+        toast.success(
+          `Imported ${payload.successCount} questions${payload.institutionCode ? ` to ${payload.institutionCode}` : ""}`,
+          {
+            description: warningCount
+              ? `${warningCount} ${warningCount === 1 ? "thing needs" : "things need"} a second look. See the result panel.`
+              : undefined,
+          },
+        );
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["admin", "questions"] }),
           queryClient.invalidateQueries({
@@ -212,7 +218,7 @@ export default function BulkUploadPage() {
   });
 
   const startUpload = useCallback(async () => {
-    if (!file || !isInstitutionValid) return;
+    if (!file) return;
 
     setIsHashing(true);
     try {
@@ -236,7 +242,7 @@ export default function BulkUploadPage() {
       setIsHashing(false);
       toast.error("Could not read that file");
     }
-  }, [file, isInstitutionValid, uploadMutation]);
+  }, [file, uploadMutation]);
 
   const confirmDuplicateUpload = useCallback(() => {
     setDuplicateBatch(null);
@@ -249,6 +255,28 @@ export default function BulkUploadPage() {
   }, []);
 
   const isBusy = isHashing || uploadMutation.isPending;
+
+  /* The file names no board, so the admin is asked before anything is saved. */
+  const needsBoard = Boolean(result?.institutionCodeMissing && file && pendingHash);
+  /* The board came from the admin's choice rather than the file. */
+  const boardWasChosen = Boolean(uploadMutation.variables?.institutionCode);
+
+  const importWithBoard = useCallback(
+    (institutionCode: string) => {
+      if (pendingHash) uploadMutation.mutate({ hash: pendingHash, institutionCode });
+    },
+    [pendingHash, uploadMutation],
+  );
+
+  const cancelChooseBoard = useCallback(() => {
+    setResult(null);
+    setPendingHash(null);
+  }, []);
+
+  /* The missing-board message is answered by the panel, not listed as a row error. */
+  const rowErrors = (result?.errors ?? []).filter(
+    (error) => !(result?.institutionCodeMissing && error.field === "institutionCode"),
+  );
 
   const errorColumns: Column<BulkUploadRowError>[] = [
     {
@@ -339,6 +367,23 @@ export default function BulkUploadPage() {
       showFrom: "lg",
       cell: (batch) => formatDateTime(batch.createdAt),
     },
+    {
+      key: "board-fix",
+      header: "Fix",
+      width: "9rem",
+      /* A failed upload created nothing, so there is nothing to move. */
+      cell: (batch) =>
+        batch.status === "COMPLETED" ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setMovingBatch(batch)}
+          >
+            Change board
+          </Button>
+        ) : null,
+    },
   ];
 
   return (
@@ -348,6 +393,13 @@ export default function BulkUploadPage() {
           batch={duplicateBatch}
           onConfirm={confirmDuplicateUpload}
           onCancel={cancelDuplicateUpload}
+        />
+      ) : null}
+
+      {movingBatch ? (
+        <MoveBatchDialog
+          batch={movingBatch}
+          onClose={() => setMovingBatch(null)}
         />
       ) : null}
 
@@ -367,18 +419,13 @@ export default function BulkUploadPage() {
           <section className="min-w-0 space-y-3">
             <SectionTitle title="Upload a file" />
             <div className="space-y-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
-              <Field
-                label="Institution code"
-                hint="Required"
-                value={institutionCode}
-                onChange={(event) => setInstitutionCode(event.target.value)}
-                placeholder="UI, UNILAG, OAU…"
-                error={
-                  institutionCode.trim() && !isInstitutionValid
-                    ? "Institution codes are at least two characters."
-                    : undefined
-                }
-              />
+              <p className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                The board comes from the file&apos;s{" "}
+                <span className="sb-mono">institutionCode</span> column, such
+                as JAMB or UI. If the file has none, you will be asked to
+                choose. If a file still goes to the wrong board, use Change
+                board under Recent imports.
+              </p>
 
               <div className="rounded-[var(--sb-radius)] border border-dashed border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-4">
                 <label
@@ -411,30 +458,35 @@ export default function BulkUploadPage() {
                 </p>
               </div>
 
-              <Button
-                type="button"
-                className="w-full"
-                onClick={startUpload}
-                disabled={isBusy || !file || !isInstitutionValid}
-                isLoading={isBusy}
-              >
-                {!isBusy ? <UploadCloud className="h-4 w-4" /> : null}
-                {isHashing
-                  ? "Checking for duplicates"
-                  : uploadMutation.isPending
-                    ? "Importing"
-                    : "Start import"}
-              </Button>
+              {needsBoard && file ? (
+                <ChooseBoardPanel
+                  fileName={file.name}
+                  isImporting={uploadMutation.isPending}
+                  onImport={importWithBoard}
+                  onCancel={cancelChooseBoard}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={startUpload}
+                  disabled={isBusy || !file}
+                  isLoading={isBusy}
+                >
+                  {!isBusy ? <UploadCloud className="h-4 w-4" /> : null}
+                  {isHashing
+                    ? "Checking for duplicates"
+                    : uploadMutation.isPending
+                      ? "Importing"
+                      : "Start import"}
+                </Button>
+              )}
 
               {/* Says which requirement is missing, rather than leaving a
                   dead button to be puzzled over. */}
-              {!isBusy && (!file || !isInstitutionValid) ? (
+              {!isBusy && !file ? (
                 <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-                  {!isInstitutionValid && !file
-                    ? "Enter an institution code and choose a file."
-                    : !isInstitutionValid
-                      ? "Enter the institution code these questions belong to."
-                      : "Choose a spreadsheet to import."}
+                  Choose a spreadsheet to import.
                 </p>
               ) : null}
             </div>
@@ -486,9 +538,15 @@ export default function BulkUploadPage() {
               title="Result"
               action={
                 result ? (
-                  <Badge tone={result.success ? "success" : "danger"} dot>
-                    {result.success ? "Imported" : "Had errors"}
-                  </Badge>
+                  needsBoard ? (
+                    <Badge tone="warning" dot>
+                      Needs a board
+                    </Badge>
+                  ) : (
+                    <Badge tone={result.success ? "success" : "danger"} dot>
+                      {result.success ? "Imported" : "Had errors"}
+                    </Badge>
+                  )
                 ) : null
               }
             />
@@ -507,19 +565,34 @@ export default function BulkUploadPage() {
                   />
                   <StatCard
                     label="Rows rejected"
-                    value={formatInteger(result.errorCount)}
-                    status={result.errorCount ? "danger" : undefined}
+                    value={formatInteger(rowErrors.length)}
+                    status={rowErrors.length ? "danger" : undefined}
                   />
                 </StatGrid>
 
-                {result.errors.length ? (
+                {needsBoard ? (
+                  <p className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                    Nothing imported yet. Choose the board for this file on the
+                    left.
+                  </p>
+                ) : result.institutionCode ? (
+                  <p className="flex flex-wrap items-center gap-2 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                    {result.success ? "Imported to" : "The file is for"}
+                    <Badge tone="neutral">{result.institutionCode}</Badge>
+                    {boardWasChosen
+                      ? "the board you chose."
+                      : "as its institutionCode column says."}
+                  </p>
+                ) : null}
+
+                {rowErrors.length ? (
                   <div className="space-y-2">
                     <h3 className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
                       Rows that were rejected
                     </h3>
                     <DataTable
                       caption="Rows rejected during import"
-                      items={result.errors}
+                      items={rowErrors}
                       columns={errorColumns}
                       getKey={(error) =>
                         `${error.row}-${error.field}-${error.message}`

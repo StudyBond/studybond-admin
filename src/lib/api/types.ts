@@ -263,10 +263,14 @@ export type QuestionAssetUploadResponse = JsonResponse<
   201
 >;
 export type BulkUploadRowError = RawBulkUploadResponse["errors"][number];
-/* warnings is newer than the generated contract. It is optional so an older
-   backend that does not send it still type-checks. */
+/* warnings and institutionCode are newer than the generated contract. They
+   are optional so an older backend that does not send them still type-checks. */
 export type BulkUploadResponse = RawBulkUploadResponse & {
   warnings?: BulkUploadRowError[];
+  /** The board the questions are for. */
+  institutionCode?: string | null;
+  /** The file names no board and none was chosen. Nothing was saved; ask, then send again. */
+  institutionCodeMissing?: boolean;
 };
 
 // ── Bulk Upload Batch Tracking ────────────────────────
@@ -295,6 +299,24 @@ export type BulkUploadHistoryResponse = {
 export type BulkUploadDuplicateCheckResponse = {
   isDuplicate: boolean;
   existingBatch: BulkUploadBatch | null;
+};
+
+/** Moving a whole upload to another board. A preview has dryRun true and saved nothing. */
+export type BulkUploadBatchMoveResponse = {
+  success: true;
+  dryRun: boolean;
+  message: string;
+  batchId: number;
+  fileName: string;
+  fromInstitutionCode: string;
+  toInstitutionCode: string;
+  movedCount: number;
+  questionIds: number[];
+  subjects: Array<{ subject: string; count: number }>;
+  years: number[];
+  /** Left where they are: deleted since, or already moved one by one. */
+  skipped: { deleted: number; elsewhere: number };
+  warnings: string[];
 };
 
 export type AdminNotificationPriority = "LOW" | "DEFAULT" | "HIGH" | "URGENT";
