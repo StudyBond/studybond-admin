@@ -195,7 +195,6 @@ export default function InstitutionDetailPage() {
         subjects={detail.subjects}
         catalogue={catalogueQuery.data?.subjects ?? []}
         maxSubjects={detail.examConfig.maxSubjects}
-        fullExamQuestions={detail.examConfig.fullExamQuestions}
         fullExamDurationSeconds={detail.examConfig.fullExamDurationSeconds}
         canEdit={canEdit}
         disabledReason={disabledReason}

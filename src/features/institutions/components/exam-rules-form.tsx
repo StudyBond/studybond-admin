@@ -22,11 +22,13 @@ const NUMBER_GROUPS: Array<{
 }> = [
   {
     title: "Exam shape",
-    description: "How many subjects a full exam covers, and how many questions it carries.",
+    /* No questions-per-subject or full-exam total here: each subject sets
+       its own count below (JAMB English 60, the rest 40), and a full exam
+       adds up from them. */
+    description:
+      "How many subjects a full exam covers. Each subject sets its own number of questions under Subjects, and a full exam adds up from them.",
     fields: [
       { key: "maxSubjects", label: "Subjects in a full exam", hint: "JAMB and UI both use 4" },
-      { key: "questionsPerSubject", label: "Questions per subject", hint: "Used for partial exams" },
-      { key: "fullExamQuestions", label: "Questions in a full exam" },
     ],
   },
   {
@@ -48,7 +50,7 @@ const NUMBER_GROUPS: Array<{
     fields: [
       { key: "freeRealExamCount", label: "Free subject credits", hint: "One subject = one credit" },
       { key: "freeFullRealTotalAttempts", label: "Free full exam attempts" },
-      { key: "freeQuestionsPerSubject", label: "Free questions per subject" },
+      // Free questions are set per subject under Subjects.
     ],
   },
   {

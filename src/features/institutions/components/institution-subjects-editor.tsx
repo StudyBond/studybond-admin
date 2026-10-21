@@ -44,11 +44,30 @@ function toRow(subject: DetailSubject): Row {
   };
 }
 
+/**
+ * A new subject starts with the question count most subjects here already
+ * use, so adding Biology to a 40-per-subject board gives 40, not a guess.
+ */
+function usualQuestionCount(rows: Row[]): string {
+  const tally = new Map<string, number>();
+  for (const row of rows) {
+    tally.set(row.questionCount, (tally.get(row.questionCount) ?? 0) + 1);
+  }
+  let usual = "40";
+  let most = 0;
+  for (const [count, seen] of tally) {
+    if (seen > most) {
+      usual = count;
+      most = seen;
+    }
+  }
+  return usual;
+}
+
 export function InstitutionSubjectsEditor({
   subjects,
   catalogue,
   maxSubjects,
-  fullExamQuestions,
   fullExamDurationSeconds,
   canEdit,
   disabledReason,
@@ -58,7 +77,6 @@ export function InstitutionSubjectsEditor({
   subjects: DetailSubject[];
   catalogue: AdminSubjectCatalogueItem[];
   maxSubjects: number;
-  fullExamQuestions: number;
   fullExamDurationSeconds: number;
   canEdit: boolean;
   disabledReason?: string;
@@ -99,7 +117,6 @@ export function InstitutionSubjectsEditor({
     };
   }, [rows, maxSubjects]);
 
-  const questionsMatch = totals.questions === fullExamQuestions;
   const secondsMatch = totals.seconds === fullExamDurationSeconds;
 
   function handleSave() {
@@ -138,23 +155,18 @@ export function InstitutionSubjectsEditor({
 
       {/* Live totals for the first maxSubjects active subjects. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <div
-          className={`rounded-[var(--sb-radius-lg)] border p-3.5 ${
-            questionsMatch
-              ? "border-[var(--sb-border)] bg-[var(--sb-surface-1)]"
-              : "border-[var(--sb-warning)] bg-[var(--sb-surface-1)]"
-          }`}
-        >
+        {/* Not checked against a typed total: the full exam is this sum. */}
+        <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-3.5">
           <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
             Questions in a full exam
           </p>
           <p className="mt-1 text-[length:var(--sb-text-lg)] font-medium text-[var(--sb-text)]">
-            {totals.questions} of {fullExamQuestions}
+            {totals.questions}
           </p>
           <p className="mt-1 text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
-            {questionsMatch
-              ? `The first ${totals.count} subjects add up exactly.`
-              : "These do not add up to the exam rules above."}
+            {totals.count === 0
+              ? "Add subjects to build a full exam."
+              : `Adds up from the first ${totals.count} subject${totals.count === 1 ? "" : "s"}, each with its own count.`}
           </p>
         </div>
 
@@ -239,7 +251,7 @@ export function InstitutionSubjectsEditor({
               <Field
                 type="number"
                 label="Free questions"
-                hint="Blank uses the default"
+                hint="Blank means the same as Questions"
                 id={`subject-${row.subjectId}-free`}
                 min={1}
                 disabled={!canEdit || isSaving}
@@ -323,7 +335,7 @@ export function InstitutionSubjectsEditor({
                   subjectId: subject.id,
                   canonicalName: subject.canonicalName,
                   code: subject.code,
-                  questionCount: "40",
+                  questionCount: usualQuestionCount(current),
                   soloDurationSeconds: "1800",
                   freeQuestionCount: "",
                   isCompulsory: false,
