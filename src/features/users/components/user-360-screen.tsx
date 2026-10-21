@@ -176,9 +176,13 @@ export function User360Screen() {
 
   const removeDeviceMutation = useMutation({
     mutationFn: (deviceId: string) =>
-      adminUsersApi.removeDevice(userId, deviceId, {
-        reason: deviceReason.trim() || undefined,
-      }),
+      adminUsersApi.removeDevice(
+        userId,
+        deviceId,
+        { reason: deviceReason.trim() || undefined },
+        // Only checked when the account is an admin's.
+        { stepUpToken: stepUp?.stepUpToken },
+      ),
     onSuccess: async (payload) => {
       toast.success(payload.message);
       setDeviceReason("");
@@ -247,6 +251,11 @@ export function User360Screen() {
   const { user, premium, engagement, security, recent, institution } = user360;
   const isBanned = user.isBanned;
   const isBusy = banMutation.isPending || unbanMutation.isPending;
+  // Only superadmins can open admin accounts. An admin is demoted before they
+  // can be banned, so the ban control is hidden. Removing one of their
+  // devices (a lost or stolen one) needs step-up first.
+  const isStaffAccount = user.role !== "USER";
+  const canRemoveDevices = !isStaffAccount || isStepUpActive;
 
   return (
     <div className="sb-enter space-y-6 pb-2">
@@ -572,48 +581,57 @@ export function User360Screen() {
                 : "This account can sign in normally."
             }
           >
-            <TextArea
-              label="Note"
-              hint="Optional, saved to the audit log"
-              rows={3}
-              value={moderationReason}
-              onChange={(event) => setModerationReason(event.target.value)}
-              placeholder={
-                isBanned
-                  ? "Why is the ban being lifted?"
-                  : "Why is this account being banned?"
-              }
-            />
+            {isStaffAccount && !isBanned ? (
+              <NoneYet>
+                Admin accounts can&apos;t be banned. Demote them to an ordinary
+                user first.
+              </NoneYet>
+            ) : (
+              <>
+                <TextArea
+                  label="Note"
+                  hint="Optional, saved to the audit log"
+                  rows={3}
+                  value={moderationReason}
+                  onChange={(event) => setModerationReason(event.target.value)}
+                  placeholder={
+                    isBanned
+                      ? "Why is the ban being lifted?"
+                      : "Why is this account being banned?"
+                  }
+                />
 
-            <div className="mt-4">
-              {/* The action decides its own colour. Restoring access is not
-                  a destructive act and is no longer drawn as one. */}
-              {isBanned ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  className="w-full"
-                  onClick={() => unbanMutation.mutate()}
-                  disabled={isBusy}
-                  isLoading={unbanMutation.isPending}
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                  Lift the ban
-                </Button>
-              ) : (
-                <ConfirmButton
-                  variant="danger"
-                  className="w-full"
-                  confirmLabel="Yes, ban this account"
-                  onConfirm={() => banMutation.mutate()}
-                  disabled={isBusy}
-                  isLoading={banMutation.isPending}
-                  icon={<Ban className="h-4 w-4" />}
-                >
-                  Ban account
-                </ConfirmButton>
-              )}
-            </div>
+                <div className="mt-4">
+                  {/* The action decides its own colour. Restoring access is not
+                      a destructive act and is no longer drawn as one. */}
+                  {isBanned ? (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="w-full"
+                      onClick={() => unbanMutation.mutate()}
+                      disabled={isBusy}
+                      isLoading={unbanMutation.isPending}
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      Lift the ban
+                    </Button>
+                  ) : (
+                    <ConfirmButton
+                      variant="danger"
+                      className="w-full"
+                      confirmLabel="Yes, ban this account"
+                      onConfirm={() => banMutation.mutate()}
+                      disabled={isBusy}
+                      isLoading={banMutation.isPending}
+                      icon={<Ban className="h-4 w-4" />}
+                    >
+                      Ban account
+                    </ConfirmButton>
+                  )}
+                </div>
+              </>
+            )}
           </Panel>
 
           {/* ── Role ────────────────────────────────────────── */}
@@ -702,13 +720,34 @@ export function User360Screen() {
           {/* ── Devices ─────────────────────────────────────── */}
           <Panel
             title="Devices"
-            description="Removing a device signs this person out of it."
+            description={
+              isStaffAccount
+                ? "For a lost or stolen device. Removing it signs them out there."
+                : "Removing a device signs this person out of it."
+            }
             action={
               <Badge tone="neutral">
                 {formatInteger(security.activeSessionsCount)} sessions
               </Badge>
             }
           >
+            {isStaffAccount && !isStepUpActive && security.registeredDevices.length ? (
+              <div className="mb-4 rounded-[var(--sb-radius)] border border-[var(--sb-warning-ring)] bg-[var(--sb-warning-soft)] p-3">
+                <p className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                  Removing an admin&apos;s device needs step-up verification first.
+                </p>
+                <Button
+                  asChild
+                  href={`/step-up?next=/users/${userId}&intent=Admin%20device%20removal`}
+                  variant="secondary"
+                  size="sm"
+                  className="mt-2.5"
+                >
+                  Verify now
+                </Button>
+              </div>
+            ) : null}
+
             {security.registeredDevices.length ? (
               <ul className="space-y-2.5">
                 {security.registeredDevices.map((device) => (
@@ -741,7 +780,9 @@ export function User360Screen() {
                         onConfirm={() =>
                           removeDeviceMutation.mutate(device.deviceId)
                         }
-                        disabled={removeDeviceMutation.isPending}
+                        disabled={
+                          !canRemoveDevices || removeDeviceMutation.isPending
+                        }
                         isLoading={removeDeviceMutation.isPending}
                         icon={<ShieldOff className="h-3.5 w-3.5" />}
                       >

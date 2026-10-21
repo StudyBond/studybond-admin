@@ -65,11 +65,12 @@ export const adminUsersApi = {
     userId: number,
     deviceId: string,
     payload?: { reason?: string },
+    headers?: SensitiveHeadersOptions,
   ) {
     return apiClient<AdminActionResponse>(`/api/admin/users/${userId}/devices/${deviceId}/remove`, {
       method: "POST",
       body: JSON.stringify(payload ?? {}),
-      headers: buildSensitiveHeaders(),
+      headers: buildSensitiveHeaders(headers),
     });
   },
   promoteUser(
