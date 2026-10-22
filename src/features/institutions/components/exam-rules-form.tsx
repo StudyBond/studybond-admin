@@ -29,6 +29,7 @@ const NUMBER_GROUPS: Array<{
       "How many subjects a full exam covers. Each subject sets its own number of questions under Subjects, and a full exam adds up from them.",
     fields: [
       { key: "maxSubjects", label: "Subjects in a full exam", hint: "JAMB and UI both use 4" },
+      { key: "targetScoreMax", label: "Scored out of", hint: "For target scores. UI 100, JAMB 400" },
     ],
   },
   {
@@ -88,6 +89,12 @@ const TOGGLES: Array<{ key: keyof ExamConfig; label: string; description: string
     key: "studyModeEnabled",
     label: "Study mode",
     description: "Topic-by-topic practice with explanations.",
+  },
+  {
+    key: "signupAsksDepartment",
+    label: "Ask for department at signup",
+    description:
+      "Ask Science, Art or Commercial instead of the course. On for JAMB, which students sit before most of them choose a course.",
   },
 ];
 
