@@ -6,6 +6,7 @@ import {
   FileWarning,
   Gift,
   GraduationCap,
+  Images,
   LayoutDashboard,
   LibraryBig,
   ListFilter,
@@ -106,6 +107,12 @@ export const adminNavigation: AdminNavGroup[] = [
         label: "Content review",
         icon: ClipboardCheck,
         description: "Check and publish drafted and verified questions",
+      },
+      {
+        href: "/pictures",
+        label: "Pictures",
+        icon: Images,
+        description: "Pictures that questions and explanations still need",
       },
       {
         href: "/questions/free-exam",

@@ -497,3 +497,10 @@ export type BulkReviewStatusUpdateResponse = {
   updatedCount: number;
   questionIds: number[];
 };
+
+export type PictureSummary = JsonResponse<"/api/pictures/summary", "get", 200>;
+export type PictureList = JsonResponse<"/api/pictures/", "get", 200>;
+export type PictureTask = PictureList["tasks"][number];
+export type PictureStrength = "light" | "normal" | "strong";
+export type PictureMaker = PictureTask["maker"];
+export type HandwritingSheet = JsonResponse<"/api/pictures/handwriting-sheet", "get", 200>;
