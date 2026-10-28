@@ -9,6 +9,7 @@ import type { ParentSummary } from "@/features/questions/components/parent-picke
 import { QuestionForm } from "@/features/questions/components/question-form";
 import { useAdminQuestion } from "@/features/questions/hooks/use-admin-question";
 import type { FormState } from "@/features/questions/lib/question-form-state";
+import { notifyContentWarnings } from "@/features/questions/lib/content-warnings";
 import { questionsApi } from "@/lib/api/questions";
 import type { QuestionPayload } from "@/lib/api/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -47,7 +48,7 @@ function NewQuestionContent() {
   const createMutation = useMutation({
     mutationFn: (payload: QuestionPayload) => questionsApi.create(payload),
     onSuccess: async (question) => {
-      toast.success("Question created");
+      notifyContentWarnings(question, "Question created");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "questions"] }),
         queryClient.invalidateQueries({

@@ -6433,6 +6433,7 @@ export interface paths {
                                     snippet: string;
                                     term: string;
                                 };
+                                contentWarnings?: string[];
                             } & {
                                 [key: string]: unknown;
                             })[];
@@ -6827,6 +6828,7 @@ export interface paths {
                                 snippet: string;
                                 term: string;
                             };
+                            contentWarnings?: string[];
                         } & {
                             [key: string]: unknown;
                         };
@@ -7747,6 +7749,7 @@ export interface paths {
                                 snippet: string;
                                 term: string;
                             };
+                            contentWarnings?: string[];
                         } & {
                             [key: string]: unknown;
                         };
@@ -8128,6 +8131,7 @@ export interface paths {
                                 snippet: string;
                                 term: string;
                             };
+                            contentWarnings?: string[];
                         } & {
                             [key: string]: unknown;
                         };

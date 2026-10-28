@@ -22,6 +22,7 @@ import {
   pickCurrent,
   type QueueOrder,
 } from "@/features/questions/lib/review-queue";
+import { notifyContentWarnings } from "@/features/questions/lib/content-warnings";
 import { questionsApi } from "@/lib/api/questions";
 import type { QuestionListItem, QuestionPayload } from "@/lib/api/types";
 import { QUESTION_POOL_OPTIONS } from "@/lib/utils/questions";
@@ -130,7 +131,13 @@ export default function ReviewQueuePage() {
       if (!currentQuestion) throw new Error("No question is open.");
       return questionsApi.update(currentQuestion.id, payload);
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
+      // The reviewer is quiet on a clean save on purpose - it moves straight to
+      // the next question, and a toast for every one would be noise. A warning
+      // is the exception: it is about the question just left behind.
+      if (saved.contentWarnings?.length) {
+        notifyContentWarnings(saved, "Saved");
+      }
       await refreshQueue();
     },
     onError: (error) => {

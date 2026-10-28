@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QuestionForm } from "@/features/questions/components/question-form";
 import { useAdminQuestion } from "@/features/questions/hooks/use-admin-question";
+import { notifyContentWarnings } from "@/features/questions/lib/content-warnings";
 import { kindOfQuestion } from "@/features/questions/lib/question-form-state";
 import { questionsApi } from "@/lib/api/questions";
 import type { QuestionPayload } from "@/lib/api/types";
@@ -30,8 +31,8 @@ export default function EditQuestionPage() {
   const updateMutation = useMutation({
     mutationFn: (payload: QuestionPayload) =>
       questionsApi.update(questionId, payload),
-    onSuccess: async () => {
-      toast.success("Question updated");
+    onSuccess: async (saved) => {
+      notifyContentWarnings(saved, "Question updated");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "questions"] }),
         queryClient.invalidateQueries({
