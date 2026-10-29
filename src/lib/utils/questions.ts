@@ -87,6 +87,7 @@ export const BULK_UPLOAD_COLUMNS = [
   "year",
   "groupKey",
   "internalNotes",
+  "pictureNotes",
 ] as const;
 
 export function getQuestionTypeLabel(value: string | null | undefined) {

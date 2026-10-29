@@ -201,6 +201,7 @@ export default function BulkUploadPage() {
           queryClient.invalidateQueries({
             queryKey: ["admin", "bulk-upload-history"],
           }),
+          queryClient.invalidateQueries({ queryKey: ["admin", "pictures"] }),
         ]);
       } else {
         toast.error("Some rows could not be imported", {
@@ -529,6 +530,11 @@ export default function BulkUploadPage() {
                 <span className="sb-mono">internalNotes</span> is for the
                 team and is never shown to students.
               </p>
+              <p className="mt-2 text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+                <span className="sb-mono">pictureNotes</span> lists the
+                pictures a row needs. Each one goes on the Pictures page, and
+                students never see the notes.
+              </p>
             </div>
           </section>
 
@@ -582,6 +588,20 @@ export default function BulkUploadPage() {
                     {boardWasChosen
                       ? "the board you chose."
                       : "as its institutionCode column says."}
+                  </p>
+                ) : null}
+
+                {result.success && result.picturesAdded ? (
+                  <p className="flex flex-wrap items-center gap-2 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                    {formatInteger(result.picturesAdded)}{" "}
+                    {result.picturesAdded === 1 ? "picture" : "pictures"} added
+                    to the Pictures page
+                    {result.picturesAlreadyDone
+                      ? `, ${formatInteger(result.picturesAlreadyDone)} already done.`
+                      : "."}
+                    <Button asChild href="/pictures" variant="secondary" size="sm">
+                      Open Pictures
+                    </Button>
                   </p>
                 ) : null}
 

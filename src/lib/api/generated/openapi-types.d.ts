@@ -9909,6 +9909,8 @@ export interface paths {
                             batchId: number | null;
                             institutionCode: string | null;
                             institutionCodeMissing: boolean;
+                            picturesAdded: number;
+                            picturesAlreadyDone: number;
                         } & {
                             [key: string]: unknown;
                         };
@@ -10087,6 +10089,8 @@ export interface paths {
                             batchId: number | null;
                             institutionCode: string | null;
                             institutionCodeMissing: boolean;
+                            picturesAdded: number;
+                            picturesAlreadyDone: number;
                         } & {
                             [key: string]: unknown;
                         };
