@@ -20,6 +20,16 @@ export function usePictureList(subject: string | null, year: number | null) {
   });
 }
 
+/** One picture, for a link that opens it and for checking it from content review. */
+export function usePicture(id: number | null) {
+  return useQuery({
+    queryKey: ["admin", "pictures", "task", id ?? 0],
+    queryFn: () => picturesApi.get(id as number),
+    enabled: id !== null,
+    staleTime: 15_000,
+  });
+}
+
 export function useHandwritingSheet() {
   return useQuery({
     queryKey: ["admin", "pictures", "handwriting-sheet"],

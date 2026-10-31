@@ -20,6 +20,9 @@ export const picturesApi = {
   summary() {
     return apiClient<PictureSummary>("/api/pictures/summary");
   },
+  get(id: number) {
+    return apiClient<PictureTask>(`/api/pictures/${id}`);
+  },
   list(subject: string, year: number) {
     const search = new URLSearchParams({ subject, year: String(year) });
     return apiClient<PictureList>(`/api/pictures?${search.toString()}`);

@@ -21,7 +21,8 @@ import { cn } from "@/lib/utils/cn";
 import { formatInteger } from "@/lib/utils/format";
 import { useMutation } from "@tanstack/react-query";
 import { Images, PenLine, Upload } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
@@ -93,6 +94,15 @@ function HandwritingSheetCard({ url }: { url: string | null }) {
 }
 
 export default function PicturesPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <PicturesContent />
+    </Suspense>
+  );
+}
+
+/** ?task=123 opens that picture, in its subject and year, from content review or a shared link. */
+function PicturesContent() {
   const summaryQuery = usePictureSummary();
   const sheetQuery = useHandwritingSheet();
   const [subjectChoice, setSubjectChoice] = useState<string | null>(null);
@@ -101,6 +111,22 @@ export default function PicturesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const linkedId = Number.parseInt(useSearchParams().get("task") ?? "", 10);
+  const openedLink = useRef<number | null>(null);
+  useEffect(() => {
+    if (!Number.isFinite(linkedId) || openedLink.current === linkedId) return;
+    openedLink.current = linkedId;
+    picturesApi.get(linkedId).then(
+      (linked) => {
+        setSubjectChoice(linked.question.subject);
+        setYearChoice(linked.question.year ?? 0);
+        setFilter("all");
+        setSelectedId(linked.id);
+      },
+      () => toast.error(`Could not open picture #${linkedId}.`),
+    );
+  }, [linkedId]);
 
   const subjects = useMemo(() => summaryQuery.data?.subjects ?? [], [summaryQuery.data]);
   const subject =

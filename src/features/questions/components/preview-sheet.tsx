@@ -30,6 +30,7 @@ export function PreviewSheet({
   parent = null,
   onClose,
   onPublish,
+  publishBlocked = false,
   isSaving,
   hasNext,
 }: {
@@ -37,6 +38,8 @@ export function PreviewSheet({
   parent?: { questionText: string; imageUrl: string | null } | null;
   onClose: () => void;
   onPublish: () => void;
+  /** Its picture is not on yet, so it cannot be published. */
+  publishBlocked?: boolean;
   isSaving: boolean;
   hasNext: boolean;
 }) {
@@ -96,7 +99,7 @@ export function PreviewSheet({
           type="button"
           className="flex-1"
           onClick={onPublish}
-          disabled={isSaving}
+          disabled={isSaving || publishBlocked}
           isLoading={isSaving}
         >
           Publish{hasNext ? " & next" : ""}

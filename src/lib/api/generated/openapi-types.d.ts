@@ -6356,6 +6356,7 @@ export interface paths {
                     year?: number;
                     kind?: "standalone" | "parent" | "child";
                     parentQuestionId?: number;
+                    picture?: "needed" | "to_check";
                 };
                 header?: never;
                 path?: never;
@@ -6415,6 +6416,18 @@ export interface paths {
                                     imageUrl: string | null;
                                 } | null;
                                 childCount?: number;
+                                openPictures?: {
+                                    id: number;
+                                    /** @enum {string} */
+                                    kind: "QUESTION" | "EXPLANATION";
+                                    /** @enum {string} */
+                                    maker: "CLAUDE" | "CHATGPT";
+                                    /** @enum {string} */
+                                    status: "WAITING" | "READY_TO_CHECK" | "SENT_BACK";
+                                    label: string;
+                                    title: string;
+                                    onSharedRow: boolean;
+                                }[];
                                 internalNotes?: string | null;
                                 explanation?: {
                                     explanationText: string;
@@ -6810,6 +6823,18 @@ export interface paths {
                                 imageUrl: string | null;
                             } | null;
                             childCount?: number;
+                            openPictures?: {
+                                id: number;
+                                /** @enum {string} */
+                                kind: "QUESTION" | "EXPLANATION";
+                                /** @enum {string} */
+                                maker: "CLAUDE" | "CHATGPT";
+                                /** @enum {string} */
+                                status: "WAITING" | "READY_TO_CHECK" | "SENT_BACK";
+                                label: string;
+                                title: string;
+                                onSharedRow: boolean;
+                            }[];
                             internalNotes?: string | null;
                             explanation?: {
                                 explanationText: string;
@@ -7731,6 +7756,18 @@ export interface paths {
                                 imageUrl: string | null;
                             } | null;
                             childCount?: number;
+                            openPictures?: {
+                                id: number;
+                                /** @enum {string} */
+                                kind: "QUESTION" | "EXPLANATION";
+                                /** @enum {string} */
+                                maker: "CLAUDE" | "CHATGPT";
+                                /** @enum {string} */
+                                status: "WAITING" | "READY_TO_CHECK" | "SENT_BACK";
+                                label: string;
+                                title: string;
+                                onSharedRow: boolean;
+                            }[];
                             internalNotes?: string | null;
                             explanation?: {
                                 explanationText: string;
@@ -8113,6 +8150,18 @@ export interface paths {
                                 imageUrl: string | null;
                             } | null;
                             childCount?: number;
+                            openPictures?: {
+                                id: number;
+                                /** @enum {string} */
+                                kind: "QUESTION" | "EXPLANATION";
+                                /** @enum {string} */
+                                maker: "CLAUDE" | "CHATGPT";
+                                /** @enum {string} */
+                                status: "WAITING" | "READY_TO_CHECK" | "SENT_BACK";
+                                label: string;
+                                title: string;
+                                onSharedRow: boolean;
+                            }[];
                             internalNotes?: string | null;
                             explanation?: {
                                 explanationText: string;
@@ -8693,6 +8742,7 @@ export interface paths {
                             message: string;
                             updatedCount: number;
                             questionIds: number[];
+                            skippedIds: number[];
                         };
                     };
                 };
@@ -11343,6 +11393,331 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pictures/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one picture
+         * @description One picture with its question, for a link that opens it directly.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            id: number;
+                            label: string;
+                            title: string;
+                            /** @enum {string} */
+                            kind: "QUESTION" | "EXPLANATION";
+                            /** @enum {string} */
+                            maker: "CLAUDE" | "CHATGPT";
+                            /** @enum {string} */
+                            status: "WAITING" | "READY_TO_CHECK" | "SENT_BACK" | "DONE";
+                            sortOrder: number;
+                            reason: string | null;
+                            whatToShow: string | null;
+                            prompt: string | null;
+                            teamNote: string | null;
+                            altText: string | null;
+                            sourceFile: string;
+                            draftImageUrl: string | null;
+                            sentBackNote: string | null;
+                            imageUrl: string | null;
+                            doneAt: string | null;
+                            question: {
+                                id: number;
+                                subject: string;
+                                year: number | null;
+                                topic: string | null;
+                                reviewStatus: string;
+                                questionText: string;
+                                options: {
+                                    letter: string;
+                                    text: string;
+                                }[];
+                                correctAnswer: string;
+                                imageUrl: string | null;
+                                sharedWith: {
+                                    id: number;
+                                    questionText: string;
+                                }[];
+                            };
+                            spot: {
+                                before: string[];
+                                after: string[];
+                                found: boolean;
+                            } | null;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                message: string;
+                                statusCode: number;
+                                code: string;
+                                hint?: string;
+                                details?: unknown;
+                                stack?: string;
+                            };
+                            requestId: string;
+                            correlationId: string;
+                            /** Format: date-time */
+                            timestamp: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

@@ -496,6 +496,8 @@ export type BulkReviewStatusUpdateResponse = {
   message: string;
   updatedCount: number;
   questionIds: number[];
+  /** Left unpublished because their picture is not on yet. Optional for an older backend. */
+  skippedIds?: number[];
 };
 
 export type PictureSummary = JsonResponse<"/api/pictures/summary", "get", 200>;
@@ -503,4 +505,6 @@ export type PictureList = JsonResponse<"/api/pictures/", "get", 200>;
 export type PictureTask = PictureList["tasks"][number];
 export type PictureStrength = "light" | "normal" | "strong";
 export type PictureMaker = PictureTask["maker"];
+/** A picture still to come for a question, as the question list sends it. */
+export type OpenPicture = NonNullable<QuestionRecord["openPictures"]>[number];
 export type HandwritingSheet = JsonResponse<"/api/pictures/handwriting-sheet", "get", 200>;

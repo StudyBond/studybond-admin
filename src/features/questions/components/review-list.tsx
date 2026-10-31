@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { MathMarkdown } from "@/components/ui/math-markdown";
+import { blockingPicture } from "@/features/pictures/lib/picture-rules";
 import { GroupBadge } from "@/features/questions/components/group-badge";
 import type { QuestionListItem } from "@/lib/api/types";
 import { formatDate } from "@/lib/utils/format";
@@ -18,6 +19,29 @@ import { useCallback, useMemo, useState } from "react";
  * are mutually exclusive, so the per-row jump into the guided reviewer is
  * an explicit button in its own column rather than a whole-row link.
  */
+
+/** The picture a row is still waiting for, if any. Uses the same rule as Publish. */
+function missingPictureOf(question: QuestionListItem) {
+  return blockingPicture(question.openPictures, {
+    imageUrl: question.imageUrl,
+    sharedImageUrl: question.parentQuestion?.imageUrl,
+  });
+}
+
+function PictureMarker({ question }: { question: QuestionListItem }) {
+  const missing = missingPictureOf(question);
+  if (missing) {
+    return missing.status === "READY_TO_CHECK" ? (
+      <Badge tone="info">Picture to check</Badge>
+    ) : (
+      <Badge tone="warning">No picture yet</Badge>
+    );
+  }
+  const sketchToCome = question.openPictures?.some(
+    (picture) => picture.kind === "EXPLANATION" && !picture.onSharedRow,
+  );
+  return sketchToCome ? <Badge tone="neutral">Sketch to come</Badge> : null;
+}
 
 type ReviewListProps = {
   questions: QuestionListItem[];
@@ -96,6 +120,7 @@ export function ReviewList({
                 #{question.id}
               </span>
               <GroupBadge question={question} />
+              <PictureMarker question={question} />
             </div>
           </div>
         ),
@@ -148,14 +173,25 @@ export function ReviewList({
     () => [...selectedIds] as number[],
     [selectedIds],
   );
+  // Publish leaves these as they are, so say so before it is pressed.
+  const heldBack = questions.filter(
+    (question) => selectedIds.has(question.id) && missingPictureOf(question),
+  ).length;
 
   return (
     <div className="space-y-3">
       {selectedCount > 0 ? (
         <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-[var(--sb-radius-lg)] border border-[var(--sb-accent-ring)] bg-[var(--sb-surface-2)] p-3 shadow-[var(--sb-shadow)] sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[length:var(--sb-text-base)] font-medium text-[var(--sb-text)]">
-            {selectedCount} question{selectedCount === 1 ? "" : "s"} selected
-          </p>
+          <div>
+            <p className="text-[length:var(--sb-text-base)] font-medium text-[var(--sb-text)]">
+              {selectedCount} question{selectedCount === 1 ? "" : "s"} selected
+            </p>
+            {heldBack > 0 ? (
+              <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-warning)]">
+                {heldBack === 1 ? "One has" : `${heldBack} have`} no picture yet, so Publish leaves {heldBack === 1 ? "it" : "them"} unpublished.
+              </p>
+            ) : null}
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"

@@ -3,9 +3,10 @@
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TextArea } from "@/components/ui/field";
 import { MathMarkdown } from "@/components/ui/math-markdown";
+import { DrawingCheckActions } from "@/features/pictures/components/drawing-check";
 import { useRefreshPictures } from "@/features/pictures/hooks/use-pictures";
+import { reviewHref, reviewTargetOf } from "@/features/pictures/lib/picture-rules";
 import { picturesApi } from "@/lib/api/pictures";
 import type { PictureMaker, PictureStrength, PictureTask } from "@/lib/api/types";
 import { cn } from "@/lib/utils/cn";
@@ -22,12 +23,13 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PasteZone } from "./paste-zone";
 import { StrengthPicker, WatermarkPreview } from "./watermark-preview";
 
-export function pictureStatus(task: PictureTask): { label: string; tone: BadgeTone } {
+export function pictureStatus(task: Pick<PictureTask, "status" | "maker">): { label: string; tone: BadgeTone } {
   switch (task.status) {
     case "DONE":
       return { label: "Done", tone: "success" };
@@ -58,7 +60,7 @@ function Section({ title, children, step }: { title: string; children: React.Rea
   );
 }
 
-function NoteBox({ title, content }: { title: string; content: string | null }) {
+export function NoteBox({ title, content }: { title: string; content: string | null }) {
   if (!content) return null;
   return (
     <div className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
@@ -217,49 +219,40 @@ export function PicturePanel({
   sheetUrl: string | null;
 }) {
   const refresh = useRefreshPictures();
+  const router = useRouter();
   const [strength, setStrength] = useState<PictureStrength>("normal");
-  const [fixOpen, setFixOpen] = useState(false);
-  const [fixNote, setFixNote] = useState("");
   const [replaceOpen, setReplaceOpen] = useState(false);
 
   const status = pictureStatus(task);
   const isSketch = task.kind === "EXPLANATION";
   const where = isSketch ? "Pencil sketch in the explanation" : task.question.sharedWith.length ? "Shared question picture" : "Question picture";
   const madeBy = task.maker === "CLAUDE" ? "Claude draws it in code" : "made in ChatGPT";
+  const isLive = task.question.reviewStatus === "PUBLISHED";
+  // A shared row has no answer of its own, so its questions are what get reviewed.
+  const isShared = task.question.sharedWith.length > 0;
 
   const onError = (title: string) => (error: unknown) =>
     toast.error(title, { description: <ApiErrorMessage error={error} fallback="Please try again." /> });
+
+  /* Once the picture is on, the question is often ready to publish, so the
+     saved message offers to go straight there. */
+  const reviewAction = (updated: PictureTask) =>
+    updated.question.reviewStatus !== "PUBLISHED" || isShared
+      ? { label: "Review it now", onClick: () => router.push(reviewHref(reviewTargetOf(updated))) }
+      : undefined;
 
   const save = useMutation({
     mutationFn: ({ file, strength: chosen }: { file: File; strength: PictureStrength }) =>
       picturesApi.saveImage(task.id, file, chosen),
     onSuccess: async (updated) => {
       setReplaceOpen(false);
-      toast.success(isSketch ? `${task.label} sketch saved into the explanation` : `${task.label} picture saved to the question`);
+      toast.success(
+        isSketch ? `${task.label} sketch saved into the explanation` : `${task.label} picture saved to the question`,
+        { action: reviewAction(updated) },
+      );
       await refresh();
       onFinished(updated);
     },
-  });
-
-  const approve = useMutation({
-    mutationFn: () => picturesApi.approve(task.id, strength),
-    onSuccess: async (updated) => {
-      toast.success(`${task.label} picture saved to the question`);
-      await refresh();
-      onFinished(updated);
-    },
-    onError: onError("Could not use the drawing"),
-  });
-
-  const sendBack = useMutation({
-    mutationFn: () => picturesApi.sendBack(task.id, fixNote.trim()),
-    onSuccess: async () => {
-      setFixOpen(false);
-      setFixNote("");
-      toast.success("Sent back to Claude");
-      await refresh();
-    },
-    onError: onError("Could not send it back"),
   });
 
   const reopen = useMutation({
@@ -297,6 +290,16 @@ export function PicturePanel({
             {where} · {task.question.topic ?? "No topic"} · {madeBy}
           </p>
         </div>
+        {/* Live questions are not in content review, so they open in the editor. */}
+        <Button
+          asChild
+          href={isLive && !isShared ? `/questions/${task.question.id}` : reviewHref(reviewTargetOf(task))}
+          variant="ghost"
+          size="sm"
+        >
+          {isLive && !isShared ? "Open question" : "Open in Content review"}
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </Button>
         <div className="flex items-center gap-1">
           <Button type="button" variant="secondary" size="icon" aria-label="Previous picture" onClick={onPrev}>
             <ChevronLeft className="h-4 w-4" />
@@ -309,6 +312,13 @@ export function PicturePanel({
           </Button>
         </div>
       </header>
+
+      {isLive && !isSketch && task.status !== "DONE" ? (
+        <div className="flex items-start gap-2.5 rounded-[var(--sb-radius)] border border-[var(--sb-warning-ring)] bg-[var(--sb-warning-soft)] p-3 text-[length:var(--sb-text-sm)] text-[var(--sb-warning)]">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>This question is already live without its picture, so students see it like that now. Do this one first.</span>
+        </div>
+      ) : null}
 
       {isSketch ? (
         <>
@@ -394,41 +404,18 @@ export function PicturePanel({
                 Undo
               </Button>
             </div>
-          ) : fixOpen ? (
-            <div className="space-y-3 border-t border-[var(--sb-border)] pt-4">
-              <TextArea
-                label="What should Claude change?"
-                rows={3}
-                value={fixNote}
-                onChange={(event) => setFixNote(event.target.value)}
-                placeholder="For example: the flat part should end at 3.5 s, not 3.0 s"
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={() => sendBack.mutate()} isLoading={sendBack.isPending} disabled={fixNote.trim().length < 3 || sendBack.isPending}>
-                  Send back to Claude
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setFixOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-              <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-                Claude sees this note the next time someone asks it to work on pictures.
-              </p>
-            </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-2 border-t border-[var(--sb-border)] pt-4">
-              <Button type="button" onClick={() => approve.mutate()} isLoading={approve.isPending} disabled={approve.isPending}>
-                <Check className="h-4 w-4" />
-                Looks right, use it
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => setFixOpen(true)}>
-                Something&apos;s wrong
-              </Button>
-              <span className="flex-1" />
-              <Button type="button" variant="ghost" size="sm" onClick={() => setMaker.mutate("CHATGPT")} isLoading={setMaker.isPending}>
-                Make it in ChatGPT instead
-              </Button>
-            </div>
+            <DrawingCheckActions
+              task={task}
+              strength={strength}
+              onApproved={onFinished}
+              approvedAction={reviewAction}
+              extra={
+                <Button type="button" variant="ghost" size="sm" onClick={() => setMaker.mutate("CHATGPT")} isLoading={setMaker.isPending}>
+                  Make it in ChatGPT instead
+                </Button>
+              }
+            />
           )}
         </div>
       ) : null}

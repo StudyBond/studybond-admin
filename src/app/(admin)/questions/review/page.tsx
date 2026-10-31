@@ -10,7 +10,10 @@ import { ErrorState } from "@/components/ui/error-state";
 import { QuestionReviewer } from "@/features/questions/components/question-reviewer";
 import { ReviewList } from "@/features/questions/components/review-list";
 import { InstitutionSelect } from "@/features/questions/components/institution-select";
-import { useReviewQueue } from "@/features/questions/hooks/use-admin-questions";
+import {
+  loadReviewQueueUntil,
+  useReviewQueue,
+} from "@/features/questions/hooks/use-admin-questions";
 import {
   useLeaveGuard,
   type UnsavedDraft,
@@ -29,7 +32,8 @@ import { QUESTION_POOL_OPTIONS } from "@/lib/utils/questions";
 import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LayoutGrid, List, PartyPopper } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
@@ -57,11 +61,26 @@ const ORDER_OPTIONS = [
   { label: "Newest first", value: "newest" },
 ];
 
+const PICTURE_FILTERS = [
+  { label: "Any", value: "" },
+  { label: "Needs a picture", value: "needed" },
+  { label: "Drawing to check", value: "to_check" },
+];
+
 /** How close to the end of the loaded questions the next batch starts loading. */
 const PREFETCH_AHEAD = 10;
 
 export default function ReviewQueuePage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <ReviewQueueContent />
+    </Suspense>
+  );
+}
+
+function ReviewQueueContent() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [mode, setMode] = useState<"queue" | "list">("queue");
   /* The open question's unsaved edits, reported by the reviewer. Every change
      that could replace the open question goes through guard, which asks first
@@ -71,6 +90,7 @@ export default function ReviewQueuePage() {
   const [subject, setSubject] = useState("");
   const [appliedSubject, setAppliedSubject] = useState("");
   const [questionPool, setQuestionPool] = useState("");
+  const [pictureFilter, setPictureFilter] = useState("");
   const [statusScope, setStatusScope] = useState(STATUS_SCOPES[0].value);
   const [order, setOrder] = useState<QueueOrder>("oldest");
   const [currentId, setCurrentId] = useState<number | null>(null);
@@ -81,14 +101,17 @@ export default function ReviewQueuePage() {
 
   /* The subject filter applies after a short pause in typing. It is a change
      like any other, so it asks first when there are unsaved edits. Keep
-     editing puts the typed text back to the filter still in use. */
+     editing puts the typed text back to the filter still in use. It waits
+     for the pause to end, so a subject set by a link is not undone by the
+     old text still in the pause. */
   useEffect(() => {
+    if (debouncedSubject !== subject.trim()) return;
     if (debouncedSubject === appliedSubject) return;
     guard(
       () => setAppliedSubject(debouncedSubject),
       () => setSubject(appliedSubject),
     );
-  }, [debouncedSubject, appliedSubject, guard]);
+  }, [debouncedSubject, subject, appliedSubject, guard]);
 
   const queueQuery = useReviewQueue(
     {
@@ -96,6 +119,7 @@ export default function ReviewQueuePage() {
       reviewStatus: statusScope,
       subject: appliedSubject || undefined,
       questionPool: questionPool || undefined,
+      picture: pictureFilter === "needed" || pictureFilter === "to_check" ? pictureFilter : undefined,
       order,
     },
     { enabled: isReady },
@@ -121,6 +145,55 @@ export default function ReviewQueuePage() {
       void fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage, currentIndex, questions.length]);
+
+  /* ?question=123 opens that question, from the Pictures page or a shared
+     link. The queue is loaded for its board and subject, other filters
+     cleared, as far as that question, and opens on it. A question that is
+     already live is not in review, so it opens in the editor instead. */
+  const linkedId = Number.parseInt(useSearchParams().get("question") ?? "", 10);
+  const handledLink = useRef<number | null>(null);
+  const [seekId, setSeekId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isReady || !Number.isFinite(linkedId) || handledLink.current === linkedId) return;
+    handledLink.current = linkedId;
+    router.replace("/questions/review", { scroll: false });
+    void (async () => {
+      try {
+        const linked = await questionsApi.getById(linkedId);
+        if (linked.reviewStatus === "PUBLISHED") {
+          toast.info(`#${linked.id} is already published, so it opens in the editor.`);
+          router.replace(`/questions/${linked.id}`);
+          return;
+        }
+        setSeekId(linked.id);
+        const code = linked.institutionCode ?? institutionCode;
+        // The same filters, key for key, that the queue below asks with.
+        const filters = {
+          institutionCode: code,
+          reviewStatus: STATUS_SCOPES[0].value,
+          subject: linked.subject,
+          questionPool: undefined,
+          picture: undefined,
+          order,
+        };
+        const found = await loadReviewQueueUntil(queryClient, filters, linked.id);
+        setInstitutionCode(code);
+        setStatusScope(filters.reviewStatus);
+        setSubject(linked.subject);
+        setAppliedSubject(linked.subject);
+        setQuestionPool("");
+        setPictureFilter("");
+        setMode("queue");
+        setCurrentId(found ? linked.id : null);
+        if (!found) toast.error(`#${linked.id} is not waiting on review.`);
+      } catch {
+        toast.error(`Could not open question #${linkedId}.`);
+      } finally {
+        setSeekId(null);
+      }
+    })();
+  }, [isReady, linkedId, router, institutionCode, order, queryClient, setInstitutionCode]);
 
   async function refreshQueue() {
     await queryClient.invalidateQueries({ queryKey: ["admin", "questions"] });
@@ -151,7 +224,9 @@ export default function ReviewQueuePage() {
     mutationFn: (input: { questionIds: number[]; reviewStatus: "VERIFIED" | "PUBLISHED" }) =>
       questionsApi.bulkUpdateReviewStatus(input),
     onSuccess: async (data) => {
-      toast.success(data.message);
+      // Some were held back because their picture is not on yet.
+      if (data.skippedIds?.length) toast.warning(data.message);
+      else toast.success(data.message);
       await refreshQueue();
     },
     onError: (error) => {
@@ -260,6 +335,19 @@ export default function ReviewQueuePage() {
               placeholder="All pools"
             />
           </FieldShell>
+          <FieldShell label="Pictures">
+            <CustomSelect
+              aria-label="Filter by pictures still to come"
+              value={pictureFilter}
+              onValueChange={(value) =>
+                guard(() => {
+                  setPictureFilter(value);
+                  setCurrentId(null);
+                })
+              }
+              options={PICTURE_FILTERS}
+            />
+          </FieldShell>
           <FieldShell label="Order">
             <CustomSelect
               aria-label="Which end of the queue comes first"
@@ -297,7 +385,14 @@ export default function ReviewQueuePage() {
         </div>
       </div>
 
-      {!isReady || queueQuery.isLoading ? (
+      {seekId !== null ? (
+        <div className="space-y-2">
+          <p className="text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+            Finding #{seekId} in the queue…
+          </p>
+          <Skeleton className="h-96 w-full" />
+        </div>
+      ) : !isReady || queueQuery.isLoading ? (
         <Skeleton className="h-96 w-full" />
       ) : queueQuery.isError && !queueQuery.data ? (
         <ErrorState
@@ -313,9 +408,11 @@ export default function ReviewQueuePage() {
               Nothing waiting on review
             </p>
             <p className="mt-1 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
-              Every {institutionCode} question in this scope is already
-              published. Questions uploaded under another institution only
-              show when it is picked above.
+              {pictureFilter
+                ? `No ${institutionCode} question in this scope is waiting for a picture.`
+                : `Every ${institutionCode} question in this scope is already published.`}{" "}
+              Questions uploaded under another institution only show when it
+              is picked above.
             </p>
           </div>
         </div>

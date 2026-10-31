@@ -6,7 +6,7 @@ import type {
   QuestionListResponse,
   QuestionSearchScope,
 } from "@/lib/api/types";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { type QueryClient, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 export type QuestionKindFilter = "standalone" | "parent" | "child";
 
@@ -36,6 +36,8 @@ export type AdminQuestionsFilters = {
   order?: QueueOrder;
   /** Cursor: the last id already loaded. Only the review queue sends it. */
   afterId?: number;
+  /** needed: a picture is still to come. to_check: a drawing is waiting to be checked. */
+  picture?: "needed" | "to_check";
 };
 
 export function useAdminQuestions(
@@ -81,4 +83,31 @@ export function useReviewQueue(
     staleTime: 20_000,
     enabled: options.enabled ?? true,
   });
+}
+
+/**
+ * Loads review-queue batches for these filters until question `id` is among
+ * them, and leaves them where useReviewQueue reads them, so the queue opens
+ * with that question already loaded. Says whether it was found.
+ */
+export async function loadReviewQueueUntil(
+  queryClient: QueryClient,
+  filters: Omit<AdminQuestionsFilters, "afterId" | "page" | "limit">,
+  id: number,
+) {
+  const pages: QuestionListResponse[] = [];
+  const pageParams: Array<number | undefined> = [];
+  let afterId: number | undefined;
+  let found = false;
+  for (;;) {
+    const page = await questionsApi.list({ ...filters, limit: REVIEW_BATCH_SIZE, afterId });
+    pages.push(page);
+    pageParams.push(afterId);
+    found = page.questions.some((question) => question.id === id);
+    const lastId = page.questions.at(-1)?.id;
+    if (found || page.questions.length < REVIEW_BATCH_SIZE || lastId === undefined) break;
+    afterId = lastId;
+  }
+  queryClient.setQueryData(["admin", "questions", "review-queue", filters], { pages, pageParams });
+  return found;
 }

@@ -6,6 +6,8 @@ import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Field } from "@/components/ui/field";
 import { AssetField } from "@/features/questions/components/asset-field";
 import { FormattingToolbar } from "@/features/questions/components/formatting-toolbar";
+import { blockingPicture } from "@/features/pictures/lib/picture-rules";
+import { PictureStrip } from "@/features/questions/components/picture-strip";
 import { PreviewSheet } from "@/features/questions/components/preview-sheet";
 import type { UnsavedDraft } from "@/features/questions/hooks/use-leave-guard";
 import {
@@ -19,9 +21,11 @@ import {
   LETTERS,
   type FormState,
 } from "@/features/questions/lib/question-form-state";
-import type { QuestionPayload, QuestionRecord } from "@/lib/api/types";
+import { questionsApi } from "@/lib/api/questions";
+import type { PictureTask, QuestionPayload, QuestionRecord } from "@/lib/api/types";
 import { cn } from "@/lib/utils/cn";
 import { useMediaQuery } from "@/lib/utils/use-media-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronDown,
@@ -34,6 +38,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 /**
  * One question, reviewed. The editable fields carry formatting toolbars,
@@ -227,6 +232,7 @@ export function QuestionReviewer({
      effect — the same reasoning as QuestionForm. It also closes the preview
      sheet, which is what should happen when Publish moves to the next. */
   const [form, setForm] = useState<FormState>(() => createInitialState(question));
+  const queryClient = useQueryClient();
 
   /* The field last clicked into. Not cleared on blur: the outline marks
      where you were working, and clearing it would make it flicker off and
@@ -282,6 +288,45 @@ export function QuestionReviewer({
   const sharedDiagram = question.parentQuestion ?? null;
   const progressPercent = total > 0 ? Math.round((position / total) * 100) : 0;
 
+  /* A question picture still to come stops Publish (the server refuses it
+     too). Worked out from the form, so a picture attached here counts. */
+  const openPictures = question.openPictures ?? [];
+  const blocking = blockingPicture(openPictures, {
+    imageUrl: form.imageUrl,
+    sharedImageUrl: sharedDiagram?.imageUrl,
+  });
+
+  function publish() {
+    if (blocking) {
+      toast.error("Not published yet", {
+        description: "Its picture isn't on. Check or add it in the Pictures box at the top first.",
+      });
+      return;
+    }
+    void withPayload({ reviewStatus: "PUBLISHED" }, true);
+  }
+
+  /* Approving a drawing writes to this question on the server. Edits here are
+     saved first, and afterwards the form takes the server's new picture, so
+     the next Save cannot put the old empty one back. */
+  async function saveBeforePicture() {
+    if (JSON.stringify(form) !== savedRef.current) await withPayload({}, false);
+  }
+
+  async function pictureApproved(task: PictureTask) {
+    if (task.question.id === question.id) {
+      const fresh = createInitialState(await questionsApi.getById(question.id));
+      const patch =
+        task.kind === "QUESTION"
+          ? { imageUrl: fresh.imageUrl, imagePublicId: fresh.imagePublicId }
+          : { explanationText: fresh.explanationText };
+      setForm((current) => ({ ...current, ...patch }));
+      savedRef.current = JSON.stringify({ ...JSON.parse(savedRef.current), ...patch });
+    }
+    // The shared row's picture, and the list of pictures, come with the queue.
+    await queryClient.invalidateQueries({ queryKey: ["admin", "questions"] });
+  }
+
   async function withPayload(
     override: Partial<Pick<FormState, "reviewStatus">>,
     thenAdvance: boolean,
@@ -310,7 +355,7 @@ export function QuestionReviewer({
       if (shortcutsPaused) return;
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
-        void withPayload({ reviewStatus: "PUBLISHED" }, true);
+        publish();
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key === "s") {
@@ -326,7 +371,7 @@ export function QuestionReviewer({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, hasNext, hasPrevious, shortcutsPaused, onNext, onPrevious]);
+  }, [form, blocking, hasNext, hasPrevious, shortcutsPaused, onNext, onPrevious]);
 
   return (
     <div className="space-y-4">
@@ -357,6 +402,16 @@ export function QuestionReviewer({
           is no second item. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0 space-y-4 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+          {openPictures.length > 0 ? (
+            <PictureStrip
+              pictures={openPictures}
+              blocking={blocking}
+              sharedRowId={sharedDiagram?.id ?? null}
+              beforeApprove={saveBeforePicture}
+              onApproved={pictureApproved}
+            />
+          ) : null}
+
           {form.kind === "child" && sharedDiagram ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] px-3 py-2">
               <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
@@ -679,8 +734,9 @@ export function QuestionReviewer({
             <Button
               type="button"
               size="sm"
-              onClick={() => void withPayload({ reviewStatus: "PUBLISHED" }, true)}
-              disabled={isSaving}
+              onClick={publish}
+              disabled={isSaving || Boolean(blocking)}
+              title={blocking ? "Its picture isn't on yet" : undefined}
             >
               <span>
                 Publish
@@ -697,7 +753,8 @@ export function QuestionReviewer({
           form={form}
           parent={sharedDiagram}
           onClose={closePreview}
-          onPublish={() => void withPayload({ reviewStatus: "PUBLISHED" }, true)}
+          onPublish={publish}
+          publishBlocked={Boolean(blocking)}
           isSaving={isSaving}
           hasNext={hasNext}
         />

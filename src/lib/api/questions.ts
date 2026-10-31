@@ -42,6 +42,7 @@ export const questionsApi = {
     if (params?.parentQuestionId != null) {
       search.set("parentQuestionId", String(params.parentQuestionId));
     }
+    if (params?.picture) search.set("picture", params.picture);
 
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return apiClient<QuestionListResponse>(`/api/questions${suffix}`);
