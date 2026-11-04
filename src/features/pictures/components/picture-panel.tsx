@@ -129,20 +129,40 @@ function QuestionCard({ task, picture, strength }: { task: PictureTask; picture:
 }
 
 /** Where a sketch goes in the explanation, with the paragraphs around it. */
-function SpotCard({ task }: { task: PictureTask }) {
+/**
+ * The sketch in its place in the explanation. A drawing waiting to be checked
+ * shows here too (with the mark at the chosen strength), so the team can see
+ * what they are approving.
+ */
+function SpotCard({ task, strength }: { task: PictureTask; strength?: PictureStrength }) {
   const spot = task.spot;
+  const draft = task.status === "READY_TO_CHECK" || task.status === "SENT_BACK" ? task.draftImageUrl : null;
+  const alt = task.altText ?? task.title;
+  const picture =
+    task.status === "DONE" && task.imageUrl ? (
+      // eslint-disable-next-line @next/next/no-img-element -- Cloudinary address
+      <img src={task.imageUrl} alt={alt} className="mx-auto block h-auto w-full max-w-[22rem] rounded-[var(--sb-radius)] bg-white" />
+    ) : draft && strength ? (
+      <WatermarkPreview src={draft} strength={strength} alt={alt} className="mx-auto w-full max-w-[22rem]" />
+    ) : draft ? (
+      // eslint-disable-next-line @next/next/no-img-element -- Cloudinary address
+      <img src={draft} alt={alt} className="mx-auto block h-auto w-full max-w-[22rem] rounded-[var(--sb-radius)] bg-white" />
+    ) : null;
   if (!spot?.found) {
     return (
-      <div className="flex items-start gap-2.5 rounded-[var(--sb-radius)] border border-[var(--sb-warning-ring)] bg-[var(--sb-warning-soft)] p-3 text-[length:var(--sb-text-sm)] text-[var(--sb-warning)]">
-        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>
-          The explanation has changed since the notes were written, so the spot for this sketch can&apos;t be found.
-          Add the sketch from the{" "}
-          <Link href={`/questions/${task.question.id}`} className="underline underline-offset-2">
-            question page
-          </Link>{" "}
-          instead.
-        </span>
+      <div className="space-y-3">
+        <div className="flex items-start gap-2.5 rounded-[var(--sb-radius)] border border-[var(--sb-warning-ring)] bg-[var(--sb-warning-soft)] p-3 text-[length:var(--sb-text-sm)] text-[var(--sb-warning)]">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            The explanation has changed since the notes were written, so the spot for this sketch can&apos;t be found.
+            Add the sketch from the{" "}
+            <Link href={`/questions/${task.question.id}`} className="underline underline-offset-2">
+              question page
+            </Link>{" "}
+            instead.
+          </span>
+        </div>
+        {picture}
       </div>
     );
   }
@@ -151,10 +171,7 @@ function SpotCard({ task }: { task: PictureTask }) {
       {spot.before.map((paragraph, index) => (
         <MathMarkdown key={`b${index}`} content={paragraph} variant="explanation" />
       ))}
-      {task.status === "DONE" && task.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- Cloudinary address
-        <img src={task.imageUrl} alt={task.altText ?? task.title} className="mx-auto block h-auto w-full max-w-[22rem] rounded-[var(--sb-radius)] bg-white" />
-      ) : (
+      {picture ?? (
         <div className="flex items-center gap-2.5 rounded-[var(--sb-radius)] border-[1.5px] border-dashed border-[var(--sb-accent-ring)] bg-[var(--sb-accent-soft)] px-4 py-3 text-[length:var(--sb-text-sm)] text-[var(--sb-accent-text)]">
           <ImageIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
           The sketch goes here.
@@ -324,7 +341,7 @@ export function PicturePanel({
         <>
           <NoteBox title="The question" content={task.question.questionText} />
           <Section title="Where it goes in the explanation" step={showChatGpt ? 1 : undefined}>
-            <SpotCard task={task} />
+            <SpotCard task={task} strength={task.status === "READY_TO_CHECK" ? strength : undefined} />
           </Section>
         </>
       ) : (
