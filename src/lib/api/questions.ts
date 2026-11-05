@@ -8,44 +8,56 @@ import type {
   BulkUploadBatchMoveResponse,
   QuestionAssetKind,
   QuestionAssetUploadResponse,
+  QuestionFacetsResponse,
   QuestionListParams,
   QuestionListResponse,
   QuestionPayload,
   QuestionRecord,
 } from "@/lib/api/types";
 
+/** The list filters as a query string. The list and its counts take the same ones. */
+function listSearch(params?: QuestionListParams) {
+  const search = new URLSearchParams();
+
+  if (params?.institutionCode) search.set("institutionCode", params.institutionCode);
+  if (params?.subject) search.set("subject", params.subject);
+  if (params?.topic) search.set("topic", params.topic);
+  if (params?.questionType) search.set("questionType", params.questionType);
+  if (params?.questionPool) search.set("questionPool", params.questionPool);
+  if (params?.reviewStatus) search.set("reviewStatus", params.reviewStatus);
+  if (params?.search) search.set("search", params.search);
+  // "all" is the backend default, so leave it off the URL.
+  if (params?.searchIn && params.searchIn !== "all") {
+    search.set("searchIn", params.searchIn);
+  }
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.order) search.set("order", params.order);
+  if (params?.afterId != null) search.set("afterId", String(params.afterId));
+  if (params?.beforeId != null) search.set("beforeId", String(params.beforeId));
+  if (params?.fromId != null) search.set("fromId", String(params.fromId));
+  if (typeof params?.hasImage === "boolean") search.set("hasImage", String(params.hasImage));
+  if (typeof params?.isAiGenerated === "boolean") {
+    search.set("isAiGenerated", String(params.isAiGenerated));
+  }
+  if (params?.year != null) search.set("year", String(params.year));
+  if (params?.noYear) search.set("noYear", "true");
+  if (params?.kind) search.set("kind", params.kind);
+  if (params?.parentQuestionId != null) {
+    search.set("parentQuestionId", String(params.parentQuestionId));
+  }
+  if (params?.picture) search.set("picture", params.picture);
+
+  return search.toString() ? `?${search.toString()}` : "";
+}
+
 export const questionsApi = {
   list(params?: QuestionListParams) {
-    const search = new URLSearchParams();
-
-    if (params?.institutionCode) search.set("institutionCode", params.institutionCode);
-    if (params?.subject) search.set("subject", params.subject);
-    if (params?.topic) search.set("topic", params.topic);
-    if (params?.questionType) search.set("questionType", params.questionType);
-    if (params?.questionPool) search.set("questionPool", params.questionPool);
-    if (params?.reviewStatus) search.set("reviewStatus", params.reviewStatus);
-    if (params?.search) search.set("search", params.search);
-    // "all" is the backend default, so leave it off the URL.
-    if (params?.searchIn && params.searchIn !== "all") {
-      search.set("searchIn", params.searchIn);
-    }
-    if (params?.page) search.set("page", String(params.page));
-    if (params?.limit) search.set("limit", String(params.limit));
-    if (params?.order) search.set("order", params.order);
-    if (params?.afterId != null) search.set("afterId", String(params.afterId));
-    if (typeof params?.hasImage === "boolean") search.set("hasImage", String(params.hasImage));
-    if (typeof params?.isAiGenerated === "boolean") {
-      search.set("isAiGenerated", String(params.isAiGenerated));
-    }
-    if (params?.year != null) search.set("year", String(params.year));
-    if (params?.kind) search.set("kind", params.kind);
-    if (params?.parentQuestionId != null) {
-      search.set("parentQuestionId", String(params.parentQuestionId));
-    }
-    if (params?.picture) search.set("picture", params.picture);
-
-    const suffix = search.toString() ? `?${search.toString()}` : "";
-    return apiClient<QuestionListResponse>(`/api/questions${suffix}`);
+    return apiClient<QuestionListResponse>(`/api/questions${listSearch(params)}`);
+  },
+  /** How many questions a filter matches by subject and by year. Each count ignores its own filter. */
+  facets(params?: QuestionListParams) {
+    return apiClient<QuestionFacetsResponse>(`/api/questions/facets${listSearch(params)}`);
   },
   listYears(institutionCode?: string) {
     const search = new URLSearchParams();

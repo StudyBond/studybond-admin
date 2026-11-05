@@ -8,7 +8,8 @@ import { MathMarkdown } from "@/components/ui/math-markdown";
 import { blockingPicture } from "@/features/pictures/lib/picture-rules";
 import { GroupBadge } from "@/features/questions/components/group-badge";
 import type { QuestionListItem } from "@/lib/api/types";
-import { formatDate } from "@/lib/utils/format";
+import { REVIEW_BATCH_SIZE } from "@/features/questions/hooks/use-admin-questions";
+import { formatDate, formatInteger } from "@/lib/utils/format";
 import { Eye, Library, ShieldCheck } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -57,6 +58,10 @@ type ReviewListProps = {
   hasMore: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
+  /** How many questions come before the first one shown, when the queue was opened part-way. */
+  offset: number;
+  isLoadingEarlier: boolean;
+  onLoadEarlier: () => void;
 };
 
 export function ReviewList({
@@ -72,6 +77,9 @@ export function ReviewList({
   hasMore,
   isLoadingMore,
   onLoadMore,
+  offset,
+  isLoadingEarlier,
+  onLoadEarlier,
 }: ReviewListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(
     new Set(),
@@ -229,6 +237,24 @@ export function ReviewList({
         </div>
       ) : null}
 
+      {offset > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--sb-radius)] border border-dashed border-[var(--sb-border)] px-3 py-2">
+          <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
+            Starting at question {formatInteger(offset + 1)} of {formatInteger(total)}.
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onLoadEarlier}
+            disabled={isLoadingEarlier}
+            isLoading={isLoadingEarlier}
+          >
+            Show the {formatInteger(Math.min(offset, REVIEW_BATCH_SIZE))} before
+          </Button>
+        </div>
+      ) : null}
+
       <DataTable
         caption="Questions awaiting review"
         items={questions}
@@ -253,7 +279,8 @@ export function ReviewList({
       {hasMore ? (
         <div className="flex flex-col items-center gap-2 pt-1">
           <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-            Showing {questions.length} of {total}
+            Showing {formatInteger(offset + 1)}–{formatInteger(offset + questions.length)} of{" "}
+            {formatInteger(total)}
           </p>
           <Button
             type="button"

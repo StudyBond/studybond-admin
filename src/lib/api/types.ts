@@ -253,6 +253,7 @@ export type QuestionListParams = WithContract<
   QueryParams<"/api/questions/", "get">,
   { year?: number; searchIn?: QuestionSearchScope; reviewStatus?: string }
 >;
+export type QuestionFacetsResponse = JsonResponse<"/api/questions/facets", "get", 200>;
 export type QuestionAssetKind = PathParams<
   "/api/questions/assets/upload/{kind}",
   "post"

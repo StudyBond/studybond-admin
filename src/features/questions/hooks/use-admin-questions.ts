@@ -1,12 +1,12 @@
 "use client";
 
-import type { QueueOrder } from "@/features/questions/lib/review-queue";
+import { hasMoreAfter, type QueueOrder } from "@/features/questions/lib/review-queue";
 import { questionsApi } from "@/lib/api/questions";
 import type {
   QuestionListResponse,
   QuestionSearchScope,
 } from "@/lib/api/types";
-import { type QueryClient, useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 export type QuestionKindFilter = "standalone" | "parent" | "child";
 
@@ -28,14 +28,18 @@ export type AdminQuestionsFilters = {
   hasImage?: boolean;
   isAiGenerated?: boolean;
   year?: number;
+  /** Only questions with no exam year. */
+  noYear?: boolean;
   /** Ordinary questions, shared diagram rows, or questions that use one. */
   kind?: QuestionKindFilter;
   /** Only the questions attached to this shared diagram row. */
   parentQuestionId?: number;
-  /** Which end of the id order the list starts from. */
+  /** By upload (oldest/newest) or by exam year (year_desc/year_asc). */
   order?: QueueOrder;
-  /** Cursor: the last id already loaded. Only the review queue sends it. */
+  /** Cursors, each a question id. Only the review queue sends them. */
   afterId?: number;
+  beforeId?: number;
+  fromId?: number;
   /** needed: a picture is still to come. to_check: a drawing is waiting to be checked. */
   picture?: "needed" | "to_check";
 };
@@ -52,33 +56,44 @@ export function useAdminQuestions(
   });
 }
 
+type QueueFilters = Omit<AdminQuestionsFilters, "afterId" | "beforeId" | "fromId" | "page" | "limit">;
+
+/** Which batch to load: the first, one starting at a question, or one either side of those loaded. */
+type QueueCursor =
+  | { afterId: number }
+  | { beforeId: number }
+  | { fromId: number }
+  | undefined;
+
 /**
- * The review queue, loaded a batch at a time.
+ * The review queue, loaded a batch at a time, in both directions.
  *
- * Each batch starts just past the last question already loaded, so a question
- * published between two requests cannot make the next batch skip one. The
- * pages stay in queue order, so flattening them gives the queue as the
- * reviewer walks it.
+ * With `startAt` the first batch starts at that question, so a reviewer who
+ * reloads the page is put straight back on it, however deep in the queue it
+ * is. Earlier batches load as they go back. Each batch starts just past the
+ * questions already loaded, so a question published between two requests
+ * cannot make one skip a question. The pages stay in queue order, so
+ * flattening them gives the queue as the reviewer walks it.
  */
 export function useReviewQueue(
-  filters: Omit<AdminQuestionsFilters, "afterId" | "page" | "limit">,
+  filters: QueueFilters,
+  startAt: number | null,
   options: { enabled?: boolean } = {},
 ) {
   return useInfiniteQuery({
-    queryKey: ["admin", "questions", "review-queue", filters],
+    queryKey: ["admin", "questions", "review-queue", filters, startAt],
     queryFn: ({ pageParam }) =>
-      questionsApi.list({
-        ...filters,
-        limit: REVIEW_BATCH_SIZE,
-        afterId: pageParam,
-      }),
-    initialPageParam: undefined as number | undefined,
-    getNextPageParam: (lastPage: QuestionListResponse) => {
+      questionsApi.list({ ...filters, ...pageParam, limit: REVIEW_BATCH_SIZE }),
+    initialPageParam: (startAt ? { fromId: startAt } : undefined) as QueueCursor,
+    getNextPageParam: (lastPage: QuestionListResponse): QueueCursor => {
       const lastId = lastPage.questions.at(-1)?.id;
-      if (lastPage.questions.length < REVIEW_BATCH_SIZE || lastId === undefined) {
-        return undefined;
-      }
-      return lastId;
+      if (lastId === undefined || !hasMoreAfter(lastPage, REVIEW_BATCH_SIZE)) return undefined;
+      return { afterId: lastId };
+    },
+    getPreviousPageParam: (firstPage: QuestionListResponse): QueueCursor => {
+      const firstId = firstPage.questions[0]?.id;
+      if (firstId === undefined || !firstPage.meta.before) return undefined;
+      return { beforeId: firstId };
     },
     staleTime: 20_000,
     enabled: options.enabled ?? true,
@@ -86,28 +101,17 @@ export function useReviewQueue(
 }
 
 /**
- * Loads review-queue batches for these filters until question `id` is among
- * them, and leaves them where useReviewQueue reads them, so the queue opens
- * with that question already loaded. Says whether it was found.
+ * How many questions each subject and year holds, for the review filters.
+ * The menus keep their old counts while new ones load, so they never empty.
  */
-export async function loadReviewQueueUntil(
-  queryClient: QueryClient,
-  filters: Omit<AdminQuestionsFilters, "afterId" | "page" | "limit">,
-  id: number,
-) {
-  const pages: QuestionListResponse[] = [];
-  const pageParams: Array<number | undefined> = [];
-  let afterId: number | undefined;
-  let found = false;
-  for (;;) {
-    const page = await questionsApi.list({ ...filters, limit: REVIEW_BATCH_SIZE, afterId });
-    pages.push(page);
-    pageParams.push(afterId);
-    found = page.questions.some((question) => question.id === id);
-    const lastId = page.questions.at(-1)?.id;
-    if (found || page.questions.length < REVIEW_BATCH_SIZE || lastId === undefined) break;
-    afterId = lastId;
-  }
-  queryClient.setQueryData(["admin", "questions", "review-queue", filters], { pages, pageParams });
-  return found;
+export function useReviewFacets(filters: QueueFilters, options: { enabled?: boolean } = {}) {
+  // Order does not change a count, so it is left out of the request and the key.
+  const { order: _order, ...counted } = filters;
+  return useQuery({
+    queryKey: ["admin", "questions", "facets", counted],
+    queryFn: () => questionsApi.facets(counted),
+    staleTime: 20_000,
+    placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
+  });
 }

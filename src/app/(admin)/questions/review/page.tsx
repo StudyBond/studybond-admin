@@ -2,16 +2,15 @@
 
 import { ApiErrorMessage } from "@/components/ui/api-error-message";
 import { Button } from "@/components/ui/button";
-import { CustomSelect } from "@/components/ui/custom-select";
-import { Field, FieldShell } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { QuestionReviewer } from "@/features/questions/components/question-reviewer";
+import { ReviewFiltersBar } from "@/features/questions/components/review-filters";
 import { ReviewList } from "@/features/questions/components/review-list";
-import { InstitutionSelect } from "@/features/questions/components/institution-select";
 import {
-  loadReviewQueueUntil,
+  REVIEW_BATCH_SIZE,
+  useReviewFacets,
   useReviewQueue,
 } from "@/features/questions/hooks/use-admin-questions";
 import {
@@ -20,18 +19,30 @@ import {
 } from "@/features/questions/hooks/use-leave-guard";
 import { useQuestionInstitution } from "@/features/questions/hooks/use-question-institution";
 import {
+  activeFilterCount,
+  DEFAULT_FILTERS,
+  loadSavedPlace,
+  readPlace,
+  savePlace,
+  toQueueQuery,
+  writePlace,
+  type ReviewFilters,
+  type ReviewPlace,
+  type ReviewView,
+} from "@/features/questions/lib/review-place";
+import {
   flatten,
+  keyOf,
+  loadedFrom,
   neighbourOf,
   pickCurrent,
-  type QueueOrder,
+  type QueueKey,
 } from "@/features/questions/lib/review-queue";
 import { notifyContentWarnings } from "@/features/questions/lib/content-warnings";
 import { questionsApi } from "@/lib/api/questions";
 import type { QuestionListItem, QuestionPayload } from "@/lib/api/types";
-import { QUESTION_POOL_OPTIONS } from "@/lib/utils/questions";
-import { useDebouncedValue } from "@/lib/utils/use-debounced-value";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, List, PartyPopper } from "lucide-react";
+import { PartyPopper, SearchX } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -45,30 +56,22 @@ import { toast } from "sonner";
  * is the same questions as a scannable table, for ticking several at once
  * and bulk-publishing a batch already known to be fine.
  *
- * The queue is loaded 100 at a time by cursor (see useReviewQueue), so a
- * backlog of any size works. The admin chooses which end comes first. Oldest
- * is the default, so a backlog clears in the order it arrived.
+ * The reviewer's place - filters, view and the question open - is kept in
+ * the address and saved per board (see review-place.ts). A reload, a shared
+ * link or a return from the sidebar opens on the same question, and the
+ * queue loads from there rather than from the top, so it is instant however
+ * deep in the backlog the question is. Earlier questions load on the way back.
  */
 
-const STATUS_SCOPES = [
-  { label: "Not yet published", value: "DRAFT,VERIFIED" },
-  { label: "Draft only", value: "DRAFT" },
-  { label: "Verified only", value: "VERIFIED" },
-];
-
-const ORDER_OPTIONS = [
-  { label: "Oldest first", value: "oldest" },
-  { label: "Newest first", value: "newest" },
-];
-
-const PICTURE_FILTERS = [
-  { label: "Any", value: "" },
-  { label: "Needs a picture", value: "needed" },
-  { label: "Drawing to check", value: "to_check" },
-];
-
-/** How close to the end of the loaded questions the next batch starts loading. */
+/** How close to either end of the loaded questions the next batch starts loading. */
 const PREFETCH_AHEAD = 10;
+
+const START_OF_QUEUE: ReviewPlace = { filters: DEFAULT_FILTERS, view: "queue", at: null };
+
+function positiveInt(value: string | null) {
+  const number = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
 
 export default function ReviewQueuePage() {
   return (
@@ -81,83 +84,127 @@ export default function ReviewQueuePage() {
 function ReviewQueueContent() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [mode, setMode] = useState<"queue" | "list">("queue");
+  const searchParams = useSearchParams();
   /* The open question's unsaved edits, reported by the reviewer. Every change
      that could replace the open question goes through guard, which asks first
      when there are any. */
   const draftRef = useRef<UnsavedDraft | null>(null);
   const { guard, isOpen: guardOpen, dialog } = useLeaveGuard(draftRef);
-  const [subject, setSubject] = useState("");
-  const [appliedSubject, setAppliedSubject] = useState("");
-  const [questionPool, setQuestionPool] = useState("");
-  const [pictureFilter, setPictureFilter] = useState("");
-  const [statusScope, setStatusScope] = useState(STATUS_SCOPES[0].value);
-  const [order, setOrder] = useState<QueueOrder>("oldest");
-  const [currentId, setCurrentId] = useState<number | null>(null);
   const { institutionCode, setInstitutionCode, institutions, isReady } =
     useQuestionInstitution();
 
-  const debouncedSubject = useDebouncedValue(subject.trim(), 350);
+  const [filters, setFilters] = useState<ReviewFilters>(DEFAULT_FILTERS);
+  const [mode, setMode] = useState<ReviewView>("queue");
+  const [current, setCurrent] = useState<QueueKey | null>(null);
+  /* The question the loaded queue starts at, or null for the top. Set when a
+     place is restored or a question is linked; any filter change clears it. */
+  const [startAt, setStartAt] = useState<number | null>(null);
+  /* Nothing loads until the place is read, so the first request is the right one. */
+  const [restored, setRestored] = useState(false);
+  const [seekId, setSeekId] = useState<number | null>(null);
+  /* A linked question to check for once the queue has loaded. */
+  const expectedLink = useRef<number | null>(null);
 
-  /* The subject filter applies after a short pause in typing. It is a change
-     like any other, so it asks first when there are unsaved edits. Keep
-     editing puts the typed text back to the filter still in use. It waits
-     for the pause to end, so a subject set by a link is not undone by the
-     old text still in the pause. */
+  function applyPlace(place: ReviewPlace | null) {
+    const next = place ?? START_OF_QUEUE;
+    setFilters(next.filters);
+    setMode(next.view);
+    setCurrent(next.at ? { id: next.at } : null);
+    setStartAt(next.at);
+  }
+
+  const linkedId = positiveInt(searchParams.get("question"));
+  const handledLink = useRef<number | null>(null);
+
+  /* Put the reviewer back where they were: the address first (a reload or a
+     shared link), otherwise the place last saved for this board. */
   useEffect(() => {
-    if (debouncedSubject !== subject.trim()) return;
-    if (debouncedSubject === appliedSubject) return;
-    guard(
-      () => setAppliedSubject(debouncedSubject),
-      () => setSubject(appliedSubject),
-    );
-  }, [debouncedSubject, subject, appliedSubject, guard]);
+    if (!isReady || restored) return;
+    const board = searchParams.get("board");
+    if (board && board !== institutionCode) setInstitutionCode(board);
+    applyPlace(readPlace(searchParams) ?? loadSavedPlace(board ?? institutionCode));
+    // A linked question replaces this place, so hold the queue until it is found.
+    if (linkedId !== null) setSeekId(linkedId);
+    setRestored(true);
+  }, [isReady, restored, searchParams, linkedId, institutionCode, setInstitutionCode]);
 
-  const queueQuery = useReviewQueue(
-    {
-      institutionCode,
-      reviewStatus: statusScope,
-      subject: appliedSubject || undefined,
-      questionPool: questionPool || undefined,
-      picture: pictureFilter === "needed" || pictureFilter === "to_check" ? pictureFilter : undefined,
-      order,
-    },
-    { enabled: isReady },
+  const queueFilters = useMemo(
+    () => toQueueQuery(filters, institutionCode),
+    [filters, institutionCode],
   );
+  const queueQuery = useReviewQueue(queueFilters, startAt, {
+    enabled: isReady && restored && seekId === null,
+  });
+  const facetsQuery = useReviewFacets(queueFilters, { enabled: isReady && restored });
 
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = queueQuery;
-  const questions = useMemo(
-    () => flatten(queueQuery.data?.pages),
-    [queueQuery.data],
-  );
-  const total = queueQuery.data?.pages.at(-1)?.meta.total ?? 0;
-  const currentQuestion = pickCurrent(questions, currentId, order);
+  const {
+    hasNextPage,
+    hasPreviousPage,
+    isFetchingNextPage,
+    isFetchingPreviousPage,
+    fetchNextPage,
+    fetchPreviousPage,
+  } = queueQuery;
+  const pages = queueQuery.data?.pages;
+  const questions = useMemo(() => flatten(pages), [pages]);
+  const offset = loadedFrom(pages);
+  const total = pages?.at(-1)?.meta.total ?? 0;
+  const order = filters.order;
+  const currentQuestion = pickCurrent(questions, current, order);
   const currentIndex = currentQuestion ? questions.indexOf(currentQuestion) : -1;
+  const placeAt = currentQuestion?.id ?? current?.id ?? null;
 
-  /* Start the next batch while the reviewer is still near the end of the
-     loaded ones, so moving on rarely waits on the network. */
+  /* Keep the address and the saved place up to date as the reviewer moves.
+     Replaced rather than pushed, so Back still leaves the page. */
   useEffect(() => {
-    if (
-      hasNextPage &&
-      !isFetchingNextPage &&
-      currentIndex >= questions.length - PREFETCH_AHEAD
-    ) {
+    if (!restored || seekId !== null) return;
+    const place: ReviewPlace = { filters, view: mode, at: placeAt };
+    savePlace(place, institutionCode);
+    const search = `?${writePlace(place, institutionCode)}`;
+    if (window.location.search !== search) {
+      window.history.replaceState(null, "", `${window.location.pathname}${search}`);
+    }
+  }, [restored, seekId, filters, mode, placeAt, institutionCode]);
+
+  /* Start the next batch while the reviewer is still near either end of the
+     loaded ones, so moving on rarely waits on the network. Only in the
+     queue: in the list, rows appearing above would push the table down. */
+  useEffect(() => {
+    if (mode !== "queue" || currentIndex < 0) return;
+    if (hasNextPage && !isFetchingNextPage && currentIndex >= questions.length - PREFETCH_AHEAD) {
       void fetchNextPage();
     }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, currentIndex, questions.length]);
+    if (hasPreviousPage && !isFetchingPreviousPage && currentIndex < PREFETCH_AHEAD) {
+      void fetchPreviousPage();
+    }
+  }, [
+    mode,
+    currentIndex,
+    questions.length,
+    hasNextPage,
+    hasPreviousPage,
+    isFetchingNextPage,
+    isFetchingPreviousPage,
+    fetchNextPage,
+    fetchPreviousPage,
+  ]);
+
+  /* A saved place past the end of the queue (everything after it has been
+     published since) opens on an empty batch. Start from the top instead. */
+  useEffect(() => {
+    if (startAt !== null && queueQuery.isSuccess && questions.length === 0 && total > 0) {
+      setStartAt(null);
+    }
+  }, [startAt, queueQuery.isSuccess, questions.length, total]);
 
   /* ?question=123 opens that question, from the Pictures page or a shared
-     link. The queue is loaded for its board and subject, other filters
-     cleared, as far as that question, and opens on it. A question that is
-     already live is not in review, so it opens in the editor instead. */
-  const linkedId = Number.parseInt(useSearchParams().get("question") ?? "", 10);
-  const handledLink = useRef<number | null>(null);
-  const [seekId, setSeekId] = useState<number | null>(null);
-
+     link: its board and subject, other filters cleared, the order kept. A
+     question that is already live is not in review, so it opens in the
+     editor instead. */
   useEffect(() => {
-    if (!isReady || !Number.isFinite(linkedId) || handledLink.current === linkedId) return;
+    if (!restored || linkedId === null || handledLink.current === linkedId) return;
     handledLink.current = linkedId;
-    router.replace("/questions/review", { scroll: false });
+    setSeekId(linkedId);
     void (async () => {
       try {
         const linked = await questionsApi.getById(linkedId);
@@ -166,34 +213,49 @@ function ReviewQueueContent() {
           router.replace(`/questions/${linked.id}`);
           return;
         }
-        setSeekId(linked.id);
-        const code = linked.institutionCode ?? institutionCode;
-        // The same filters, key for key, that the queue below asks with.
-        const filters = {
-          institutionCode: code,
-          reviewStatus: STATUS_SCOPES[0].value,
+        setInstitutionCode(linked.institutionCode ?? institutionCode);
+        setFilters((previous) => ({
+          ...DEFAULT_FILTERS,
+          order: previous.order,
           subject: linked.subject,
-          questionPool: undefined,
-          picture: undefined,
-          order,
-        };
-        const found = await loadReviewQueueUntil(queryClient, filters, linked.id);
-        setInstitutionCode(code);
-        setStatusScope(filters.reviewStatus);
-        setSubject(linked.subject);
-        setAppliedSubject(linked.subject);
-        setQuestionPool("");
-        setPictureFilter("");
+        }));
         setMode("queue");
-        setCurrentId(found ? linked.id : null);
-        if (!found) toast.error(`#${linked.id} is not waiting on review.`);
+        setCurrent({ id: linked.id, year: linked.year ?? null });
+        setStartAt(linked.id);
+        expectedLink.current = linked.id;
       } catch {
         toast.error(`Could not open question #${linkedId}.`);
       } finally {
         setSeekId(null);
       }
     })();
-  }, [isReady, linkedId, router, institutionCode, order, queryClient, setInstitutionCode]);
+  }, [restored, linkedId, router, institutionCode, setInstitutionCode]);
+
+  useEffect(() => {
+    const expected = expectedLink.current;
+    if (expected === null || !queueQuery.isSuccess) return;
+    expectedLink.current = null;
+    if (!questions.some((question) => question.id === expected)) {
+      toast.error(`#${expected} is not waiting on review.`);
+    }
+  }, [queueQuery.isSuccess, questions]);
+
+  /** Any filter change starts the queue again from the top. */
+  function changeFilters(patch: Partial<ReviewFilters>) {
+    guard(() => {
+      setFilters((previous) => ({ ...previous, ...patch }));
+      setCurrent(null);
+      setStartAt(null);
+    });
+  }
+
+  /** Each board keeps its own place, so switching back finds the reviewer where they were. */
+  function changeBoard(code: string) {
+    guard(() => {
+      setInstitutionCode(code);
+      applyPlace(loadSavedPlace(code));
+    });
+  }
 
   async function refreshQueue() {
     await queryClient.invalidateQueries({ queryKey: ["admin", "questions"] });
@@ -236,48 +298,81 @@ function ReviewQueueContent() {
     },
   });
 
-  /* Moves one question forward or back. Going forward past the loaded ones
-     fetches the next batch first. The move is worked out from the question's
-     id, not its old index, so it still lands on the right one after the open
-     question has been published and left the list. */
+  /** Loads one more batch at either end. Null if it failed or added nothing. */
+  async function loadMore(direction: 1 | -1, loaded: number) {
+    const result = direction === 1 ? await fetchNextPage() : await fetchPreviousPage();
+    if (result.isError) {
+      toast.error("Could not load those questions. Please try again.");
+      return null;
+    }
+    const list = flatten(result.data?.pages);
+    if (list.length <= loaded) return null;
+    return {
+      list,
+      offset: loadedFrom(result.data?.pages),
+      more: direction === 1 ? result.hasNextPage : result.hasPreviousPage,
+    };
+  }
+
+  /* Moves one question forward or back, loading the next batch first when
+     the move goes past the loaded ones. The move is worked out from the
+     question's place in the order, not its old index, so it still lands on
+     the right one after the open question has been published and left. */
   async function step(from: QuestionListItem | null, direction: 1 | -1) {
     if (!from) return;
+    const key = keyOf(from);
     let list = questions;
-    let target = neighbourOf(list, from.id, order, direction);
-    let more = hasNextPage;
-    while (!target && direction === 1 && more) {
-      const result = await fetchNextPage();
-      if (result.isError) {
-        toast.error("Could not load the next questions. Please try again.");
-        return;
-      }
-      list = flatten(result.data?.pages);
-      more = result.hasNextPage;
-      target = neighbourOf(list, from.id, order, 1);
+    let target = neighbourOf(list, key, order, direction);
+    let more = direction === 1 ? hasNextPage : hasPreviousPage;
+    while (!target && more) {
+      const loaded = await loadMore(direction, list.length);
+      if (!loaded) return;
+      ({ list, more } = loaded);
+      target = neighbourOf(list, key, order, direction);
     }
-    if (target) setCurrentId(target.id);
+    if (target) setCurrent(keyOf(target));
   }
 
-  /* Opens the question at a position in the whole queue, loading batches
-     until that position is reached. */
+  /* Opens the question at a position in the whole queue. One batch away is
+     loaded on; further than that, the question at that position is looked
+     up and the queue reopens on it, rather than loading everything between. */
   async function goToPosition(position: number) {
     let list = questions;
-    let more = hasNextPage;
-    while (list.length < position && more) {
-      const result = await fetchNextPage();
-      if (result.isError) {
-        toast.error("Could not load those questions. Please try again.");
+    let from = offset;
+    let moreAfter = hasNextPage;
+    let moreBefore = hasPreviousPage;
+    for (;;) {
+      const index = position - 1 - from;
+      if (index >= 0 && index < list.length) {
+        setCurrent(keyOf(list[index]));
         return;
       }
-      list = flatten(result.data?.pages);
-      more = result.hasNextPage;
+      const direction = index < 0 ? -1 : 1;
+      const near = direction === 1 ? index < list.length + REVIEW_BATCH_SIZE : index >= -REVIEW_BATCH_SIZE;
+      if (!near || !(direction === 1 ? moreAfter : moreBefore)) break;
+      const loaded = await loadMore(direction, list.length);
+      if (!loaded) return;
+      list = loaded.list;
+      from = loaded.offset;
+      if (direction === 1) moreAfter = loaded.more;
+      else moreBefore = loaded.more;
     }
-    const target = list[position - 1];
-    if (target) setCurrentId(target.id);
+    try {
+      const found = await questionsApi.list({ ...queueFilters, page: position, limit: 1 });
+      const target = found.questions[0];
+      if (!target) return;
+      setCurrent(keyOf(target));
+      setStartAt(target.id);
+    } catch {
+      toast.error("Could not open that question. Please try again.");
+    }
   }
 
+  const filtered = activeFilterCount(filters) > 0;
+  const showingTotal = queueQuery.data ? total : null;
+
   return (
-    <div className="sb-enter space-y-6 pb-2">
+    <div className="sb-enter space-y-5 pb-2">
       <PageHeader
         title="Content review"
         description="Everything not yet published, checked and edited in the same place it will be seen."
@@ -288,102 +383,17 @@ function ReviewQueueContent() {
         }
       />
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <InstitutionSelect
-            value={institutionCode}
-            onValueChange={(code) =>
-              guard(() => {
-                setInstitutionCode(code);
-                setCurrentId(null);
-              })
-            }
-            institutions={institutions}
-          />
-          <FieldShell label="Status">
-            <CustomSelect
-              aria-label="Which review statuses to show"
-              value={statusScope}
-              onValueChange={(value) =>
-                guard(() => {
-                  setStatusScope(value);
-                  setCurrentId(null);
-                })
-              }
-              options={STATUS_SCOPES}
-            />
-          </FieldShell>
-          <FieldShell label="Subject">
-            <Field
-              value={subject}
-              onChange={(event) => setSubject(event.target.value)}
-              placeholder="Any subject"
-              aria-label="Filter by subject"
-            />
-          </FieldShell>
-          <FieldShell label="Pool">
-            <CustomSelect
-              aria-label="Filter by pool"
-              value={questionPool}
-              onValueChange={(value) =>
-                guard(() => {
-                  setQuestionPool(value);
-                  setCurrentId(null);
-                })
-              }
-              options={[{ label: "All pools", value: "" }, ...QUESTION_POOL_OPTIONS]}
-              placeholder="All pools"
-            />
-          </FieldShell>
-          <FieldShell label="Pictures">
-            <CustomSelect
-              aria-label="Filter by pictures still to come"
-              value={pictureFilter}
-              onValueChange={(value) =>
-                guard(() => {
-                  setPictureFilter(value);
-                  setCurrentId(null);
-                })
-              }
-              options={PICTURE_FILTERS}
-            />
-          </FieldShell>
-          <FieldShell label="Order">
-            <CustomSelect
-              aria-label="Which end of the queue comes first"
-              value={order}
-              onValueChange={(value) =>
-                guard(() => {
-                  setOrder(value === "newest" ? "newest" : "oldest");
-                  setCurrentId(null);
-                })
-              }
-              options={ORDER_OPTIONS}
-            />
-          </FieldShell>
-        </div>
-
-        <div className="flex gap-1 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-1">
-          <Button
-            type="button"
-            variant={mode === "queue" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => guard(() => setMode("queue"))}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            Queue
-          </Button>
-          <Button
-            type="button"
-            variant={mode === "list" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => guard(() => setMode("list"))}
-          >
-            <List className="h-3.5 w-3.5" />
-            List
-          </Button>
-        </div>
-      </div>
+      <ReviewFiltersBar
+        filters={filters}
+        onChange={changeFilters}
+        facets={facetsQuery.data}
+        institutionCode={institutionCode}
+        institutions={institutions}
+        onInstitutionChange={changeBoard}
+        view={mode}
+        onViewChange={(view) => guard(() => setMode(view))}
+        total={showingTotal}
+      />
 
       {seekId !== null ? (
         <div className="space-y-2">
@@ -392,7 +402,7 @@ function ReviewQueueContent() {
           </p>
           <Skeleton className="h-96 w-full" />
         </div>
-      ) : !isReady || queueQuery.isLoading ? (
+      ) : !isReady || !restored || queueQuery.isLoading ? (
         <Skeleton className="h-96 w-full" />
       ) : queueQuery.isError && !queueQuery.data ? (
         <ErrorState
@@ -401,28 +411,48 @@ function ReviewQueueContent() {
           onRetry={() => queueQuery.refetch()}
         />
       ) : questions.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-[var(--sb-radius-lg)] border border-dashed border-[var(--sb-border)] px-6 py-16 text-center">
-          <PartyPopper className="h-6 w-6 text-[var(--sb-text-tertiary)]" />
-          <div>
-            <p className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
-              Nothing waiting on review
-            </p>
-            <p className="mt-1 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
-              {pictureFilter
-                ? `No ${institutionCode} question in this scope is waiting for a picture.`
-                : `Every ${institutionCode} question in this scope is already published.`}{" "}
-              Questions uploaded under another institution only show when it
-              is picked above.
-            </p>
+        filtered ? (
+          <div className="flex flex-col items-center gap-3 rounded-[var(--sb-radius-lg)] border border-dashed border-[var(--sb-border)] px-6 py-16 text-center">
+            <SearchX className="h-6 w-6 text-[var(--sb-text-tertiary)]" />
+            <div>
+              <p className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+                No questions match these filters
+              </p>
+              <p className="mt-1 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                Nothing in {institutionCode} fits every filter above.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => changeFilters({ ...DEFAULT_FILTERS, order })}
+            >
+              Clear filters
+            </Button>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3 rounded-[var(--sb-radius-lg)] border border-dashed border-[var(--sb-border)] px-6 py-16 text-center">
+            <PartyPopper className="h-6 w-6 text-[var(--sb-text-tertiary)]" />
+            <div>
+              <p className="text-[length:var(--sb-text-md)] font-medium text-[var(--sb-text)]">
+                Nothing waiting on review
+              </p>
+              <p className="mt-1 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                Every {institutionCode} question is already published. Questions
+                uploaded under another institution only show when it is picked
+                above.
+              </p>
+            </div>
+          </div>
+        )
       ) : mode === "queue" && currentQuestion ? (
         <QuestionReviewer
           key={currentQuestion.id}
           question={currentQuestion}
-          position={currentIndex + 1}
+          position={offset + currentIndex + 1}
           total={total}
-          hasPrevious={currentIndex > 0}
+          hasPrevious={currentIndex > 0 || hasPreviousPage}
           hasNext={currentIndex < questions.length - 1 || hasNextPage}
           onPrevious={() => guard(() => void step(currentQuestion, -1))}
           onNext={() => guard(() => void step(currentQuestion, 1))}
@@ -442,8 +472,12 @@ function ReviewQueueContent() {
           hasMore={hasNextPage}
           isLoadingMore={isFetchingNextPage}
           onLoadMore={() => void fetchNextPage()}
+          offset={offset}
+          isLoadingEarlier={isFetchingPreviousPage}
+          onLoadEarlier={() => void fetchPreviousPage()}
           onOpen={(id) => {
-            setCurrentId(id);
+            const opened = questions.find((question) => question.id === id);
+            setCurrent(opened ? keyOf(opened) : { id });
             setMode("queue");
           }}
           onBulkPublish={(ids) =>

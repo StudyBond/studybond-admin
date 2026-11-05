@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils/cn";
 export interface CustomSelectOption {
   label: string;
   value: string;
+  /** A quiet note at the end of the row in the menu, such as a count. Not shown on the closed control. */
+  hint?: string;
 }
 
 export interface CustomSelectProps {
@@ -53,6 +55,7 @@ export function CustomSelect({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const selected = options.find((option) => option.value === value);
+  const hasHints = options.some((option) => option.hint);
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -212,8 +215,17 @@ export function CustomSelect({
                       )}
                     >
                       <span className="flex-1 truncate">{option.label}</span>
-                      {isSelected ? (
-                        <Check className="h-3.5 w-3.5 shrink-0" />
+                      {option.hint ? (
+                        <span className="sb-nums shrink-0 text-[length:var(--sb-text-xs)] font-normal text-[var(--sb-text-tertiary)]">
+                          {option.hint}
+                        </span>
+                      ) : null}
+                      {/* With hints, the tick keeps its space on every row, so the hints line up. */}
+                      {isSelected || hasHints ? (
+                        <Check
+                          aria-hidden
+                          className={cn("h-3.5 w-3.5 shrink-0", !isSelected && "invisible")}
+                        />
                       ) : null}
                     </button>
                   );
