@@ -1,5 +1,6 @@
 "use client";
 
+import { promoteOneLineDisplayMath } from "@/components/ui/display-math";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { cn } from "@/lib/utils/cn";
 import "katex/dist/katex.min.css";
@@ -214,6 +215,11 @@ export const MathMarkdown = React.memo(function MathMarkdown({
       .replace(/\\\[(.*?)\\\]/g, (_, formula) => `\n$$\n${formula}\n$$\n`)
       .trim();
 
+    // Options sit inside small answer buttons, so their maths stays inline.
+    if (variant !== "option") {
+      processed = promoteOneLineDisplayMath(processed);
+    }
+
     processed = processed.replace(
       /(!?\[[^\]]*\]\((https?:\/\/[^\s)]+)\))|(https?:\/\/[^\s<]+)/gi,
       (match, markdownLinkOrImage, markdownUrl, bareUrl) => {
@@ -235,7 +241,7 @@ export const MathMarkdown = React.memo(function MathMarkdown({
     );
 
     return processed;
-  }, [content, isImageUrl, normalizeImageUrl]);
+  }, [content, variant, isImageUrl, normalizeImageUrl]);
 
   const components = React.useMemo<Components>(
     () => ({
@@ -411,7 +417,7 @@ export const MathMarkdown = React.memo(function MathMarkdown({
       <style>{`
         .math-display { margin: 0.5rem 0; overflow-x: auto; padding: 0.5rem 0; }
         .katex { font-size: 1em; color: #ffffff; }
-        .katex-display { display: block; margin: 0.5rem 0; }
+        .katex-display { display: block; margin: 0.5rem 0; padding: 0.25rem 0; overflow-x: auto; overflow-y: hidden; }
       `}</style>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
