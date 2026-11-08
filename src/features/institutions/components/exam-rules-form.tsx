@@ -59,7 +59,7 @@ const NUMBER_GROUPS: Array<{
     description: "Daily limits and the gate on duels.",
     fields: [
       { key: "premiumDailyRealExamLimit", label: "Daily subject credits", hint: "One subject = one credit" },
-      { key: "collaborationGateRealExams", label: "Real exams before duels unlock" },
+      { key: "duelGateRealExams", label: "Real exams before duels unlock" },
     ],
   },
 ];
@@ -76,12 +76,12 @@ const TOGGLES: Array<{ key: keyof ExamConfig; label: string; description: string
     description: "Let a full exam mix real and practice questions. Off for a faithful past-paper run.",
   },
   {
-    key: "allowPracticeCollaboration",
+    key: "allowPracticeDuel",
     label: "Practice duels",
     description: "Let duels be built from practice questions.",
   },
   {
-    key: "allowMixedCollaboration",
+    key: "allowMixedDuel",
     label: "Mixed duels",
     description: "Let duels mix real and practice questions.",
   },
@@ -124,7 +124,7 @@ const IDENTITY_FIELDS: Array<{ key: string; label: string; hint: string }> = [
 const SOURCE_FIELDS: Array<{ key: keyof ExamConfig; label: string }> = [
   { key: "defaultFullExamSource", label: "Full exam default" },
   { key: "defaultPartialExamSource", label: "Partial exam default" },
-  { key: "defaultCollabSource", label: "Duel default" },
+  { key: "defaultDuelSource", label: "Duel default" },
 ];
 
 function ExamRulesFormFields({

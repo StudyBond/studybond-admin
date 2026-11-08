@@ -3098,6 +3098,83 @@ export interface paths {
                                     parentQuestionImageUrl: string | null;
                                     subject: string;
                                     topic: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                 } & {
                                     [key: string]: unknown;
                                 })[];
@@ -3443,6 +3520,83 @@ export interface paths {
                                     parentQuestionImageUrl: string | null;
                                     subject: string;
                                     topic: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                 } & {
                                     [key: string]: unknown;
                                 })[];
@@ -4078,6 +4232,83 @@ export interface paths {
                                     parentQuestionImageUrl: string | null;
                                     subject: string;
                                     topic: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                     correctAnswer: string;
                                     userAnswer: string | null;
                                     isCorrect: boolean;
@@ -4412,6 +4643,83 @@ export interface paths {
                                     parentQuestionImageUrl: string | null;
                                     subject: string;
                                     topic: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                 } & {
                                     [key: string]: unknown;
                                 })[];
@@ -4727,6 +5035,8 @@ export interface paths {
                                     /** Format: date-time */
                                     completedAt: string | null;
                                     timeTakenSeconds: number | null;
+                                    duelSessionCode?: string | null;
+                                    /** @description Deprecated: old name, sent with the same value until older clients are gone (duel rename, 2026-11-08). Use duelSessionCode. */
                                     collaborationSessionCode?: string | null;
                                 } & {
                                     [key: string]: unknown;
@@ -5068,6 +5378,83 @@ export interface paths {
                                     parentQuestionImageUrl: string | null;
                                     subject: string;
                                     topic: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                     correctAnswer: string;
                                     userAnswer: string | null;
                                     isCorrect: boolean;
@@ -5408,6 +5795,83 @@ export interface paths {
                                     parentQuestionImageUrl: string | null;
                                     subject: string;
                                     topic: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                 } & {
                                     [key: string]: unknown;
                                 })[];
@@ -6048,6 +6512,83 @@ export interface paths {
                                             parentQuestionImageUrl: string | null;
                                             subject: string;
                                             topic: string | null;
+                                            /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                            drawn?: {
+                                                format: number;
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                question?: unknown[] | null;
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                parent?: unknown[] | null;
+                                                /** @description By the letter the student sees */
+                                                options?: {
+                                                    /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                    A?: unknown[] | null;
+                                                    /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                    B?: unknown[] | null;
+                                                    /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                    C?: unknown[] | null;
+                                                    /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                    D?: unknown[] | null;
+                                                    /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                    E?: unknown[] | null;
+                                                };
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                explanation?: unknown[] | null;
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                notes?: unknown[] | null;
+                                                pictures: {
+                                                    question?: {
+                                                        /** @description The light copy to show */
+                                                        src: string;
+                                                        /** @description The bigger copy for full screen */
+                                                        zoom: string;
+                                                    };
+                                                    parent?: {
+                                                        /** @description The light copy to show */
+                                                        src: string;
+                                                        /** @description The bigger copy for full screen */
+                                                        zoom: string;
+                                                    };
+                                                    options?: {
+                                                        A?: {
+                                                            /** @description The light copy to show */
+                                                            src: string;
+                                                            /** @description The bigger copy for full screen */
+                                                            zoom: string;
+                                                        };
+                                                        B?: {
+                                                            /** @description The light copy to show */
+                                                            src: string;
+                                                            /** @description The bigger copy for full screen */
+                                                            zoom: string;
+                                                        };
+                                                        C?: {
+                                                            /** @description The light copy to show */
+                                                            src: string;
+                                                            /** @description The bigger copy for full screen */
+                                                            zoom: string;
+                                                        };
+                                                        D?: {
+                                                            /** @description The light copy to show */
+                                                            src: string;
+                                                            /** @description The bigger copy for full screen */
+                                                            zoom: string;
+                                                        };
+                                                        E?: {
+                                                            /** @description The light copy to show */
+                                                            src: string;
+                                                            /** @description The bigger copy for full screen */
+                                                            zoom: string;
+                                                        };
+                                                    };
+                                                    explanation?: {
+                                                        /** @description The light copy to show */
+                                                        src: string;
+                                                        /** @description The bigger copy for full screen */
+                                                        zoom: string;
+                                                    };
+                                                };
+                                            };
                                             correctAnswer: string;
                                             userAnswer: string | null;
                                             isCorrect: boolean;
@@ -14079,9 +14620,9 @@ export interface paths {
                                 examsInProgress: number;
                                 examsStartedLast7Days: number;
                                 examsCompletedLast7Days: number;
-                                collaborationWaiting: number;
-                                collaborationInProgress: number;
-                                collaborationCreatedLast7Days: number;
+                                duelsWaiting: number;
+                                duelsInProgress: number;
+                                duelsCreatedLast7Days: number;
                             } & {
                                 [key: string]: unknown;
                             };
@@ -14407,7 +14948,7 @@ export interface paths {
                                 newUsers: number;
                                 examStarts: number;
                                 examCompletions: number;
-                                collaborationSessions: number;
+                                duelSessions: number;
                                 paidPremiumActivations: number;
                                 manualPremiumGrants: number;
                             } & {
@@ -14418,7 +14959,7 @@ export interface paths {
                                 newUsers: number;
                                 examStarts: number;
                                 examCompletions: number;
-                                collaborationSessions: number;
+                                duelSessions: number;
                                 paidPremiumActivations: number;
                                 manualPremiumGrants: number;
                             } & {
@@ -15456,7 +15997,7 @@ export interface paths {
                                 longestStreak: number;
                                 streakFreezesAvailable: number;
                                 realExamsCompleted: number;
-                                completedCollaborationExams: number;
+                                completedDuelExams: number;
                                 hasTakenFreeExam: boolean;
                                 aiExplanationsUsedToday: number;
                                 completedExams: number;
@@ -15464,8 +16005,8 @@ export interface paths {
                                 inProgressExams: number;
                                 bookmarkedQuestions: number;
                                 questionReportsSubmitted: number;
-                                hostedCollaborationSessions: number;
-                                joinedCollaborationSessions: number;
+                                hostedDuelSessions: number;
+                                joinedDuelSessions: number;
                                 /** Format: date-time */
                                 lastExamStartedAt: string | null;
                                 /** Format: date-time */
@@ -15532,7 +16073,7 @@ export interface paths {
                                     status: string;
                                     score: number;
                                     percentage: number | null;
-                                    isCollaboration: boolean;
+                                    isDuel: boolean;
                                     /** Format: date-time */
                                     startedAt: string;
                                     /** Format: date-time */
@@ -15551,7 +16092,7 @@ export interface paths {
                                 } & {
                                     [key: string]: unknown;
                                 })[];
-                                collaborationSessions: ({
+                                duelSessions: ({
                                     sessionId: number;
                                     sessionCode: string;
                                     sessionType: string;
@@ -21810,19 +22351,19 @@ export interface paths {
                                 twoSubjectDurationSeconds: number;
                                 threeSubjectDurationSeconds: number;
                                 fullExamDurationSeconds: number;
-                                collaborationDurationSeconds: number;
+                                duelDurationSeconds: number;
                                 freeRealExamCount: number;
                                 freeFullRealTotalAttempts: number;
                                 freeQuestionsPerSubject: number;
                                 premiumDailyRealExamLimit: number;
-                                collaborationGateRealExams: number;
+                                duelGateRealExams: number;
                                 defaultFullExamSource: string;
                                 defaultPartialExamSource: string;
-                                defaultCollabSource: string;
+                                defaultDuelSource: string;
                                 allowMixedPartialExams: boolean;
                                 allowMixedFullExams: boolean;
-                                allowPracticeCollaboration: boolean;
-                                allowMixedCollaboration: boolean;
+                                allowPracticeDuel: boolean;
+                                allowMixedDuel: boolean;
                                 studyModeEnabled: boolean;
                             } & {
                                 [key: string]: unknown;
@@ -22435,22 +22976,22 @@ export interface paths {
                         twoSubjectDurationSeconds?: number;
                         threeSubjectDurationSeconds?: number;
                         fullExamDurationSeconds?: number;
-                        collaborationDurationSeconds?: number;
+                        duelDurationSeconds?: number;
                         freeRealExamCount?: number;
                         freeFullRealTotalAttempts?: number;
                         freeQuestionsPerSubject?: number;
                         premiumDailyRealExamLimit?: number;
-                        collaborationGateRealExams?: number;
+                        duelGateRealExams?: number;
                         /** @enum {string} */
                         defaultFullExamSource?: "REAL_PAST_QUESTION" | "PRACTICE" | "MIXED";
                         /** @enum {string} */
                         defaultPartialExamSource?: "REAL_PAST_QUESTION" | "PRACTICE" | "MIXED";
                         /** @enum {string} */
-                        defaultCollabSource?: "REAL_PAST_QUESTION" | "PRACTICE" | "MIXED";
+                        defaultDuelSource?: "REAL_PAST_QUESTION" | "PRACTICE" | "MIXED";
                         allowMixedPartialExams?: boolean;
                         allowMixedFullExams?: boolean;
-                        allowPracticeCollaboration?: boolean;
-                        allowMixedCollaboration?: boolean;
+                        allowPracticeDuel?: boolean;
+                        allowMixedDuel?: boolean;
                         studyModeEnabled?: boolean;
                         trackName?: string;
                         trackCode?: string;
@@ -22481,19 +23022,19 @@ export interface paths {
                                 twoSubjectDurationSeconds: number;
                                 threeSubjectDurationSeconds: number;
                                 fullExamDurationSeconds: number;
-                                collaborationDurationSeconds: number;
+                                duelDurationSeconds: number;
                                 freeRealExamCount: number;
                                 freeFullRealTotalAttempts: number;
                                 freeQuestionsPerSubject: number;
                                 premiumDailyRealExamLimit: number;
-                                collaborationGateRealExams: number;
+                                duelGateRealExams: number;
                                 defaultFullExamSource: string;
                                 defaultPartialExamSource: string;
-                                defaultCollabSource: string;
+                                defaultDuelSource: string;
                                 allowMixedPartialExams: boolean;
                                 allowMixedFullExams: boolean;
-                                allowPracticeCollaboration: boolean;
-                                allowMixedCollaboration: boolean;
+                                allowPracticeDuel: boolean;
+                                allowMixedDuel: boolean;
                                 studyModeEnabled: boolean;
                             } & {
                                 [key: string]: unknown;
@@ -24633,6 +25174,8 @@ export interface paths {
                                 longestStreak: number;
                                 streakFreezesAvailable: number;
                                 realExamsCompleted: number;
+                                completedDuelExams: number;
+                                /** @description Deprecated: old name, sent with the same value until older clients are gone (duel rename, 2026-11-08). Use completedDuelExams. */
                                 completedCollaborationExams: number;
                                 hasTakenFreeExam: boolean;
                                 aiExplanationsUsedToday: number;
@@ -26149,6 +26692,83 @@ export interface paths {
                                         topic: string | null;
                                         hasImage: boolean;
                                         imageUrl: string | null;
+                                        /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                        drawn?: {
+                                            format: number;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            question?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            parent?: unknown[] | null;
+                                            /** @description By the letter the student sees */
+                                            options?: {
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                A?: unknown[] | null;
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                B?: unknown[] | null;
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                C?: unknown[] | null;
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                D?: unknown[] | null;
+                                                /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                                E?: unknown[] | null;
+                                            };
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            explanation?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            notes?: unknown[] | null;
+                                            pictures: {
+                                                question?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                parent?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                options?: {
+                                                    A?: {
+                                                        /** @description The light copy to show */
+                                                        src: string;
+                                                        /** @description The bigger copy for full screen */
+                                                        zoom: string;
+                                                    };
+                                                    B?: {
+                                                        /** @description The light copy to show */
+                                                        src: string;
+                                                        /** @description The bigger copy for full screen */
+                                                        zoom: string;
+                                                    };
+                                                    C?: {
+                                                        /** @description The light copy to show */
+                                                        src: string;
+                                                        /** @description The bigger copy for full screen */
+                                                        zoom: string;
+                                                    };
+                                                    D?: {
+                                                        /** @description The light copy to show */
+                                                        src: string;
+                                                        /** @description The bigger copy for full screen */
+                                                        zoom: string;
+                                                    };
+                                                    E?: {
+                                                        /** @description The light copy to show */
+                                                        src: string;
+                                                        /** @description The bigger copy for full screen */
+                                                        zoom: string;
+                                                    };
+                                                };
+                                                explanation?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                        };
                                     };
                                 }[];
                                 pagination: {
@@ -26455,6 +27075,83 @@ export interface paths {
                                     topic: string | null;
                                     hasImage: boolean;
                                     imageUrl: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                 };
                             };
                         };
@@ -26752,6 +27449,83 @@ export interface paths {
                                     topic: string | null;
                                     hasImage: boolean;
                                     imageUrl: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                     optionA: string | null;
                                     optionAImageUrl: string | null;
                                     optionB: string | null;
@@ -27335,6 +28109,83 @@ export interface paths {
                                     topic: string | null;
                                     hasImage: boolean;
                                     imageUrl: string | null;
+                                    /** @description Phone app only: ready-made drawings of this question's texts, and its pictures as light copies */
+                                    drawn?: {
+                                        format: number;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        question?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        parent?: unknown[] | null;
+                                        /** @description By the letter the student sees */
+                                        options?: {
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            A?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            B?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            C?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            D?: unknown[] | null;
+                                            /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                            E?: unknown[] | null;
+                                        };
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        explanation?: unknown[] | null;
+                                        /** @description A display tree (format in `format`). Null: show the plain text instead. */
+                                        notes?: unknown[] | null;
+                                        pictures: {
+                                            question?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            parent?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                            options?: {
+                                                A?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                B?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                C?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                D?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                                E?: {
+                                                    /** @description The light copy to show */
+                                                    src: string;
+                                                    /** @description The bigger copy for full screen */
+                                                    zoom: string;
+                                                };
+                                            };
+                                            explanation?: {
+                                                /** @description The light copy to show */
+                                                src: string;
+                                                /** @description The bigger copy for full screen */
+                                                zoom: string;
+                                            };
+                                        };
+                                    };
                                     optionA: string | null;
                                     optionAImageUrl: string | null;
                                     optionB: string | null;
@@ -30228,6 +31079,8 @@ export interface paths {
                                 preferences: {
                                     streaks: boolean;
                                     achievements: boolean;
+                                    duel: boolean;
+                                    /** @description Deprecated: old name for duel, sent with the same value until older clients are gone. */
                                     collaboration: boolean;
                                     subscription: boolean;
                                     reports: boolean;
@@ -30501,7 +31354,7 @@ export interface paths {
                     page?: number;
                     limit?: number;
                     state?: "all" | "unread";
-                    category?: "STREAKS" | "ACHIEVEMENTS" | "COLLABORATION" | "SUBSCRIPTION" | "REPORTS";
+                    category?: "STREAKS" | "ACHIEVEMENTS" | "DUEL" | "COLLABORATION" | "SUBSCRIPTION" | "REPORTS";
                 };
                 header?: never;
                 path?: never;
@@ -31160,6 +32013,8 @@ export interface paths {
                                 preferences: {
                                     streaks: boolean;
                                     achievements: boolean;
+                                    duel: boolean;
+                                    /** @description Deprecated: old name for duel, sent with the same value until older clients are gone. */
                                     collaboration: boolean;
                                     subscription: boolean;
                                     reports: boolean;
@@ -31429,6 +32284,7 @@ export interface paths {
                     "application/json": {
                         streaks?: boolean;
                         achievements?: boolean;
+                        duel?: boolean;
                         collaboration?: boolean;
                         subscription?: boolean;
                         reports?: boolean;
@@ -31450,6 +32306,8 @@ export interface paths {
                                 preferences: {
                                     streaks: boolean;
                                     achievements: boolean;
+                                    duel: boolean;
+                                    /** @description Deprecated: old name for duel, sent with the same value until older clients are gone. */
                                     collaboration: boolean;
                                     subscription: boolean;
                                     reports: boolean;
@@ -34792,7 +35650,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/create": {
+    "/api/duel/create": {
         parameters: {
             query?: never;
             header?: never;
@@ -34802,8 +35660,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create a collaboration session
-         * @description Creates a new 1v1 collaboration room and returns its session snapshot.
+         * Create a duel
+         * @description Creates a new 1v1 duel room and returns its session snapshot.
          */
         post: {
             parameters: {
@@ -35134,7 +35992,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/duration-options": {
+    "/api/duel/duration-options": {
         parameters: {
             query?: never;
             header?: never;
@@ -35424,7 +36282,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/code/{code}": {
+    "/api/duel/code/{code}": {
         parameters: {
             query?: never;
             header?: never;
@@ -35433,7 +36291,7 @@ export interface paths {
         };
         /**
          * Get session by code
-         * @description Fetches a collaboration session snapshot using a room code.
+         * @description Fetches a duel snapshot using a room code.
          */
         get: {
             parameters: {
@@ -35748,331 +36606,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/{code}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get session by code (alias)
-         * @description Alias of /code/:code for legacy client compatibility.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    code: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: true;
-                            data: {
-                                session: {
-                                    id: number;
-                                    code: string;
-                                    /** @enum {string} */
-                                    sessionType: "ONE_V_ONE_DUEL";
-                                    /** @enum {string} */
-                                    status: "WAITING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-                                    sessionNumber: number;
-                                    displayNameLong: string;
-                                    displayNameShort: string;
-                                    customName: string | null;
-                                    effectiveDisplayName: string;
-                                    /** @enum {string} */
-                                    questionSource: "REAL_PAST_QUESTION" | "PRACTICE" | "MIXED";
-                                    subjects: string[];
-                                    totalQuestions: number;
-                                    durationSeconds: number | null;
-                                    maxParticipants: number;
-                                    hostUserId: number;
-                                    /** Format: date-time */
-                                    startedAt: string | null;
-                                    /** Format: date-time */
-                                    endedAt: string | null;
-                                    participants: {
-                                        userId: number;
-                                        fullName: string;
-                                        /** @enum {string} */
-                                        participantState: "JOINED" | "READY" | "DISCONNECTED" | "FINISHED";
-                                        /** Format: date-time */
-                                        joinedAt: string;
-                                        /** Format: date-time */
-                                        finishedAt: string | null;
-                                        score: number | null;
-                                        spEarned: number | null;
-                                        finalRank: number | null;
-                                    }[];
-                                };
-                                myExamId?: number | null;
-                            };
-                        };
-                    };
-                };
-                /** @description Default Response */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                410: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                422: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/collaboration/code/{code}/join": {
+    "/api/duel/code/{code}/join": {
         parameters: {
             query?: never;
             header?: never;
@@ -36082,7 +36616,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Join collaboration session
+         * Join duel
          * @description Joins a waiting 1v1 room by code.
          */
         post: {
@@ -36398,7 +36932,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/{code}/join": {
+    "/api/duel/sessions/{sessionId}/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -36408,333 +36942,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Join collaboration session (alias)
-         * @description Alias of /code/:code/join for legacy client compatibility.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: {
-                    "idempotency-key"?: string;
-                };
-                path: {
-                    code: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: true;
-                            data: {
-                                session: {
-                                    id: number;
-                                    code: string;
-                                    /** @enum {string} */
-                                    sessionType: "ONE_V_ONE_DUEL";
-                                    /** @enum {string} */
-                                    status: "WAITING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-                                    sessionNumber: number;
-                                    displayNameLong: string;
-                                    displayNameShort: string;
-                                    customName: string | null;
-                                    effectiveDisplayName: string;
-                                    /** @enum {string} */
-                                    questionSource: "REAL_PAST_QUESTION" | "PRACTICE" | "MIXED";
-                                    subjects: string[];
-                                    totalQuestions: number;
-                                    durationSeconds: number | null;
-                                    maxParticipants: number;
-                                    hostUserId: number;
-                                    /** Format: date-time */
-                                    startedAt: string | null;
-                                    /** Format: date-time */
-                                    endedAt: string | null;
-                                    participants: {
-                                        userId: number;
-                                        fullName: string;
-                                        /** @enum {string} */
-                                        participantState: "JOINED" | "READY" | "DISCONNECTED" | "FINISHED";
-                                        /** Format: date-time */
-                                        joinedAt: string;
-                                        /** Format: date-time */
-                                        finishedAt: string | null;
-                                        score: number | null;
-                                        spEarned: number | null;
-                                        finalRank: number | null;
-                                    }[];
-                                };
-                                myExamId?: number | null;
-                            };
-                        };
-                    };
-                };
-                /** @description Default Response */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                410: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                422: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-                /** @description Default Response */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                message: string;
-                                statusCode: number;
-                                code: string;
-                                hint?: string;
-                                details?: unknown;
-                                stack?: string;
-                            };
-                            requestId: string;
-                            correlationId: string;
-                            /** Format: date-time */
-                            timestamp: string;
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/collaboration/sessions/{sessionId}/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start collaboration session
+         * Start duel
          * @description Host starts a waiting 1v1 session. Both participants receive the same question set.
          */
         post: {
@@ -37079,7 +37287,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/sessions/{sessionId}": {
+    "/api/duel/sessions/{sessionId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -37087,8 +37295,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get collaboration session by id
-         * @description Returns the full collaboration session snapshot for participants.
+         * Get duel by id
+         * @description Returns the full duel snapshot for participants.
          */
         get: {
             parameters: {
@@ -37403,7 +37611,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/sessions/{sessionId}/leave": {
+    "/api/duel/sessions/{sessionId}/leave": {
         parameters: {
             query?: never;
             header?: never;
@@ -37413,8 +37621,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Leave collaboration session
-         * @description Leaves a collaboration session. If host leaves while waiting, the session is cancelled.
+         * Leave duel
+         * @description Leaves a duel. If host leaves while waiting, the session is cancelled.
          */
         post: {
             parameters: {
@@ -37729,7 +37937,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/sessions/{sessionId}/cancel": {
+    "/api/duel/sessions/{sessionId}/cancel": {
         parameters: {
             query?: never;
             header?: never;
@@ -37739,8 +37947,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Cancel collaboration session
-         * @description Host-only cancellation for waiting or in-progress collaboration sessions.
+         * Cancel duel
+         * @description Host-only cancellation for waiting or in-progress duels.
          */
         post: {
             parameters: {
@@ -38055,7 +38263,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collaboration/sessions/{sessionId}/name": {
+    "/api/duel/sessions/{sessionId}/name": {
         parameters: {
             query?: never;
             header?: never;
@@ -38069,7 +38277,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update collaboration session custom name
+         * Update duel custom name
          * @description Host-only while waiting. Set customName to null to reset to default generated name.
          */
         patch: {
@@ -38387,7 +38595,7 @@ export interface paths {
         };
         trace?: never;
     };
-    "/api/collaboration/sessions/{sessionId}/duration": {
+    "/api/duel/sessions/{sessionId}/duration": {
         parameters: {
             query?: never;
             header?: never;
@@ -43919,6 +44127,8 @@ export interface paths {
                                 maxSubjects: number;
                                 fullExamQuestions: number;
                                 fullExamDurationSeconds: number;
+                                duelDurationSeconds: number;
+                                /** @description Deprecated: old name, sent with the same value until older clients are gone (duel rename, 2026-11-08). Use duelDurationSeconds. */
                                 collaborationDurationSeconds: number;
                                 allowMixedPartialExams: boolean;
                                 allowMixedFullExams: boolean;

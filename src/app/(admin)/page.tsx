@@ -75,7 +75,7 @@ export default function AdminOverviewPage() {
       (activityQuery.data?.daily ?? []).map((item) => ({
         label: item.date.slice(5),
         exams: item.examStarts,
-        collaborations: item.collaborationSessions,
+        duels: item.duelSessions,
       })),
     [activityQuery.data],
   );
@@ -183,9 +183,9 @@ export default function AdminOverviewPage() {
               : undefined,
         },
         {
-          label: "Live collaborations",
-          value: formatInteger(overview.engagement.collaborationInProgress),
-          hint: `${formatInteger(overview.engagement.collaborationWaiting)} waiting to start`,
+          label: "Live duels",
+          value: formatInteger(overview.engagement.duelsInProgress),
+          hint: `${formatInteger(overview.engagement.duelsWaiting)} waiting to start`,
         },
       ]
     : [];
@@ -361,7 +361,7 @@ export default function AdminOverviewPage() {
         data={activityData}
         isLoading={activityQuery.isLoading}
         title="Weekly activity"
-        description="Exam starts and collaboration sessions, last 7 days."
+        description="Exam starts and duels, last 7 days."
       />
 
       {/* ── 4. The work queue, then system health ───────────── */}

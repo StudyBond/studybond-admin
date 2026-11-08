@@ -392,8 +392,8 @@ export function User360Screen() {
                 value={formatInteger(engagement.realExamsCompleted)}
               />
               <Fact
-                label="Collab exams"
-                value={formatInteger(engagement.completedCollaborationExams)}
+                label="Duel exams"
+                value={formatInteger(engagement.completedDuelExams)}
               />
               <Fact
                 label="Last studied"
@@ -432,8 +432,8 @@ export function User360Screen() {
                             ? "Completed"
                             : "In progress"}
                         </Badge>
-                        {exam.isCollaboration ? (
-                          <Badge tone="neutral">Collaboration</Badge>
+                        {exam.isDuel ? (
+                          <Badge tone="neutral">Duel</Badge>
                         ) : null}
                       </div>
                       <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
@@ -481,10 +481,10 @@ export function User360Screen() {
               )}
             </Panel>
 
-            <Panel title="Recent collaboration">
-              {recent.collaborationSessions.length ? (
+            <Panel title="Recent duels">
+              {recent.duelSessions.length ? (
                 <ul className="space-y-2.5">
-                  {recent.collaborationSessions.map((session) => (
+                  {recent.duelSessions.map((session) => (
                     <li
                       key={`${session.role}-${session.sessionId}`}
                       className="rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3"
@@ -505,7 +505,7 @@ export function User360Screen() {
                   ))}
                 </ul>
               ) : (
-                <NoneYet>No collaboration sessions.</NoneYet>
+                <NoneYet>No duels yet.</NoneYet>
               )}
             </Panel>
           </div>

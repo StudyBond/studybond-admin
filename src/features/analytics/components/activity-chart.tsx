@@ -8,7 +8,7 @@ import { useId, useMemo, useState } from "react";
 export type ActivityPoint = {
   label: string;
   exams: number;
-  collaborations: number;
+  duels: number;
 };
 
 type ActivityChartProps = {
@@ -29,8 +29,8 @@ type ActivityChartProps = {
 const SERIES = [
   { key: "exams", label: "Exam starts", color: "var(--sb-chart-1)" },
   {
-    key: "collaborations",
-    label: "Collaboration sessions",
+    key: "duels",
+    label: "Duels",
     color: "var(--sb-chart-2)",
   },
 ] as const;
@@ -45,7 +45,7 @@ function niceMax(value: number) {
 export function ActivityChart({
   data,
   title = "Weekly activity",
-  description = "Exam starts and collaboration sessions, last 7 days.",
+  description = "Exam starts and duels, last 7 days.",
   isLoading = false,
   className,
 }: ActivityChartProps) {
@@ -55,7 +55,7 @@ export function ActivityChart({
   const max = useMemo(
     () =>
       niceMax(
-        Math.max(1, ...data.flatMap((d) => [d.exams, d.collaborations])),
+        Math.max(1, ...data.flatMap((d) => [d.exams, d.duels])),
       ),
     [data],
   );
@@ -65,9 +65,9 @@ export function ActivityChart({
       data.reduce(
         (acc, point) => ({
           exams: acc.exams + point.exams,
-          collaborations: acc.collaborations + point.collaborations,
+          duels: acc.duels + point.duels,
         }),
-        { exams: 0, collaborations: 0 },
+        { exams: 0, duels: 0 },
       ),
     [data],
   );
@@ -170,7 +170,7 @@ export function ActivityChart({
                       onBlur={() => setHoverIndex(null)}
                       tabIndex={0}
                       role="img"
-                      aria-label={`${point.label}: ${point.exams} exam starts, ${point.collaborations} collaboration sessions`}
+                      aria-label={`${point.label}: ${point.exams} exam starts, ${point.duels} duels`}
                     >
                       {/* Hover band, sits behind the bars */}
                       <span

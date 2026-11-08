@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
   const activityChartData = (activity?.daily ?? []).map((item) => ({
     label: item.date.slice(5),
     exams: item.examStarts,
-    collaborations: item.collaborationSessions,
+    duels: item.duelSessions,
   }));
 
   const dailyRows = ((premium?.daily ?? []) as PremiumDailyRow[]).slice(-7);
@@ -153,12 +153,12 @@ export default function AnalyticsPage() {
             )} were completed`}
           />
           <StatCard
-            label="Collaborations (7d)"
+            label="Duels (7d)"
             value={formatInteger(
-              overview.engagement.collaborationCreatedLast7Days,
+              overview.engagement.duelsCreatedLast7Days,
             )}
             hint={`${formatInteger(
-              overview.engagement.collaborationInProgress,
+              overview.engagement.duelsInProgress,
             )} still running`}
           />
           <StatCard
@@ -180,7 +180,7 @@ export default function AnalyticsPage() {
         <ActivityChart
           data={activityChartData}
           title="Activity this week"
-          description="Exam starts and collaboration sessions per day."
+          description="Exam starts and duels per day."
         />
 
         {/* ── Premium ─────────────────────────────────────────

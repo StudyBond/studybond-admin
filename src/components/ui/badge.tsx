@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils/cn";
  *
  * There is deliberately no `cyan` / `rose` / `amber` here. Naming a tone
  * after its colour is what let the old UI paint "Premium expiring" red and
- * "Live collaborations" green purely for variety, so a new admin could not
+ * "Live duels" green purely for variety, so a new admin could not
  * learn what a colour meant. Pick a tone by what the value *is*:
  *
  *   neutral  — a fact, no judgement       (counts, ids, labels)

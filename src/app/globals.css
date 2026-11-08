@@ -66,7 +66,7 @@
      These are IDENTITY colours. They are separate from the status
      tokens above and must never be used to mean good/bad. */
   --sb-chart-1: #c17a28; /* amber  — exam activity      */
-  --sb-chart-2: #8b7cf6; /* violet — collaboration      */
+  --sb-chart-2: #8b7cf6; /* violet — duels              */
   --sb-chart-grid: rgba(255, 255, 255, 0.05);
   --sb-chart-axis: rgba(255, 255, 255, 0.10);
 

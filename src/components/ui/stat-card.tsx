@@ -14,7 +14,7 @@ import { ArrowRight } from "lucide-react";
  *
  * 2. `status` is optional and means something. The old card required a
  *    colour, so pages assigned cyan/emerald/amber/rose for variety — which
- *    is how "Premium expiring" ended up red and "Live collaborations" green
+ *    is how "Premium expiring" ended up red and "Live duels" green
  *    on the same row. A number with nothing wrong with it gets no colour.
  *
  * The arrangement changed too. Each stat used to be its own rounded, bordered
