@@ -23,6 +23,22 @@ export type AdminInstitutionStudentStatus = "HIDDEN" | "COMING_SOON" | "OPEN";
 export type AdminUpdateInstitutionInput = {
   name?: string;
   studentStatus?: AdminInstitutionStudentStatus;
+  /** Null puts the board back on the server default. */
+  premiumPriceNaira?: number | null;
+  premiumDurationMonths?: number | null;
+};
+
+/**
+ * A board's premium plan. The two nullable fields are what an admin set;
+ * priceNaira and durationMonths are what students actually pay.
+ */
+export type AdminInstitutionPremium = {
+  premiumPriceNaira: number | null;
+  premiumDurationMonths: number | null;
+  priceNaira: number;
+  durationMonths: number;
+  defaultPriceNaira: number;
+  defaultDurationMonths: number;
 };
 
 /**

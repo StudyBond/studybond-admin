@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { BoardStatusControl } from "@/features/institutions/components/board-status-control";
+import { PremiumPriceControl } from "@/features/institutions/components/premium-price-control";
 import { ExamRulesForm } from "@/features/institutions/components/exam-rules-form";
 import { InstitutionSubjectsEditor } from "@/features/institutions/components/institution-subjects-editor";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@/features/institutions/hooks/use-admin-institutions";
 import {
   adminInstitutionsApi,
+  type AdminInstitutionPremium,
   type AdminInstitutionStudentStatus,
 } from "@/lib/api/admin-institutions";
 import type {
@@ -177,6 +179,17 @@ export default function InstitutionDetailPage() {
           ((detail.institution as { studentStatus?: AdminInstitutionStudentStatus })
             .studentStatus ?? "OPEN")
         }
+        canEdit={canEdit}
+        disabledReason={disabledReason}
+        stepUpToken={stepUp?.stepUpToken ?? null}
+        onSaved={refresh}
+      />
+
+      <PremiumPriceControl
+        /* Remount after a save so the boxes show what was stored. */
+        key={JSON.stringify((detail.institution as { premium?: AdminInstitutionPremium }).premium ?? null)}
+        institutionId={institutionId}
+        premium={(detail.institution as { premium?: AdminInstitutionPremium }).premium ?? null}
         canEdit={canEdit}
         disabledReason={disabledReason}
         stepUpToken={stepUp?.stepUpToken ?? null}
