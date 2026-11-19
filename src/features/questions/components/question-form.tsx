@@ -27,6 +27,7 @@ import {
   type ParentSummary,
 } from "@/features/questions/components/parent-picker";
 import {
+  buildChangedPayload,
   buildPayload,
   createInitialState,
   type FormErrors,
@@ -36,7 +37,7 @@ import {
   validateForm,
 } from "@/features/questions/lib/question-form-state";
 import { Save, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { AssetField } from "@/features/questions/components/asset-field";
 
@@ -97,7 +98,8 @@ type QuestionFormProps = {
   initialParent?: ParentSummary | null;
   isSubmitting?: boolean;
   isDeleting?: boolean;
-  onSubmit: (payload: QuestionPayload) => Promise<unknown> | unknown;
+  /** Create gets the whole question; edit gets only what changed. */
+  onSubmit: (payload: Partial<QuestionPayload>) => Promise<unknown> | unknown;
   onDelete?: () => Promise<unknown> | unknown;
 };
 
@@ -149,6 +151,10 @@ export function QuestionForm({
   const [form, setForm] = useState<FormState>(() =>
     createInitialState(initialQuestion, initialValues),
   );
+  /* The question as last loaded or saved. An edit sends only what differs
+     from it, so a picture put on from the Pictures page while this page was
+     open is not overwritten by this form's old copy. */
+  const savedRef = useRef(form);
   const [errors, setErrors] = useState<FormErrors>({});
   const [parent, setParent] = useState<ParentSummary | null>(
     () => initialParent ?? initialQuestion?.parentQuestion ?? null,
@@ -228,7 +234,18 @@ export function QuestionForm({
     }
 
     try {
-      await onSubmit(buildPayload(form));
+      if (mode === "edit") {
+        const sent = form;
+        const payload = buildChangedPayload(savedRef.current, form);
+        if (Object.keys(payload).length === 0) {
+          toast.info("Nothing has changed", { description: "There is nothing new to save." });
+          return;
+        }
+        await onSubmit(payload);
+        savedRef.current = sent;
+      } else {
+        await onSubmit(buildPayload(form));
+      }
     } catch {
       /* The calling page surfaces the error toast. */
     }

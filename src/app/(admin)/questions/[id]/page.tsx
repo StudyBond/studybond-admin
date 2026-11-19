@@ -29,7 +29,7 @@ export default function EditQuestionPage() {
   const question = questionQuery.data;
 
   const updateMutation = useMutation({
-    mutationFn: (payload: QuestionPayload) =>
+    mutationFn: (payload: Partial<QuestionPayload>) =>
       questionsApi.update(questionId, payload),
     onSuccess: async (saved) => {
       notifyContentWarnings(saved, "Question updated");

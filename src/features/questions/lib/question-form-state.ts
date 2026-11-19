@@ -240,6 +240,47 @@ export function buildPayload(state: FormState): QuestionPayload {
   } as QuestionPayload;
 }
 
+/**
+ * Fields the server checks as a set, so a change to one sends them all: a
+ * picture travels with its file id, and the options with the answer and the
+ * shared row (the server checks those against each other).
+ */
+const PAYLOAD_SETS: readonly (readonly string[])[] = [
+  ["hasImage", "imageUrl", "imagePublicId"],
+  ["optionA", "optionB", "optionC", "optionD", "optionE", "correctAnswer", "parentQuestionId"],
+  ["optionAImageUrl", "optionAImagePublicId"],
+  ["optionBImageUrl", "optionBImagePublicId"],
+  ["optionCImageUrl", "optionCImagePublicId"],
+  ["optionDImageUrl", "optionDImagePublicId"],
+  ["optionEImageUrl", "optionEImagePublicId"],
+  ["explanationImageUrl", "explanationImagePublicId"],
+];
+
+/**
+ * Only what this form changed since it was loaded or last saved.
+ *
+ * Sending the whole form put back whatever the form held when it opened. A
+ * picture added meanwhile (approved on the Pictures page, or approved here a
+ * moment before the form caught up) was wiped by the next Verify or Save,
+ * and the server then deleted the file as "replaced". Fields the form never
+ * touched are now left alone, so a change made elsewhere survives.
+ */
+export function buildChangedPayload(saved: FormState, current: FormState): Partial<QuestionPayload> {
+  const before = buildPayload(saved) as Record<string, unknown>;
+  const after = buildPayload(current) as Record<string, unknown>;
+  const changed = new Set(
+    Object.keys(after).filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key])),
+  );
+  for (const set of PAYLOAD_SETS) {
+    if (set.some((key) => changed.has(key))) {
+      for (const key of set) if (key in after) changed.add(key);
+    }
+  }
+  return Object.fromEntries(
+    [...changed].map((key) => [key, after[key]]),
+  ) as Partial<QuestionPayload>;
+}
+
 export type FormErrors = Partial<
   Record<
     "questionText" | "subject" | "options" | "correctAnswer" | "parent",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { QuestionRecord } from "@/lib/api/types";
 import {
   availableLetters,
+  buildChangedPayload,
   buildPayload,
   createInitialState,
   kindOfQuestion,
@@ -178,5 +179,39 @@ describe("availableLetters", () => {
   it("adds E only when it has text", () => {
     expect(availableLetters({ optionE: "" })).toEqual(["A", "B", "C", "D"]);
     expect(availableLetters({ optionE: "e" })).toEqual(["A", "B", "C", "D", "E"]);
+  });
+});
+
+describe("buildChangedPayload", () => {
+  const PIC = "https://res.cloudinary.com/x/image/upload/v1/p.png";
+
+  it("sends only the status on Verify, so a picture added elsewhere is not wiped", () => {
+    const saved = state({ explanationText: "See ![s](pending:row-3-sketch-1)" });
+    const payload = buildChangedPayload(saved, { ...saved, reviewStatus: "VERIFIED" });
+    expect(payload).toEqual({ reviewStatus: "VERIFIED" });
+  });
+
+  it("sends nothing when nothing changed", () => {
+    const saved = state();
+    expect(buildChangedPayload(saved, { ...saved })).toEqual({});
+  });
+
+  it("sends a picture with its file id and hasImage", () => {
+    const saved = state();
+    const payload = buildChangedPayload(saved, { ...saved, imageUrl: PIC, imagePublicId: "p" });
+    expect(payload).toEqual({ hasImage: true, imageUrl: PIC, imagePublicId: "p" });
+  });
+
+  it("sends the options, answer and shared row together when the answer changes", () => {
+    const saved = state({ correctAnswer: "A" });
+    const payload = buildChangedPayload(saved, { ...saved, correctAnswer: "C" });
+    expect(payload).toMatchObject({ optionA: "a", optionB: "b", optionC: "c", optionD: "d", correctAnswer: "C", parentQuestionId: null });
+    expect(payload).not.toHaveProperty("imageUrl");
+    expect(payload).not.toHaveProperty("explanationText");
+  });
+
+  it("sends an edited explanation, and only that", () => {
+    const saved = state({ explanationText: "old" });
+    expect(buildChangedPayload(saved, { ...saved, explanationText: "new" })).toEqual({ explanationText: "new" });
   });
 });

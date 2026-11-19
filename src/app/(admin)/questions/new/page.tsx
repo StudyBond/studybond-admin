@@ -139,7 +139,7 @@ function NewQuestionContent() {
             initialValues={initialValues}
             initialParent={initialParent}
             isSubmitting={createMutation.isPending}
-            onSubmit={(payload) => createMutation.mutateAsync(payload)}
+            onSubmit={(payload) => createMutation.mutateAsync(payload as QuestionPayload)}
           />
         </div>
       )}

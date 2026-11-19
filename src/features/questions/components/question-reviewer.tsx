@@ -16,7 +16,7 @@ import {
   type PreviewField,
 } from "@/features/questions/components/student-preview";
 import {
-  buildPayload,
+  buildChangedPayload,
   createInitialState,
   LETTERS,
   type FormState,
@@ -81,7 +81,7 @@ type QuestionReviewerProps = {
   onPrevious: () => void;
   onNext: () => void;
   onSkip: () => void;
-  onSubmit: (payload: QuestionPayload) => Promise<unknown>;
+  onSubmit: (payload: Partial<QuestionPayload>) => Promise<unknown>;
   isSaving: boolean;
   /** Opens the question at this position in the whole queue. */
   onGoTo: (position: number) => void;
@@ -253,15 +253,21 @@ export function QuestionReviewer({
   const isWide = useMediaQuery("(min-width: 64rem)");
   const [previewOpen, setPreviewOpen] = useState(false);
   const closePreview = useCallback(() => setPreviewOpen(false), []);
-  /* What was last saved, as a string to compare the form against. A ref, so a
-     save can update it at once, before the next render. */
-  const savedRef = useRef(JSON.stringify(form));
+  /* What was last saved. Saves send only what differs from it, and the
+     unsaved-changes check compares against it. A ref, so a save can update it
+     at once, before the next render. */
+  const savedRef = useRef(form);
+
+  /* True from "Looks right, use it" until the form has the new picture.
+     Saving in between would send the form's old copy of that field. */
+  const [pictureBusy, setPictureBusy] = useState(false);
+  const busy = isSaving || pictureBusy;
 
   /* Tells the page how to check for and save unsaved changes here. Set after
      every render, so the page always gets the current form. */
   useEffect(() => {
     draftRef.current = {
-      isDirty: () => JSON.stringify(form) !== savedRef.current,
+      isDirty: () => JSON.stringify(form) !== JSON.stringify(savedRef.current),
       save: () => withPayload({}, false),
     };
   });
@@ -310,7 +316,8 @@ export function QuestionReviewer({
      saved first, and afterwards the form takes the server's new picture, so
      the next Save cannot put the old empty one back. */
   async function saveBeforePicture() {
-    if (JSON.stringify(form) !== savedRef.current) await withPayload({}, false);
+    setPictureBusy(true);
+    if (JSON.stringify(form) !== JSON.stringify(savedRef.current)) await withPayload({}, false, true);
   }
 
   async function pictureApproved(task: PictureTask) {
@@ -321,7 +328,7 @@ export function QuestionReviewer({
           ? { imageUrl: fresh.imageUrl, imagePublicId: fresh.imagePublicId }
           : { explanationText: fresh.explanationText };
       setForm((current) => ({ ...current, ...patch }));
-      savedRef.current = JSON.stringify({ ...JSON.parse(savedRef.current), ...patch });
+      savedRef.current = { ...savedRef.current, ...patch };
     }
     // The shared row's picture, and the list of pictures, come with the queue.
     await queryClient.invalidateQueries({ queryKey: ["admin", "questions"] });
@@ -330,12 +337,17 @@ export function QuestionReviewer({
   async function withPayload(
     override: Partial<Pick<FormState, "reviewStatus">>,
     thenAdvance: boolean,
+    /* Only the save that runs just before a picture goes on may pass while
+       the picture is busy. */
+    duringPicture = false,
   ) {
+    if (pictureBusy && !duringPicture) return;
     /* What was sent without the status override. Only Save calls this
        without advancing, and Save sends nothing extra, so the two agree. */
-    const sent = JSON.stringify(form);
-    const payload = buildPayload({ ...form, ...override });
-    await onSubmit(payload);
+    const sent = form;
+    // Only what changed here, so a picture added elsewhere is never put back.
+    const payload = buildChangedPayload(savedRef.current, { ...form, ...override });
+    if (Object.keys(payload).length > 0) await onSubmit(payload);
     savedRef.current = sent;
     if (thenAdvance) onNext();
   }
@@ -371,7 +383,7 @@ export function QuestionReviewer({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, blocking, hasNext, hasPrevious, shortcutsPaused, onNext, onPrevious]);
+  }, [form, blocking, pictureBusy, hasNext, hasPrevious, shortcutsPaused, onNext, onPrevious]);
 
   return (
     <div className="space-y-4">
@@ -409,6 +421,7 @@ export function QuestionReviewer({
               sharedRowId={sharedDiagram?.id ?? null}
               beforeApprove={saveBeforePicture}
               onApproved={pictureApproved}
+              onSettled={() => setPictureBusy(false)}
             />
           ) : null}
 
@@ -697,7 +710,7 @@ export function QuestionReviewer({
               variant="secondary"
               size="sm"
               onClick={() => void withPayload({}, false)}
-              disabled={isSaving}
+              disabled={busy}
               isLoading={isSaving}
               aria-label="Save changes"
               title="Save changes"
@@ -712,7 +725,7 @@ export function QuestionReviewer({
                 size="sm"
                 confirmLabel="Send back to draft?"
                 onConfirm={() => void withPayload({ reviewStatus: "DRAFT" }, true)}
-                disabled={isSaving}
+                disabled={busy}
                 icon={<RotateCcw className="h-3.5 w-3.5" />}
               >
                 Back to draft
@@ -723,7 +736,7 @@ export function QuestionReviewer({
                 variant="secondary"
                 size="sm"
                 onClick={() => void withPayload({ reviewStatus: "VERIFIED" }, true)}
-                disabled={isSaving}
+                disabled={busy}
               >
                 <ShieldCheck className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Mark verified</span>
@@ -735,7 +748,7 @@ export function QuestionReviewer({
               type="button"
               size="sm"
               onClick={publish}
-              disabled={isSaving || Boolean(blocking)}
+              disabled={busy || Boolean(blocking)}
               title={blocking ? "Its picture isn't on yet" : undefined}
             >
               <span>
@@ -755,7 +768,7 @@ export function QuestionReviewer({
           onClose={closePreview}
           onPublish={publish}
           publishBlocked={Boolean(blocking)}
-          isSaving={isSaving}
+          isSaving={busy}
           hasNext={hasNext}
         />
       ) : null}

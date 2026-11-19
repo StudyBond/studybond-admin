@@ -27,6 +27,7 @@ export function PictureStrip({
   sharedRowId,
   beforeApprove,
   onApproved,
+  onSettled,
 }: {
   pictures: OpenPicture[];
   blocking: OpenPicture | null;
@@ -34,6 +35,8 @@ export function PictureStrip({
   /** Saves edits first, so the picture and the edits do not overwrite each other. */
   beforeApprove: () => Promise<void>;
   onApproved: (task: PictureTask) => void | Promise<void>;
+  /** Runs once "use it" has finished, whether it worked or not. */
+  onSettled: () => void;
 }) {
   const [openId, setOpenId] = useState<number | null>(
     () => pictures.find((picture) => picture.status === "READY_TO_CHECK")?.id ?? null,
@@ -101,7 +104,7 @@ export function PictureStrip({
                 )}
               </div>
               {canCheckHere && isOpen ? (
-                <DrawingCheck id={picture.id} beforeApprove={beforeApprove} onApproved={onApproved} />
+                <DrawingCheck id={picture.id} beforeApprove={beforeApprove} onApproved={onApproved} onSettled={onSettled} />
               ) : null}
             </li>
           );
@@ -116,10 +119,12 @@ function DrawingCheck({
   id,
   beforeApprove,
   onApproved,
+  onSettled,
 }: {
   id: number;
   beforeApprove: () => Promise<void>;
   onApproved: (task: PictureTask) => void | Promise<void>;
+  onSettled: () => void;
 }) {
   const taskQuery = usePicture(id);
   const [strength, setStrength] = useState<PictureStrength>("normal");
@@ -155,6 +160,7 @@ function DrawingCheck({
         strength={strength}
         beforeApprove={beforeApprove}
         onApproved={onApproved}
+        onSettled={onSettled}
         extra={
           <Button asChild href={picturePageHref(task.id)} target="_blank" rel="noopener noreferrer" variant="ghost" size="sm">
             Pictures page

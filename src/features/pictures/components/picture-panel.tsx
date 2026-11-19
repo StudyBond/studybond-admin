@@ -280,8 +280,14 @@ export function PicturePanel({
 
   const setMaker = useMutation({
     mutationFn: (maker: PictureMaker) => picturesApi.setMaker(task.id, maker),
-    onSuccess: async (_updated, maker) => {
-      toast.success(maker === "CLAUDE" ? "Claude will draw this one" : "Moved to ChatGPT");
+    onSuccess: async (updated, maker) => {
+      toast.success(
+        maker === "CHATGPT"
+          ? "Moved to ChatGPT"
+          : updated.status === "READY_TO_CHECK"
+            ? "Claude's drawing is back, ready to check"
+            : "Claude will draw this one",
+      );
       await refresh();
     },
     onError: onError("Could not change who makes it"),
@@ -289,6 +295,9 @@ export function PicturePanel({
 
   const teamChecks = task.teamNote ? <NoteBox title="Before you save, check" content={task.teamNote} /> : null;
   const showChatGpt = task.maker === "CHATGPT" && task.status !== "DONE";
+  /* Moving a picture to ChatGPT keeps Claude's drawing on the server. It
+     stays in view, so the team can compare, or go back to it. */
+  const keptDraft = task.maker === "CHATGPT" && task.status === "WAITING" ? task.draftImageUrl : null;
 
   return (
     <div className="space-y-6 rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-6">
@@ -439,6 +448,22 @@ export function PicturePanel({
 
       {showChatGpt ? (
         <>
+          {keptDraft ? (
+            <div className="space-y-3 rounded-[var(--sb-radius)] border border-[var(--sb-border)] bg-[var(--sb-bg-inset)] p-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="min-w-0 flex-1 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
+                  <span className="font-semibold text-[var(--sb-text)]">Claude&apos;s drawing is still here. </span>
+                  Use it after all, or make a new one in ChatGPT below.
+                </p>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setMaker.mutate("CLAUDE")} isLoading={setMaker.isPending}>
+                  Use Claude&apos;s drawing after all
+                </Button>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element -- Cloudinary address */}
+              <img src={keptDraft} alt={`Claude's drawing: ${task.title}`} className="mx-auto block h-auto w-full max-w-[22rem] rounded-[var(--sb-radius)] bg-white" />
+            </div>
+          ) : null}
+
           {!isSketch ? (
             <div className="grid gap-3 lg:grid-cols-2">
               <NoteBox title="What the picture must show" content={task.whatToShow} />
@@ -490,7 +515,7 @@ export function PicturePanel({
                 {isSketch ? "Open ChatGPT" : "Open ChatGPT with this prompt"}
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Button>
-              {!isSketch ? (
+              {!isSketch && !keptDraft ? (
                 <Button type="button" variant="ghost" onClick={() => setMaker.mutate("CLAUDE")} isLoading={setMaker.isPending}>
                   Let Claude draw it instead
                 </Button>

@@ -23,6 +23,7 @@ export function DrawingCheckActions({
   strength,
   beforeApprove,
   onApproved,
+  onSettled,
   approvedAction,
   extra,
 }: {
@@ -31,6 +32,8 @@ export function DrawingCheckActions({
   /** Runs before the picture is saved, for example to save edits it would otherwise collide with. */
   beforeApprove?: () => Promise<void>;
   onApproved: (updated: PictureTask) => void | Promise<void>;
+  /** Runs once "use it" has finished, whether it worked or not. */
+  onSettled?: () => void;
   /** A button on the "saved" message, such as a link to the question. */
   approvedAction?: (updated: PictureTask) => ToastAction | undefined;
   /** Shown at the far end of the button row. */
@@ -59,6 +62,7 @@ export function DrawingCheckActions({
       await onApproved(updated);
     },
     onError: onError("Could not use the drawing"),
+    onSettled: () => onSettled?.(),
   });
 
   const sendBack = useMutation({

@@ -262,7 +262,7 @@ function ReviewQueueContent() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: (payload: QuestionPayload) => {
+    mutationFn: (payload: Partial<QuestionPayload>) => {
       if (!currentQuestion) throw new Error("No question is open.");
       return questionsApi.update(currentQuestion.id, payload);
     },
