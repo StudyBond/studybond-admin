@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BookType,
   Building2,
+  CalendarDays,
   ChartNoAxesCombined,
   ClipboardCheck,
   FileWarning,
@@ -14,6 +16,7 @@ import {
   Settings,
   Sparkles,
   Trophy,
+  Upload,
   UserRound,
   UserRoundX,
 } from "lucide-react";
@@ -113,6 +116,26 @@ export const adminNavigation: AdminNavGroup[] = [
         label: "Pictures",
         icon: Images,
         description: "Pictures that questions and explanations still need",
+      },
+      {
+        href: "/words",
+        label: "Word of the day",
+        icon: BookType,
+        description: "Word and idiom cards from real JAMB questions",
+        children: [
+          {
+            href: "/words/plan",
+            label: "Plan",
+            icon: CalendarDays,
+            description: "Which card students see on which day",
+          },
+          {
+            href: "/words/upload",
+            label: "Upload cards",
+            icon: Upload,
+            description: "Add or update cards from a content pipeline file",
+          },
+        ],
       },
       {
         href: "/questions/free-exam",
