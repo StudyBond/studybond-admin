@@ -7,7 +7,7 @@ import { ConfirmButton } from "@/components/ui/confirm-button";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterChips } from "@/components/ui/toolbar";
 import { useRefreshWords } from "@/features/words/hooks/use-words";
-import { chunk, parseCardFile } from "@/features/words/lib/word-rules";
+import { KIND_LABEL, chunk, parseCardFile } from "@/features/words/lib/word-rules";
 import { adminWordsApi, type UploadCard, type UploadResultRow } from "@/lib/api/admin-words";
 import { cn } from "@/lib/utils/cn";
 import { AlertTriangle, FileJson, Upload } from "lucide-react";
@@ -265,7 +265,7 @@ export default function WordUploadPage() {
                         <span className="font-medium text-[var(--sb-text)]">{row.headword}</span>
                       )}
                       <span className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-                        {row.card.kind === "IDIOM" ? "Idiom" : "Word"} ·{" "}
+                        {KIND_LABEL[row.card.kind]} ·{" "}
                         {row.card.questionMatches.map((match) => match.year).join(", ")}
                       </span>
                     </div>

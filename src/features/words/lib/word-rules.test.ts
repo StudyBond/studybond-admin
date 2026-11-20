@@ -87,7 +87,7 @@ describe("parseCardFile", () => {
 
   it("names the card that is missing something", () => {
     const { problems } = parseCardFile(JSON.stringify([{ ...good, kind: "PHRASE", questionMatches: [{ year: 1978 }] }]));
-    expect(problems).toContain('"insolvent": kind must be WORD or IDIOM.');
+    expect(problems).toContain('"insolvent": kind must be WORD, IDIOM or PHRASAL_VERB.');
     expect(problems).toContain('"insolvent": question 1 needs a year and textIncludes.');
   });
 
@@ -103,6 +103,11 @@ describe("parseCardFile", () => {
       ],
     };
     expect(parseCardFile(JSON.stringify(real)).problems).toEqual([]);
+  });
+
+  it("takes phrasal verb cards (added 2026-11-20)", () => {
+    const phrasal = { ...good, kind: "PHRASAL_VERB", headword: "ward off", questionMatches: [{ year: 1979, textIncludes: "need to ward" }] };
+    expect(parseCardFile(JSON.stringify([phrasal])).problems).toEqual([]);
   });
 });
 
@@ -211,6 +216,15 @@ describe("the card form", () => {
     expect(errors.questions).toMatch(/"abc"/);
   });
 
+  it("starts a phrasal verb with its label and no stress tap", () => {
+    const form = emptyForm("PHRASAL_VERB");
+    expect(form.partOfSpeech).toBe("phrasal verb");
+    form.syllables = "ward · off";
+    const { errors } = formToFields(form);
+    expect(errors.headword).toBe("Add the phrasal verb.");
+    expect(errors.syllables).toMatch(/a phrasal verb/);
+  });
+
   it("refuses two main questions", () => {
     const form = toForm(card());
     form.questions.push({ questionId: "99", isMain: true });
@@ -232,6 +246,7 @@ describe("planRows", () => {
       { date: "2026-11-19", kind: "WORD", cardId: 1, headword: "insolvent", status: "READY", cycle: 1, pinned: false, isPast: false },
       { date: "2026-11-19", kind: "IDIOM", cardId: 2, headword: "neck and neck", status: "READY", cycle: 1, pinned: false, isPast: false },
       { date: "2026-11-21", kind: "WORD", cardId: 3, headword: "penury", status: "READY", cycle: 1, pinned: true, isPast: false },
+      { date: "2026-11-19", kind: "PHRASAL_VERB", cardId: 4, headword: "ward off", status: "READY", cycle: 1, pinned: false, isPast: false },
     ],
     cycles: { WORD: { cycle: 1, ready: 3, leftInCycle: 1 }, IDIOM: { cycle: 1, ready: 1, leftInCycle: 0 } },
   };
@@ -242,6 +257,8 @@ describe("planRows", () => {
     expect(rows[0]).toMatchObject({ isPast: true, word: null, idiom: null });
     expect(rows[1]).toMatchObject({ isToday: true });
     expect(rows[1].idiom?.headword).toBe("neck and neck");
+    expect(rows[1].phrasalVerb?.headword).toBe("ward off");
+    expect(rows[2].phrasalVerb).toBeNull();
     expect(rows[2].word).toBeNull();
     expect(rows[3].word?.pinned).toBe(true);
   });

@@ -9,6 +9,8 @@ import { Field, FieldShell, TextArea } from "@/components/ui/field";
 import {
   OPTION_LETTERS,
   cameOutLine,
+  KIND_LABEL,
+  KIND_NAME,
   cardState,
   changedFields,
   emptyForm,
@@ -237,13 +239,13 @@ export function WordCardPanel({ card, newKind = "WORD", onSaved, onDeleted, onCa
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-[length:var(--sb-text-xl)] font-semibold tracking-tight text-[var(--sb-text)]">
-              {isNew ? `New ${newKind === "IDIOM" ? "idiom" : "word"}` : card.headword}
+              {isNew ? `New ${KIND_NAME[newKind ?? "WORD"]}` : card.headword}
             </h2>
             {state ? <Badge tone={state.tone}>{state.label}</Badge> : <Badge>Starts as a draft</Badge>}
           </div>
           {card ? (
             <p className="mt-1 text-[length:var(--sb-text-sm)] text-[var(--sb-text-secondary)]">
-              {[card.kind === "IDIOM" ? "Idiom" : "Word", card.partOfSpeech !== "idiom" ? card.partOfSpeech : null, card.sayAs, card.ipa]
+              {[KIND_LABEL[card.kind], card.partOfSpeech !== "idiom" && card.partOfSpeech !== "phrasal verb" ? card.partOfSpeech : null, card.sayAs, card.ipa]
                 .filter(Boolean)
                 .join(" · ")}
               <span className="text-[var(--sb-text-tertiary)]"> · came out in {cameOutLine(card)}</span>
@@ -341,7 +343,7 @@ export function WordCardPanel({ card, newKind = "WORD", onSaved, onDeleted, onCa
       <Section title="The word">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field
-            label={form.kind === "IDIOM" ? "Idiom" : "Word"}
+            label={KIND_LABEL[form.kind]}
             value={form.headword}
             onChange={(event) => set("headword", event.target.value)}
             error={errors.headword}
@@ -356,6 +358,7 @@ export function WordCardPanel({ card, newKind = "WORD", onSaved, onDeleted, onCa
               options={[
                 { value: "WORD", label: "Word" },
                 { value: "IDIOM", label: "Idiom" },
+                { value: "PHRASAL_VERB", label: "Phrasal verb" },
               ]}
             />
           </FieldShell>

@@ -17,6 +17,18 @@ import type {
 
 export const OPTION_LETTERS: OptionLetter[] = ["A", "B", "C", "D", "E"];
 
+/** The three daily cards, in the order the plan shows them. Phrasal verb added 2026-11-20. */
+export const WORD_KINDS: WordKind[] = ["WORD", "IDIOM", "PHRASAL_VERB"];
+
+/** "Word", "Idiom", "Phrasal verb": the label on a card. */
+export const KIND_LABEL: Record<WordKind, string> = { WORD: "Word", IDIOM: "Idiom", PHRASAL_VERB: "Phrasal verb" };
+
+/** The same, inside a sentence: "a word", "Add the phrasal verb". */
+export const KIND_NAME: Record<WordKind, string> = { WORD: "word", IDIOM: "idiom", PHRASAL_VERB: "phrasal verb" };
+
+export const isKind = (value: unknown): value is WordKind =>
+  value === "WORD" || value === "IDIOM" || value === "PHRASAL_VERB";
+
 /** The backend's slug rule (words.domain.ts), so the page can spot clashes before it asks. */
 export function slugify(headword: string): string {
   return headword
@@ -81,7 +93,7 @@ export function parseCardFile(text: string): ParsedCardFile {
   list.forEach((raw, index) => {
     const card = (raw ?? {}) as Partial<UploadCard>;
     const name = isText(card.headword) ? `"${card.headword}"` : `Card ${index + 1}`;
-    if (card.kind !== "WORD" && card.kind !== "IDIOM") problems.push(`${name}: kind must be WORD or IDIOM.`);
+    if (!isKind(card.kind)) problems.push(`${name}: kind must be WORD, IDIOM or PHRASAL_VERB.`);
     if (!isText(card.headword)) problems.push(`${name}: the headword is missing.`);
     if (!isText(card.meaning)) problems.push(`${name}: the meaning is missing.`);
     const matches = Array.isArray(card.questionMatches) ? card.questionMatches : [];
@@ -210,7 +222,7 @@ export function emptyForm(kind: WordKind = "WORD"): CardForm {
     kind,
     headword: "",
     slug: "",
-    partOfSpeech: kind === "IDIOM" ? "idiom" : "",
+    partOfSpeech: kind === "IDIOM" ? "idiom" : kind === "PHRASAL_VERB" ? "phrasal verb" : "",
     sayAs: "",
     ipa: "",
     syllables: "",
@@ -268,14 +280,14 @@ export function formToFields(form: CardForm): FormResult {
   const syllables = parseSyllables(form.syllables);
   const examples = form.examples.map((line) => line.trim()).filter(Boolean);
 
-  if (!form.headword.trim()) errors.headword = "Add the word or idiom.";
+  if (!form.headword.trim()) errors.headword = `Add the ${KIND_NAME[form.kind]}.`;
   if (!form.meaning.trim()) errors.meaning = "Add the meaning.";
   if (form.slug.trim() && !/^[a-z0-9-]+$/.test(form.slug.trim())) {
     errors.slug = "Small letters, digits and dashes only.";
   }
   if (syllables.length > 12) errors.syllables = "At most 12 syllables.";
   if (syllables.some((part) => part.length > 20)) errors.syllables = "A syllable can be at most 20 letters.";
-  if (syllables.length > 0 && form.kind === "IDIOM") errors.syllables = "Only words get the stress tap. Leave this empty for an idiom.";
+  if (syllables.length > 0 && form.kind !== "WORD") errors.syllables = `Only words get the stress tap. Leave this empty for ${form.kind === "IDIOM" ? "an idiom" : "a phrasal verb"}.`;
 
   for (const [key, limit] of Object.entries(TEXT_LIMITS)) {
     if (key === "example") continue;
@@ -371,6 +383,7 @@ export type PlanRow = {
   isPast: boolean;
   word: PlanDay | null;
   idiom: PlanDay | null;
+  phrasalVerb: PlanDay | null;
 };
 
 /** One row per day from `from` to `to`, empty days included, so a gap shows as a gap. */
@@ -383,6 +396,7 @@ export function planRows(plan: WordPlan, from: string, to: string): PlanRow[] {
       isPast: date < plan.today,
       word: plan.days.find((day) => day.date === date && day.kind === "WORD") ?? null,
       idiom: plan.days.find((day) => day.date === date && day.kind === "IDIOM") ?? null,
+      phrasalVerb: plan.days.find((day) => day.date === date && day.kind === "PHRASAL_VERB") ?? null,
     });
     if (rows.length > 120) break;
   }

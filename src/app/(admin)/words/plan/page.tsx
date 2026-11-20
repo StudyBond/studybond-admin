@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { useRefreshWords, useWordCards, useWordPlan } from "@/features/words/hooks/use-words";
-import { addDays, formatDay, planRows, type PlanRow } from "@/features/words/lib/word-rules";
+import { KIND_LABEL, addDays, formatDay, planRows, type PlanRow } from "@/features/words/lib/word-rules";
 import { adminWordsApi, type PlanDay, type WordKind } from "@/lib/api/admin-words";
 import { cn } from "@/lib/utils/cn";
 import { useMutation } from "@tanstack/react-query";
@@ -26,8 +26,6 @@ import { toast } from "sonner";
  * every night from the READY cards, except days the team pinned. Swapping a
  * day pins it, so the swap stays.
  */
-
-const KIND_LABEL: Record<WordKind, string> = { WORD: "Word", IDIOM: "Idiom" };
 
 function useOptions(kind: WordKind) {
   const query = useWordCards({ kind, status: "READY", limit: 100 });
@@ -148,6 +146,7 @@ export default function WordPlanPage() {
   const refresh = useRefreshWords();
   const wordOptions = useOptions("WORD");
   const idiomOptions = useOptions("IDIOM");
+  const phrasalOptions = useOptions("PHRASAL_VERB");
 
   const planNow = useMutation({
     mutationFn: () => adminWordsApi.planNow(),
@@ -164,7 +163,9 @@ export default function WordPlanPage() {
   const firstDay = plan?.days[0]?.date ?? plan?.today ?? "";
   const from = plan ? (firstDay < weekBack ? weekBack : firstDay < plan.today ? firstDay : plan.today) : "";
   const rows = plan ? planRows(plan, from, addDays(plan.today, 13)) : [];
-  const nothingReady = plan ? plan.cycles.WORD.ready + plan.cycles.IDIOM.ready === 0 : false;
+  /* Missing on a backend from before the phrasal verb card (2026-11-20). */
+  const phrasalCycle = plan?.cycles.PHRASAL_VERB ?? { cycle: 1, ready: 0, leftInCycle: 0 };
+  const nothingReady = plan ? plan.cycles.WORD.ready + plan.cycles.IDIOM.ready + phrasalCycle.ready === 0 : false;
 
   return (
     <div className="sb-enter space-y-5 pb-2">
@@ -184,21 +185,24 @@ export default function WordPlanPage() {
       ) : null}
 
       {plan ? (
-        <StatGrid className="lg:grid-cols-4">
+        <StatGrid className="lg:grid-cols-3">
           <StatCard label="Ready words" value={String(plan.cycles.WORD.ready)} hint={`Round ${plan.cycles.WORD.cycle}`} />
+          <StatCard label="Ready idioms" value={String(plan.cycles.IDIOM.ready)} hint={`Round ${plan.cycles.IDIOM.cycle}`} />
+          <StatCard label="Ready phrasal verbs" value={String(phrasalCycle.ready)} hint={`Round ${phrasalCycle.cycle}`} />
           <StatCard
             label="Words left this round"
             value={String(plan.cycles.WORD.leftInCycle)}
             hint="Then the round starts again"
             status={plan.cycles.WORD.ready > 0 && plan.cycles.WORD.leftInCycle <= 7 ? "warning" : undefined}
           />
-          <StatCard label="Ready idioms" value={String(plan.cycles.IDIOM.ready)} hint={`Round ${plan.cycles.IDIOM.cycle}`} />
           <StatCard
             label="Idioms left this round"
             value={String(plan.cycles.IDIOM.leftInCycle)}
             hint="Then the round starts again"
             status={plan.cycles.IDIOM.ready > 0 && plan.cycles.IDIOM.leftInCycle <= 7 ? "warning" : undefined}
           />
+          {/* Phrasal verbs are fewer and may come round again sooner, so no warning here. */}
+          <StatCard label="Phrasal verbs left this round" value={String(phrasalCycle.leftInCycle)} hint="Then the round starts again" />
         </StatGrid>
       ) : planQuery.isLoading ? (
         <Skeleton className="h-24 w-full" />
@@ -216,17 +220,18 @@ export default function WordPlanPage() {
 
       {plan ? (
         <div className="overflow-hidden rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)]">
-          <div className="hidden grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)] gap-4 border-b border-[var(--sb-border)] px-4 py-2.5 text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)] sm:grid">
+          <div className="hidden grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 border-b border-[var(--sb-border)] px-4 py-2.5 text-[length:var(--sb-text-xs)] font-medium text-[var(--sb-text-secondary)] sm:grid">
             <span>Day</span>
             <span>Word</span>
             <span>Idiom</span>
+            <span>Phrasal verb</span>
           </div>
           <ul className="divide-y divide-[var(--sb-border)]">
             {rows.map((row) => (
               <li
                 key={row.date}
                 className={cn(
-                  "grid gap-3 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)] sm:gap-4",
+                  "grid gap-3 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] sm:gap-4",
                   row.isToday && "bg-[var(--sb-accent-soft)]",
                   row.isPast && "opacity-70",
                 )}
@@ -237,6 +242,7 @@ export default function WordPlanPage() {
                 </div>
                 <DayCell row={row} kind="WORD" day={row.word} options={wordOptions} />
                 <DayCell row={row} kind="IDIOM" day={row.idiom} options={idiomOptions} />
+                <DayCell row={row} kind="PHRASAL_VERB" day={row.phrasalVerb} options={phrasalOptions} />
               </li>
             ))}
           </ul>

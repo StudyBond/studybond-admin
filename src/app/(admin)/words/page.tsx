@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FilterChips, Pagination } from "@/components/ui/toolbar";
 import { WordCardPanel } from "@/features/words/components/word-card-panel";
 import { useRefreshWords, useWordCard, useWordCards } from "@/features/words/hooks/use-words";
-import { cameOutLine, canGoReady, cardState, formatDay } from "@/features/words/lib/word-rules";
+import { KIND_LABEL, cameOutLine, canGoReady, cardState, formatDay } from "@/features/words/lib/word-rules";
 import { adminWordsApi, type WordCard, type WordKind } from "@/lib/api/admin-words";
 import { cn } from "@/lib/utils/cn";
 import { formatInteger } from "@/lib/utils/format";
@@ -122,8 +122,10 @@ function WordsContent() {
     }
   }
 
-  const totalReady = (counts?.readyWords ?? 0) + (counts?.readyIdioms ?? 0);
-  const totalDraft = (counts?.draftWords ?? 0) + (counts?.draftIdioms ?? 0);
+  const phrasalReady = counts?.readyPhrasalVerbs ?? 0;
+  const phrasalTotal = phrasalReady + (counts?.draftPhrasalVerbs ?? 0);
+  const totalReady = (counts?.readyWords ?? 0) + (counts?.readyIdioms ?? 0) + phrasalReady;
+  const totalDraft = (counts?.draftWords ?? 0) + (counts?.draftIdioms ?? 0) + (counts?.draftPhrasalVerbs ?? 0);
   const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
 
   return (
@@ -134,14 +136,15 @@ function WordsContent() {
           counts && totalReady + totalDraft === 0
             ? "No cards yet. Upload the cards file from the content pipeline to start."
             : counts
-            ? `${formatInteger(counts.readyWords)} words and ${formatInteger(counts.readyIdioms)} idioms are ready. ${formatInteger(totalDraft)} ${totalDraft === 1 ? "card is" : "cards are"} still drafts. Students only ever see ready cards.`
-            : "Word and idiom cards, from the real JAMB questions they came out in."
+            ? `${formatInteger(counts.readyWords)} words, ${formatInteger(counts.readyIdioms)} idioms and ${formatInteger(phrasalReady)} phrasal verbs are ready. ${formatInteger(totalDraft)} ${totalDraft === 1 ? "card is" : "cards are"} still drafts. Students only ever see ready cards.`
+            : "Word, idiom and phrasal verb cards, from the real JAMB questions they came out in."
         }
         meta={
           counts && totalReady + totalDraft > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               <Badge>{formatInteger(counts.readyWords + counts.draftWords)} words</Badge>
               <Badge>{formatInteger(counts.readyIdioms + counts.draftIdioms)} idioms</Badge>
+              <Badge>{formatInteger(phrasalTotal)} phrasal verbs</Badge>
             </div>
           ) : null
         }
@@ -171,14 +174,15 @@ function WordsContent() {
               setSearch(event.target.value);
               setPage(1);
             }}
-            placeholder="Find a word or idiom"
-            aria-label="Find a word or idiom"
+            placeholder="Find a word, idiom or phrasal verb"
+            aria-label="Find a word, idiom or phrasal verb"
           />
           <FilterChips
             options={[
-              { value: "all", label: "Words and idioms" },
+              { value: "all", label: "All cards" },
               { value: "WORD", label: "Words" },
               { value: "IDIOM", label: "Idioms" },
+              { value: "PHRASAL_VERB", label: "Phrasal verbs" },
             ]}
             value={kind}
             onChange={(value) => {
@@ -256,7 +260,7 @@ function WordsContent() {
                             {card.headword}
                           </span>
                           <span className="mt-0.5 block truncate text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-                            {card.kind === "IDIOM" ? "Idiom" : "Word"} · {cameOutLine(card)}
+                            {KIND_LABEL[card.kind]} · {cameOutLine(card)}
                             {card.plannedFor[0] ? ` · next ${formatDay(card.plannedFor[0])}` : ""}
                             {!card.plannedFor[0] && card.shownOn[0] ? ` · shown ${formatDay(card.shownOn[0])}` : ""}
                           </span>
@@ -304,6 +308,10 @@ function WordsContent() {
             <Button type="button" variant="ghost" size="sm" onClick={() => startNew("IDIOM")}>
               <Plus className="h-3.5 w-3.5" />
               New idiom
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => startNew("PHRASAL_VERB")}>
+              <Plus className="h-3.5 w-3.5" />
+              New phrasal verb
             </Button>
           </div>
         </section>

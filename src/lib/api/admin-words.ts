@@ -10,7 +10,7 @@ import type { SuccessEnvelope } from "@/lib/api/types";
  * them to lib/api/types.ts once the contract is synced.
  */
 
-export type WordKind = "WORD" | "IDIOM";
+export type WordKind = "WORD" | "IDIOM" | "PHRASAL_VERB";
 export type WordCardStatus = "DRAFT" | "READY";
 export type OptionLetter = "A" | "B" | "C" | "D" | "E";
 
@@ -62,7 +62,15 @@ export type WordCardList = {
   total: number;
   page: number;
   limit: number;
-  counts: { readyWords: number; readyIdioms: number; draftWords: number; draftIdioms: number };
+  counts: {
+    readyWords: number;
+    readyIdioms: number;
+    draftWords: number;
+    draftIdioms: number;
+    /** Added 2026-11-20 with the phrasal verb card. Missing from a backend that predates it. */
+    readyPhrasalVerbs?: number;
+    draftPhrasalVerbs?: number;
+  };
 };
 
 export type WordCardFilter = {
@@ -143,7 +151,8 @@ export type WordPlan = {
   /** Today in Lagos, YYYY-MM-DD. */
   today: string;
   days: PlanDay[];
-  cycles: { WORD: PlanCycle; IDIOM: PlanCycle };
+  /** PHRASAL_VERB is missing from a backend that predates it (added 2026-11-20). */
+  cycles: { WORD: PlanCycle; IDIOM: PlanCycle; PHRASAL_VERB?: PlanCycle };
 };
 
 const BASE = "/api/admin/word-cards";
