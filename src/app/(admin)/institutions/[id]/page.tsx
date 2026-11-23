@@ -10,6 +10,7 @@ import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { BoardStatusControl } from "@/features/institutions/components/board-status-control";
 import { PremiumPriceControl } from "@/features/institutions/components/premium-price-control";
+import { ExamDateControl, WhatsAppLinksControl } from "@/features/institutions/components/board-extras";
 import { ExamRulesForm } from "@/features/institutions/components/exam-rules-form";
 import { InstitutionSubjectsEditor } from "@/features/institutions/components/institution-subjects-editor";
 import {
@@ -195,6 +196,10 @@ export default function InstitutionDetailPage() {
         stepUpToken={stepUp?.stepUpToken ?? null}
         onSaved={refresh}
       />
+
+      {/* Read by the student Home: any admin can set these. */}
+      <ExamDateControl institutionId={institutionId} />
+      <WhatsAppLinksControl institutionId={institutionId} />
 
       <ExamRulesForm
         examConfig={detail.examConfig}
