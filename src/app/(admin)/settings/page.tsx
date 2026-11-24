@@ -11,16 +11,12 @@ import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { useAdminSystemHealth } from "@/features/analytics/hooks/use-admin-system-health";
-import { NotificationAnnouncementsPanel } from "@/features/system/components/notification-announcements-panel";
 import { useAdminSystemSettings } from "@/features/system/hooks/use-admin-system-settings";
 import { adminSystemApi } from "@/lib/api/admin-system";
 import { formatDateTime, formatInteger } from "@/lib/utils/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Mail, ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
-
-const adminAnnouncementsUiEnabled =
-  process.env.NEXT_PUBLIC_ADMIN_ANNOUNCEMENTS_UI_ENABLED === "true";
 
 /**
  * System settings.
@@ -239,7 +235,6 @@ export default function SettingsPage() {
         </section>
       </div>
 
-      {adminAnnouncementsUiEnabled ? <NotificationAnnouncementsPanel /> : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import type {
+  AdminAlertStatus,
   AdminCreateNotificationAnnouncementPayload,
   AdminNotificationAnnouncementMutation,
   AdminNotificationAnnouncementsFilter,
@@ -74,6 +75,26 @@ export const adminSystemApi = {
         headers: buildSensitiveHeaders(headers),
       }
     );
+    return response.data;
+  },
+  async getAlertStatus() {
+    const response = await apiClient<SuccessEnvelope<AdminAlertStatus>>("/api/admin/notifications/alerts");
+    return response.data;
+  },
+  /** Superadmin + step-up. Notes still reach inboxes; only alerts stop. */
+  async pauseAlerts(headers?: SensitiveHeadersOptions) {
+    const response = await apiClient<SuccessEnvelope<AdminAlertStatus>>("/api/admin/notifications/alerts/pause", {
+      method: "POST",
+      headers: buildSensitiveHeaders(headers),
+    });
+    return response.data;
+  },
+  async resumeAlerts(dropOlderThanHour: boolean, headers?: SensitiveHeadersOptions) {
+    const response = await apiClient<SuccessEnvelope<AdminAlertStatus>>("/api/admin/notifications/alerts/resume", {
+      method: "POST",
+      body: JSON.stringify({ dropOlderThanHour }),
+      headers: buildSensitiveHeaders(headers),
+    });
     return response.data;
   },
   toggleEmailSystem(enabled: boolean, headers?: SensitiveHeadersOptions) {

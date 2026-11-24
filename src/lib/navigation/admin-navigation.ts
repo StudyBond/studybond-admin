@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BellRing,
   BookType,
   Building2,
   CalendarDays,
@@ -210,6 +211,12 @@ export const adminNavigation: AdminNavGroup[] = [
         ],
       },
       {
+        href: "/alerts",
+        label: "Alerts and news",
+        icon: BellRing,
+        description: "Pause alerts, and write notices for students",
+      },
+      {
         href: "/audit-logs",
         label: "Audit logs",
         icon: ScrollText,
@@ -219,7 +226,7 @@ export const adminNavigation: AdminNavGroup[] = [
         href: "/settings",
         label: "Settings",
         icon: Settings,
-        description: "Announcements, email, and system configuration",
+        description: "Email and system configuration",
       },
     ],
   },

@@ -329,17 +329,23 @@ export type AdminNotificationAnnouncementsFilter =
   | "expired"
   | "cancelled";
 
+/** Where tapping a notice goes in the student app. */
+export type AdminNoticeOpens = "home" | "duel" | "plan" | "league" | "streak";
+
 export type AdminNotificationAnnouncement = {
   id: string;
   title: string;
   body: string;
-  deeplink: string | null;
+  opens: string | null;
   priority: AdminNotificationPriority;
   targetAudience: AdminNotificationAudience;
   institutionId: number | null;
   institutionCode: string | null;
   institutionName: string | null;
   verifiedOnly: boolean;
+  /** "Also send as an alert". */
+  sendAsAlert: boolean;
+  alertsQueuedAt: string | null;
   startAt: string;
   expiresAt: string | null;
   cancelledAt: string | null;
@@ -351,6 +357,8 @@ export type AdminNotificationAnnouncement = {
 export type AdminNotificationAnnouncementsList = {
   items: AdminNotificationAnnouncement[];
   pagination: PaginationMeta;
+  /** When the last announcement alert went out. */
+  lastAlertAt: string | null;
 };
 
 export type AdminNotificationAnnouncementMutation = {
@@ -360,13 +368,31 @@ export type AdminNotificationAnnouncementMutation = {
 export type AdminCreateNotificationAnnouncementPayload = {
   title: string;
   body: string;
-  deeplink?: string | null;
-  priority: AdminNotificationPriority;
+  opens?: AdminNoticeOpens | null;
   targetAudience: AdminNotificationAudience;
   institutionCode?: string | null;
   verifiedOnly: boolean;
-  startAt: string;
+  sendAsAlert: boolean;
+  startAt?: string;
   expiresAt?: string | null;
+};
+
+/* ── Alerts on phones and laptops: the pause button ───────────── */
+
+export type AdminAlertPerson = { id: number; name: string } | null;
+
+export type AdminAlertStatus = {
+  paused: { at: string; by: AdminAlertPerson } | null;
+  sentLastHour: number;
+  /** Alerts waiting to go out (held while paused). */
+  waiting: number;
+  failedToday: number;
+  oldestWaitingAt: string | null;
+  newestWaitingAt: string | null;
+  waitingOlderThanHour: number;
+  devicesWithAlerts: number;
+  lastNoticeAlertAt: string | null;
+  history: Array<{ action: "PAUSED" | "RESUMED"; at: string; by: AdminAlertPerson; dropped: number | null }>;
 };
 
 /* ── Institution and subject configuration ────────────────────── */
