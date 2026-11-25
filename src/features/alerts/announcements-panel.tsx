@@ -56,11 +56,24 @@ const OPENS_OPTIONS: Array<{ value: AdminNoticeOpens | "none"; label: string }> 
   { value: "plan", label: "Plan" },
   { value: "league", label: "League" },
   { value: "streak", label: "Streak" },
+  { value: "link", label: "A link" },
   { value: "none", label: "Nothing" },
 ];
 
-function opensLabel(value: string | null) {
+function opensLabel(announcement: AdminNotificationAnnouncement) {
+  if (announcement.opens === "link" && announcement.link) {
+    return `${announcement.link} (button: "${announcement.linkLabel || "Open the link"}")`;
+  }
+  const value = announcement.opens;
   return OPENS_OPTIONS.find((option) => option.value === (value ?? "none"))?.label ?? value ?? "Nothing";
+}
+
+/** A rough check before sending; the server has the final say. */
+function looksLikeLink(value: string) {
+  const link = value.trim();
+  if (!link || /\s/.test(link)) return false;
+  if (link.startsWith("/")) return !link.startsWith("//");
+  return /^(https:\/\/)?[^/]+\.[^/]+/i.test(link);
 }
 
 function toIso(value: string) {
@@ -96,6 +109,8 @@ export function AnnouncementsPanel() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [opens, setOpens] = useState<AdminNoticeOpens | "none">("home");
+  const [link, setLink] = useState("");
+  const [linkLabel, setLinkLabel] = useState("");
   const [board, setBoard] = useState("all");
   const [targetAudience, setTargetAudience] = useState<AdminCreateNotificationAnnouncementPayload["targetAudience"]>("ALL");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
@@ -117,6 +132,8 @@ export function AnnouncementsPanel() {
     setTitle("");
     setBody("");
     setOpens("home");
+    setLink("");
+    setLinkLabel("");
     setBoard("all");
     setTargetAudience("ALL");
     setVerifiedOnly(false);
@@ -136,12 +153,16 @@ export function AnnouncementsPanel() {
       if (Number.isNaN(start.getTime())) throw new Error("Choose a valid start time.");
       if (end && Number.isNaN(end.getTime())) throw new Error("Choose a valid end time.");
       if (end && end.getTime() <= start.getTime()) throw new Error("The end has to be after the start.");
+      if (opens === "link" && !looksLikeLink(link)) {
+        throw new Error("Type a full link like https://whatsapp.com/channel/..., or a StudyBond page like /dashboard/duel.");
+      }
 
       return adminSystemApi.createNotificationAnnouncement(
         {
           title: cleanTitle,
           body: cleanBody,
           opens: opens === "none" ? null : opens,
+          ...(opens === "link" ? { link: link.trim(), linkLabel: linkLabel.trim() || null } : {}),
           targetAudience,
           institutionCode: board === "all" ? null : board,
           verifiedOnly,
@@ -236,6 +257,29 @@ export function AnnouncementsPanel() {
                 disabled={create.isPending}
               />
             </FieldShell>
+            {opens === "link" ? (
+              <>
+                <Field
+                  label="Link"
+                  hint="StudyBond pages open in the app. Other sites open in a new tab."
+                  value={link}
+                  maxLength={500}
+                  inputMode="url"
+                  disabled={create.isPending}
+                  onChange={(event) => setLink(event.target.value)}
+                  placeholder="https://whatsapp.com/channel/..."
+                />
+                <Field
+                  label="Button text"
+                  hint={linkLabel ? `${linkLabel.length}/40` : "Blank means Open the link"}
+                  value={linkLabel}
+                  maxLength={40}
+                  disabled={create.isPending}
+                  onChange={(event) => setLinkLabel(event.target.value)}
+                  placeholder="Join the channel"
+                />
+              </>
+            ) : null}
             <FieldShell label="Who sees it">
               <CustomSelect
                 aria-label="Who sees this notice"
@@ -370,7 +414,7 @@ export function AnnouncementsPanel() {
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">
-                      Created {formatDateTime(announcement.createdAt)} · opens {opensLabel(announcement.opens)}
+                      Created {formatDateTime(announcement.createdAt)} · opens {opensLabel(announcement)}
                     </p>
                     {!announcement.cancelledAt ? (
                       <ConfirmButton
