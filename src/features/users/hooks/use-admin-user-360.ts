@@ -1,7 +1,7 @@
 "use client";
 
 import { adminUsersApi } from "@/lib/api/admin-users";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 export function useAdminUser360(userId?: number, institutionCode?: string) {
   return useQuery({
@@ -9,5 +9,7 @@ export function useAdminUser360(userId?: number, institutionCode?: string) {
     queryFn: () => adminUsersApi.getUser360(userId as number, institutionCode),
     enabled: typeof userId === "number" && userId > 0,
     staleTime: 20_000,
+    /* Switching board keeps the page up while the new board loads. */
+    placeholderData: keepPreviousData,
   });
 }

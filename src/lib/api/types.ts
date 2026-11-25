@@ -114,6 +114,8 @@ export type AdminSystemHealthResponse = JsonResponse<
 
 export type AdminUserListResponse = JsonResponse<"/api/admin/users", "get", 200>;
 export type AdminUser360Response = JsonResponse<"/api/admin/users/{id}/360", "get", 200>;
+/** One live board, with this student's use and premium on it. */
+export type AdminUserBoard = AdminUser360Response["boards"][number];
 export type AdminActionResponse = JsonResponse<"/api/admin/users/{id}/ban", "post", 200>;
 
 export type AdminStepUpRequestResponse = JsonResponse<
@@ -330,13 +332,18 @@ export type AdminNotificationAnnouncementsFilter =
   | "cancelled";
 
 /** Where tapping a notice goes in the student app. */
-export type AdminNoticeOpens = "home" | "duel" | "plan" | "league" | "streak";
+export type AdminNoticeOpens = "home" | "duel" | "plan" | "league" | "streak" | "link";
 
 export type AdminNotificationAnnouncement = {
   id: string;
   title: string;
   body: string;
+  /** A screen name, "link", or null for nowhere. */
   opens: string | null;
+  /** With opens "link": a StudyBond path or an outside https address. */
+  link: string | null;
+  /** The button text for a link; null means "Open the link". */
+  linkLabel: string | null;
   priority: AdminNotificationPriority;
   targetAudience: AdminNotificationAudience;
   institutionId: number | null;
@@ -369,6 +376,9 @@ export type AdminCreateNotificationAnnouncementPayload = {
   title: string;
   body: string;
   opens?: AdminNoticeOpens | null;
+  /** With opens "link". */
+  link?: string;
+  linkLabel?: string | null;
   targetAudience: AdminNotificationAudience;
   institutionCode?: string | null;
   verifiedOnly: boolean;

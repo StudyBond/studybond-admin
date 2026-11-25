@@ -15925,6 +15925,27 @@ export interface paths {
                             } & {
                                 [key: string]: unknown;
                             };
+                            boards: ({
+                                id: number;
+                                code: string;
+                                name: string;
+                                /** @enum {string} */
+                                studentStatus: "HIDDEN" | "COMING_SOON" | "OPEN";
+                                isCurrent: boolean;
+                                hasStudied: boolean;
+                                totalSp: number;
+                                realExamsCompleted: number;
+                                premium: {
+                                    isPremium: boolean;
+                                    /** Format: date-time */
+                                    effectiveEndDate: string | null;
+                                    activeSourceTypes: string[];
+                                } & {
+                                    [key: string]: unknown;
+                                };
+                            } & {
+                                [key: string]: unknown;
+                            })[];
                             user: {
                                 id: number;
                                 email: string;
@@ -15972,11 +15993,25 @@ export interface paths {
                                     endDate: string;
                                     /** Format: date-time */
                                     lastPaymentVerifiedAt: string | null;
+                                    institution: {
+                                        id: number;
+                                        code: string;
+                                        name: string;
+                                    } & {
+                                        [key: string]: unknown;
+                                    };
                                 } & {
                                     [key: string]: unknown;
                                 }) | null;
                                 activeEntitlements: ({
                                     id: string;
+                                    institution: {
+                                        id: number;
+                                        code: string;
+                                        name: string;
+                                    } & {
+                                        [key: string]: unknown;
+                                    };
                                     /** @enum {string} */
                                     kind: "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
                                     /** @enum {string} */
@@ -19403,11 +19438,46 @@ export interface paths {
                                 startDate: string;
                                 /** Format: date-time */
                                 endDate: string;
+                                institution: {
+                                    id: number;
+                                    code: string;
+                                    name: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
                             } & {
                                 [key: string]: unknown;
                             }) | null;
+                            boards: ({
+                                id: number;
+                                code: string;
+                                name: string;
+                                /** @enum {string} */
+                                studentStatus: "HIDDEN" | "COMING_SOON" | "OPEN";
+                                isCurrent: boolean;
+                                hasStudied: boolean;
+                                totalSp: number;
+                                realExamsCompleted: number;
+                                premium: {
+                                    isPremium: boolean;
+                                    /** Format: date-time */
+                                    effectiveEndDate: string | null;
+                                    activeSourceTypes: string[];
+                                } & {
+                                    [key: string]: unknown;
+                                };
+                            } & {
+                                [key: string]: unknown;
+                            })[];
                             entitlements: ({
                                 id: string;
+                                institution: {
+                                    id: number;
+                                    code: string;
+                                    name: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
                                 /** @enum {string} */
                                 kind: "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
                                 /** @enum {string} */
@@ -19727,6 +19797,7 @@ export interface paths {
                         kind: "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
                         durationDays: number;
                         note: string;
+                        institutionCode?: string;
                     };
                 };
             };
@@ -19750,6 +19821,13 @@ export interface paths {
                             };
                             entitlement: {
                                 id: string;
+                                institution: {
+                                    id: number;
+                                    code: string;
+                                    name: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
                                 /** @enum {string} */
                                 kind: "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
                                 /** @enum {string} */
@@ -20047,6 +20125,7 @@ export interface paths {
                         kind: "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
                         durationDays: number;
                         note: string;
+                        institutionCode?: string;
                     };
                 };
             };
@@ -20070,6 +20149,13 @@ export interface paths {
                             };
                             entitlement: {
                                 id: string;
+                                institution: {
+                                    id: number;
+                                    code: string;
+                                    name: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
                                 /** @enum {string} */
                                 kind: "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
                                 /** @enum {string} */
@@ -20364,6 +20450,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         note: string;
+                        institutionCode?: string;
                     };
                 };
             };
@@ -32342,13 +32429,16 @@ export interface paths {
                                     id: string;
                                     title: string;
                                     body: string;
-                                    /** @description Where tapping it goes: home | streak | inbox | duel | duel-review | duel-new | plan | league, plus its fields. */
+                                    /** @description Where tapping it goes: home | streak | inbox | duel | duel-review | duel-new | plan | league | link, plus its fields. */
                                     target: ({
                                         screen: string;
                                     } & {
                                         [key: string]: unknown;
                                     }) | null;
+                                    /** @description A web path, or a full https address for an outside link (target screen "link"). */
                                     url: string | null;
+                                    /** @description Button text for a link; null means "Open the link". */
+                                    linkLabel: string | null;
                                     /** Format: date-time */
                                     createdAt: string;
                                     /** Format: date-time */
@@ -32366,7 +32456,7 @@ export interface paths {
                                     category: string;
                                     title: string;
                                     body: string;
-                                    /** @description Where tapping it goes: home | streak | inbox | duel | duel-review | duel-new | plan | league, plus its fields. */
+                                    /** @description Where tapping it goes: home | streak | inbox | duel | duel-review | duel-new | plan | league | link, plus its fields. */
                                     target: ({
                                         screen: string;
                                     } & {
@@ -32390,13 +32480,16 @@ export interface paths {
                                     id: string;
                                     title: string;
                                     body: string;
-                                    /** @description Where tapping it goes: home | streak | inbox | duel | duel-review | duel-new | plan | league, plus its fields. */
+                                    /** @description Where tapping it goes: home | streak | inbox | duel | duel-review | duel-new | plan | league | link, plus its fields. */
                                     target: ({
                                         screen: string;
                                     } & {
                                         [key: string]: unknown;
                                     }) | null;
+                                    /** @description A web path, or a full https address for an outside link (target screen "link"). */
                                     url: string | null;
+                                    /** @description Button text for a link; null means "Open the link". */
+                                    linkLabel: string | null;
                                     /** Format: date-time */
                                     createdAt: string;
                                     /** Format: date-time */
@@ -36421,7 +36514,11 @@ export interface paths {
                                     id: string;
                                     title: string;
                                     body: string;
+                                    /** @description A screen name, "link", or null for nowhere. */
                                     opens: string | null;
+                                    /** @description With opens "link": a StudyBond path or an outside https address. */
+                                    link: string | null;
+                                    linkLabel: string | null;
                                     priority: string;
                                     targetAudience: string;
                                     institutionId: number | null;
@@ -36715,7 +36812,9 @@ export interface paths {
                         title: string;
                         body: string;
                         /** @enum {string|null} */
-                        opens?: "home" | "duel" | "plan" | "league" | "streak" | null;
+                        opens?: "home" | "duel" | "plan" | "league" | "streak" | "link" | null;
+                        link?: string | null;
+                        linkLabel?: string | null;
                         /**
                          * @default ALL
                          * @enum {string}
@@ -36748,7 +36847,11 @@ export interface paths {
                                     id: string;
                                     title: string;
                                     body: string;
+                                    /** @description A screen name, "link", or null for nowhere. */
                                     opens: string | null;
+                                    /** @description With opens "link": a StudyBond path or an outside https address. */
+                                    link: string | null;
+                                    linkLabel: string | null;
                                     priority: string;
                                     targetAudience: string;
                                     institutionId: number | null;
@@ -37064,7 +37167,11 @@ export interface paths {
                                     id: string;
                                     title: string;
                                     body: string;
+                                    /** @description A screen name, "link", or null for nowhere. */
                                     opens: string | null;
+                                    /** @description With opens "link": a StudyBond path or an outside https address. */
+                                    link: string | null;
+                                    linkLabel: string | null;
                                     priority: string;
                                     targetAudience: string;
                                     institutionId: number | null;

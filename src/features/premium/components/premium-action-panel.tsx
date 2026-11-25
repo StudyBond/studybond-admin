@@ -7,6 +7,8 @@ import { CustomSelect } from "@/components/ui/custom-select";
 import { Field, FieldShell, TextArea } from "@/components/ui/field";
 import { SectionTitle } from "@/components/ui/page-header";
 import { usePremiumMutations } from "@/features/premium/hooks/use-premium-mutations";
+import { boardPremiumLine } from "@/features/users/components/user-boards-list";
+import type { AdminUserBoard } from "@/lib/api/types";
 import { cn } from "@/lib/utils/cn";
 import { Crown, Gift, ShieldCheck, XCircle } from "lucide-react";
 import { useState } from "react";
@@ -46,20 +48,20 @@ const ACTIONS: {
     value: "grant",
     label: "Grant",
     icon: Crown,
-    description: "Give this user premium access for a fixed number of days.",
+    description: "Give premium on this board for a fixed number of days.",
   },
   {
     value: "extend",
     label: "Extend",
     icon: Gift,
-    description: "Add more days on top of the access they already have.",
+    description: "Add more days on top of the premium they have on this board.",
   },
   {
     value: "revoke",
     label: "Revoke",
     icon: XCircle,
     description:
-      "End every admin-granted entitlement now. Paid subscriptions are not affected.",
+      "End the admin grants on this board now. Paid subscriptions are not affected.",
   },
 ];
 
@@ -75,6 +77,8 @@ interface PremiumActionPanelProps {
   userId: number | null;
   userName?: string;
   isPremium: boolean;
+  /** Premium is per board. The admin picks which one the action is for. */
+  boards?: AdminUserBoard[];
   isStepUpActive: boolean;
   stepUpToken: string | null | undefined;
   stepUpRedirectUrl: string;
@@ -83,11 +87,24 @@ interface PremiumActionPanelProps {
 export function PremiumActionPanel({
   userId,
   userName,
-  isPremium,
+  isPremium: isPremiumAnywhere,
+  boards = [],
   isStepUpActive,
   stepUpToken,
   stepUpRedirectUrl,
 }: PremiumActionPanelProps) {
+  const defaultBoard = boards.find((board) => board.isCurrent) ?? boards[0];
+  const [boardCode, setBoardCode] = useState<string | undefined>(
+    defaultBoard?.code,
+  );
+  const selectedBoard =
+    boards.find((board) => board.code === boardCode) ?? defaultBoard;
+  /* Without a board list (older server) fall back to the account view. */
+  const isPremium = selectedBoard
+    ? selectedBoard.premium.isPremium
+    : isPremiumAnywhere;
+  const boardLabel = selectedBoard?.code ?? "";
+
   const [actionType, setActionType] = useState<PremiumActionKind>(
     isPremium ? "extend" : "grant",
   );
@@ -106,6 +123,15 @@ export function PremiumActionPanel({
   const activeAction =
     ACTIONS.find((action) => action.value === actionType) ?? ACTIONS[0];
   const isRevoke = actionType === "revoke";
+
+  function chooseBoard(code: string) {
+    setBoardCode(code);
+    const next = boards.find((board) => board.code === code);
+    /* Grant on a free board, extend on a premium one. Keep revoke if picked. */
+    if (next && actionType !== "revoke") {
+      setActionType(next.premium.isPremium ? "extend" : "grant");
+    }
+  }
 
   const days = Number.parseInt(durationDays, 10);
   const hasValidDuration = Number.isFinite(days) && days > 0;
@@ -133,7 +159,10 @@ export function PremiumActionPanel({
     const trimmedNote = note.trim();
 
     if (isRevoke) {
-      revokeMutation.mutate({ note: trimmedNote });
+      revokeMutation.mutate({
+        note: trimmedNote,
+        institutionCode: selectedBoard?.code,
+      });
       return;
     }
 
@@ -145,6 +174,7 @@ export function PremiumActionPanel({
       kind: entitlementKind,
       durationDays: days,
       note: trimmedNote,
+      institutionCode: selectedBoard?.code,
     };
 
     if (actionType === "grant") {
@@ -163,14 +193,44 @@ export function PremiumActionPanel({
         }
         action={
           isPremium ? (
-            <Badge tone="premium">Has premium</Badge>
+            <Badge tone="premium">
+              {boardLabel ? `${boardLabel} premium` : "Has premium"}
+            </Badge>
           ) : (
-            <Badge tone="neutral">Free</Badge>
+            <Badge tone="neutral">
+              {boardLabel ? `Free on ${boardLabel}` : "Free"}
+            </Badge>
           )
         }
       />
 
       <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+        {/* ── Which board ──────────────────────────────────── */}
+        {boards.length ? (
+          <div className="mb-4">
+            <FieldShell label="Board">
+              <CustomSelect
+                aria-label="Board"
+                value={selectedBoard?.code ?? ""}
+                onValueChange={chooseBoard}
+                options={boards.map((board) => ({
+                  value: board.code,
+                  label: `${board.code} — ${board.name}${
+                    board.isCurrent ? " (on it now)" : ""
+                  }`,
+                  hint: boardPremiumLine(board),
+                }))}
+              />
+              {/* The menu's hints don't show once it closes. */}
+              {selectedBoard ? (
+                <p className="mt-1.5 text-[length:var(--sb-text-xs)] text-[var(--sb-text-secondary)]">
+                  {boardPremiumLine(selectedBoard)}
+                </p>
+              ) : null}
+            </FieldShell>
+          </div>
+        ) : null}
+
         {/* ── Which action ─────────────────────────────────── */}
         <div
           role="group"
@@ -284,13 +344,17 @@ export function PremiumActionPanel({
             <ConfirmButton
               variant="danger"
               className="w-full"
-              confirmLabel="Yes, revoke all entitlements"
+              confirmLabel={
+                boardLabel
+                  ? `Yes, end the ${boardLabel} grants`
+                  : "Yes, revoke all entitlements"
+              }
               onConfirm={handleSubmit}
               disabled={!canSubmit}
               isLoading={isPending}
               icon={<XCircle className="h-4 w-4" />}
             >
-              Revoke premium
+              {boardLabel ? `Revoke ${boardLabel} premium` : "Revoke premium"}
             </ConfirmButton>
           ) : (
             <Button
@@ -302,8 +366,12 @@ export function PremiumActionPanel({
             >
               {!isPending ? <activeAction.icon className="h-4 w-4" /> : null}
               {actionType === "grant"
-                ? `Grant ${hasValidDuration ? days : "—"} days`
-                : `Extend by ${hasValidDuration ? days : "—"} days`}
+                ? `Grant ${hasValidDuration ? days : "—"} days${
+                    boardLabel ? ` of ${boardLabel}` : ""
+                  }`
+                : `Extend ${boardLabel ? `${boardLabel} ` : ""}by ${
+                    hasValidDuration ? days : "—"
+                  } days`}
             </Button>
           )}
 

@@ -11,6 +11,7 @@ import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { PremiumActionPanel } from "@/features/premium/components/premium-action-panel";
 import { usePremiumHistory } from "@/features/premium/hooks/use-premium-history";
+import { UserBoardsList } from "@/features/users/components/user-boards-list";
 import { formatDate, formatDateTime, formatInteger } from "@/lib/utils/format";
 import { ArrowLeft, Crown } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -77,6 +78,8 @@ export default function UserPremiumPage() {
   }
 
   const sourceCount = history?.currentAccess.activeSourceTypes.length ?? 0;
+  const boards = history?.boards ?? [];
+  const premiumBoards = boards.filter((board) => board.premium.isPremium);
 
   return (
     <div className="sb-enter space-y-6 pb-2">
@@ -86,7 +89,11 @@ export default function UserPremiumPage() {
         meta={
           history ? (
             history.currentAccess.isPremium ? (
-              <Badge tone="premium">Has premium</Badge>
+              <Badge tone="premium">
+                {premiumBoards.length
+                  ? `Premium on ${premiumBoards.map((board) => board.code).join(", ")}`
+                  : "Has premium"}
+              </Badge>
             ) : (
               <Badge tone="neutral">No premium access</Badge>
             )
@@ -159,10 +166,21 @@ export default function UserPremiumPage() {
             userId={userId}
             userName={history.user.fullName}
             isPremium={history.currentAccess.isPremium}
+            boards={boards}
             isStepUpActive={isStepUpActive}
             stepUpToken={stepUp?.stepUpToken}
             stepUpRedirectUrl={`/users/${userId}/premium`}
           />
+
+          <section className="min-w-0 space-y-3">
+            <SectionTitle
+              title="Premium by board"
+              description="Premium is sold and granted per board."
+            />
+            <div className="rounded-[var(--sb-radius-lg)] border border-[var(--sb-border)] bg-[var(--sb-surface-1)] p-4 sm:p-5">
+              <UserBoardsList boards={boards} />
+            </div>
+          </section>
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
             {/* ── Paid subscription ─────────────────────────── */}
@@ -179,6 +197,7 @@ export default function UserPremiumPage() {
                         Plan
                       </p>
                       <p className="mt-1 text-[length:var(--sb-text-sm)] font-medium text-[var(--sb-text)]">
+                        {history.subscription.institution.code} ·{" "}
                         {history.subscription.provider} ·{" "}
                         {history.subscription.planType}
                       </p>
@@ -245,6 +264,7 @@ export default function UserPremiumPage() {
                           >
                             {entry.status}
                           </Badge>
+                          <Badge tone="brand">{entry.institution.code}</Badge>
                           <Badge tone="neutral">{entry.kind}</Badge>
                         </div>
                         <p className="text-[length:var(--sb-text-xs)] text-[var(--sb-text-tertiary)]">

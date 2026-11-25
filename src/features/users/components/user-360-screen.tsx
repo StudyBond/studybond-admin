@@ -13,6 +13,7 @@ import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { useAdminSession } from "@/features/admin-auth/hooks/use-admin-session";
 import { useAdminStepUp } from "@/features/admin-auth/hooks/use-admin-step-up";
 import { PremiumActionPanel } from "@/features/premium/components/premium-action-panel";
+import { UserBoardsList } from "@/features/users/components/user-boards-list";
 import { useAdminUser360 } from "@/features/users/hooks/use-admin-user-360";
 import { adminUsersApi } from "@/lib/api/admin-users";
 import {
@@ -119,8 +120,12 @@ export function User360Screen() {
   const queryClient = useQueryClient();
   const sessionQuery = useAdminSession();
   const { isActive: isStepUpActive, stepUp } = useAdminStepUp();
+  /* Exams, SP and bookmarks are kept per board. Undefined = the board the
+     student is on now. */
+  const [viewBoardCode, setViewBoardCode] = useState<string | undefined>();
   const userQuery = useAdminUser360(
     Number.isFinite(userId) ? userId : undefined,
+    viewBoardCode,
   );
   const user360 = userQuery.data;
   const isSuperadmin = sessionQuery.data?.user?.role === "SUPERADMIN";
@@ -221,7 +226,7 @@ export function User360Screen() {
     onError: mutationErrorHandler("Could not demote this account"),
   });
 
-  if (userQuery.isLoading) {
+  if (userQuery.isLoading && !user360) {
     return (
       <div className="space-y-6">
         <PageHeader title="User" description="Loading this account…" />
@@ -249,6 +254,9 @@ export function User360Screen() {
   }
 
   const { user, premium, engagement, security, recent, institution } = user360;
+  const boards = user360.boards ?? [];
+  const currentBoard = boards.find((board) => board.isCurrent);
+  const premiumBoards = boards.filter((board) => board.premium.isPremium);
   const isBanned = user.isBanned;
   const isBusy = banMutation.isPending || unbanMutation.isPending;
   // Only superadmins can open admin accounts. An admin is demoted before they
@@ -274,11 +282,19 @@ export function User360Screen() {
                 Banned
               </Badge>
             ) : null}
-            {premium.isPremium ? <Badge tone="premium">Premium</Badge> : null}
+            {premiumBoards.length ? (
+              <Badge tone="premium">
+                Premium on {premiumBoards.map((board) => board.code).join(", ")}
+              </Badge>
+            ) : premium.isPremium ? (
+              <Badge tone="premium">Premium</Badge>
+            ) : null}
             {!user.isVerified ? (
               <Badge tone="warning">Email not verified</Badge>
             ) : null}
-            <Badge tone="neutral">{institution.code}</Badge>
+            <Badge tone="neutral">
+              On {currentBoard?.code ?? institution.code}
+            </Badge>
             <Badge tone="neutral">Joined {formatDate(user.createdAt)}</Badge>
           </>
         }
@@ -317,8 +333,10 @@ export function User360Screen() {
           label="Premium"
           value={premium.isPremium ? "Active" : "Free"}
           hint={
-            premium.coverage.activeSourceTypes.join(", ") ||
-            "No premium source"
+            premiumBoards.length
+              ? `On ${premiumBoards.map((board) => board.code).join(", ")}`
+              : premium.coverage.activeSourceTypes.join(", ") ||
+                "No premium on any board"
           }
         />
         <StatCard
@@ -338,6 +356,21 @@ export function User360Screen() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         {/* ══ Left: who they are and what they have done ══════ */}
         <div className="min-w-0 space-y-6">
+          <Panel
+            title="Boards"
+            description="The board they are on, where they have studied, and premium on each. Premium is per board."
+          >
+            <UserBoardsList
+              boards={boards}
+              viewingCode={institution.code}
+              onView={(code) =>
+                setViewBoardCode(
+                  code === currentBoard?.code ? undefined : code,
+                )
+              }
+            />
+          </Panel>
+
           <Panel title="Profile">
             <div className="grid gap-2.5 sm:grid-cols-2">
               <Fact
@@ -368,7 +401,7 @@ export function User360Screen() {
 
           <Panel
             title="Study footprint"
-            description="What this account has done on the platform."
+            description={`What this account has done on ${institution.code}. SP and exams are per board; the streak is shared.`}
           >
             <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
               <Fact label="Total SP" value={formatInteger(engagement.totalSp)} />
@@ -412,7 +445,7 @@ export function User360Screen() {
 
           <Panel
             title="Recent exams"
-            description="Newest first, within this institution."
+            description={`Newest first, on ${institution.code}.`}
           >
             {recent.exams.length ? (
               <ul className="space-y-2.5">
@@ -453,7 +486,7 @@ export function User360Screen() {
                 ))}
               </ul>
             ) : (
-              <NoneYet>No exams in this institution scope.</NoneYet>
+              <NoneYet>No exams on {institution.code}.</NoneYet>
             )}
           </Panel>
 
@@ -515,6 +548,7 @@ export function User360Screen() {
         <div className="min-w-0 space-y-6">
           <Panel
             title="Premium coverage"
+            description="The whole account: premium on any board. See Boards for each one."
             action={
               premium.isPremium ? (
                 <Badge tone="premium">Active</Badge>
@@ -566,6 +600,7 @@ export function User360Screen() {
               userId={userId}
               userName={user.fullName}
               isPremium={premium.isPremium}
+              boards={boards}
               isStepUpActive={isStepUpActive}
               stepUpToken={stepUp?.stepUpToken}
               stepUpRedirectUrl={`/users/${userId}`}

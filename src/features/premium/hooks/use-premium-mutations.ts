@@ -12,10 +12,12 @@ interface GrantPayload {
   kind: EntitlementKind;
   durationDays: number;
   note: string;
+  institutionCode?: string;
 }
 
 interface RevokePayload {
   note: string;
+  institutionCode?: string;
 }
 
 interface UsePremiumMutationsOptions {

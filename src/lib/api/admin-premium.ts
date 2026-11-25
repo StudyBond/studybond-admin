@@ -58,6 +58,8 @@ export const adminPremiumApi = {
       kind: "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
       durationDays: number;
       note: string;
+      /** The board the premium is for. Missing = the board they are on. */
+      institutionCode?: string;
     },
     headers?: SensitiveHeadersOptions,
   ) {
@@ -73,6 +75,8 @@ export const adminPremiumApi = {
       kind: "MANUAL" | "PROMOTIONAL" | "CORRECTIVE";
       durationDays: number;
       note: string;
+      /** The board the premium is for. Missing = the board they are on. */
+      institutionCode?: string;
     },
     headers?: SensitiveHeadersOptions,
   ) {
@@ -84,7 +88,8 @@ export const adminPremiumApi = {
   },
   revokePremium(
     userId: number,
-    payload: { note: string },
+    /** institutionCode: only that board's grants. Missing = every board. */
+    payload: { note: string; institutionCode?: string },
     headers?: SensitiveHeadersOptions,
   ) {
     return apiClient<PremiumRevokeMutationResponse>(`/api/admin/users/${userId}/premium/revoke`, {
